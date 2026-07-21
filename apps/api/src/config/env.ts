@@ -5,6 +5,13 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().url(),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  MAGIC_LINK_SECRET: z.string().min(32),
+  MFA_ENCRYPTION_KEY: z
+    .string()
+    .base64()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "must decode to 32 bytes"),
 });
 
 export type Env = z.infer<typeof envSchema>;

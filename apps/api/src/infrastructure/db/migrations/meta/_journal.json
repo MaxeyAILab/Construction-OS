@@ -22,6 +22,13 @@
       "when": 1784643118455,
       "tag": "0002_rls_and_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784647483022,
+      "tag": "0003_user_company_lookup",
+      "breakpoints": true
     }
   ]
 }

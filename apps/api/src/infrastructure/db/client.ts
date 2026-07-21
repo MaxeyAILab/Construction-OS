@@ -7,6 +7,8 @@ import * as schema from "./schema/index";
 
 const tenantIdSchema = z.string().uuid();
 
+export const DATABASE = Symbol("DATABASE");
+
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
 export function createDatabase(env: Pick<Env, "DATABASE_URL">) {

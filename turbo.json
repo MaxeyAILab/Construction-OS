@@ -1,7 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalEnv": ["NODE_ENV", "DATABASE_URL", "EXPO_OFFLINE"],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "REDIS_URL", "EXPO_OFFLINE"],
   "globalDependencies": [".env"],
   "tasks": {
     "build": {
