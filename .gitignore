@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# expo / mobile
+apps/mobile/.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# test coverage
+coverage/

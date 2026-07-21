@@ -1,0 +1,23 @@
+{
+  "name": "@constructionos/config",
+  "private": true,
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "files": [
+    "base",
+    "eslint"
+  ],
+  "exports": {
+    "./tsconfig/base.json": "./base/tsconfig.base.json",
+    "./tsconfig/nestjs.json": "./base/tsconfig.nestjs.json",
+    "./tsconfig/nextjs.json": "./base/tsconfig.nextjs.json",
+    "./tsconfig/react-native.json": "./base/tsconfig.react-native.json",
+    "./eslint": "./eslint/index.mjs"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "typescript-eslint": "^8.20.0"
+  }
+}

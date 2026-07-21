@@ -1,0 +1,29 @@
+{
+  "name": "@constructionos/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "main": "index.js",
+  "scripts": {
+    "dev": "expo start",
+    "build": "expo export --platform android --platform ios --clear",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.26.0",
+    "@constructionos/schemas": "workspace:*",
+    "@constructionos/sync": "workspace:*",
+    "expo": "~52.0.23",
+    "expo-asset": "~11.0.5",
+    "expo-sqlite": "~15.0.3",
+    "expo-status-bar": "~2.0.1",
+    "react": "^19.0.0",
+    "react-native": "^0.76.6"
+  },
+  "devDependencies": {
+    "@constructionos/config": "workspace:*",
+    "@types/react": "^19.0.7",
+    "typescript": "^5.7.3"
+  }
+}

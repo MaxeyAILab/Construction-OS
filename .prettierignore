@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+.turbo
+pnpm-lock.yaml
+apps/mobile/.expo
+
+# Project specification documents (source of truth, CLAUDE.md) — never
+# auto-reformatted; edits are deliberate amendments, not style passes.
+/*.md
+

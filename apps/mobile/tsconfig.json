@@ -1,0 +1,10 @@
+{
+  "extends": "@constructionos/config/tsconfig/react-native.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "App.tsx"]
+}

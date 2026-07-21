@@ -1,0 +1,32 @@
+{
+  "name": "constructionos",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "db:generate": "pnpm --filter @constructionos/api db:generate",
+    "db:migrate": "pnpm --filter @constructionos/api db:migrate"
+  },
+  "devDependencies": {
+    "@constructionos/config": "workspace:*",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  }
+}

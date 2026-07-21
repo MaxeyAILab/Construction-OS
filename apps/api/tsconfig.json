@@ -1,0 +1,9 @@
+{
+  "extends": "@constructionos/config/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "baseUrl": "./"
+  },
+  "include": ["src"]
+}

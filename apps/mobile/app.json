@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "ConstructionOS",
+    "slug": "constructionos",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0B1220"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.constructionos.app"
+    },
+    "android": {
+      "package": "com.constructionos.app"
+    }
+  }
+}
