@@ -53,15 +53,18 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Runs before Test: the tenant-isolation integration suite needs the
+      # schema to already exist, and this doubles as the migration dry-run
+      # (architecture.md §19) since it's the same apply-cleanly check.
+      - name: Migrate
+        run: pnpm db:migrate
+        working-directory: apps/api
+
       - name: Test
         run: pnpm test
 
       - name: Build
         run: pnpm build
-
-      - name: Migration dry-run
-        run: pnpm db:migrate
-        working-directory: apps/api
 
   # Staging/prod deploy (canary 5% → 50% → 100%, arch.md §19) is wired once
   # Terraform-provisioned infra and its secrets (KUBE_CONFIG, registry creds)

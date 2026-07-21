@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { z } from "zod";
-import type { Env } from "../../config/env.js";
-import * as schema from "./schema/index.js";
+import type { Env } from "../../config/env";
+import * as schema from "./schema/index";
 
 const tenantIdSchema = z.string().uuid();
 

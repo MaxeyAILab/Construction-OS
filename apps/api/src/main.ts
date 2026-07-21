@@ -2,8 +2,8 @@ import "reflect-metadata";
 import helmet from "@fastify/helmet";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
-import { AppModule } from "./app.module.js";
-import { loadEnv } from "./config/env.js";
+import { AppModule } from "./app.module";
+import { loadEnv } from "./config/env";
 
 async function bootstrap() {
   const env = loadEnv();

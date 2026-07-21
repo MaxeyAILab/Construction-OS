@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HealthController } from "../src/platform/health/health.controller.js";
+import { HealthController } from "../src/platform/health/health.controller";
 
 describe("HealthController", () => {
   it("reports ok status", () => {

@@ -3,6 +3,7 @@ create extension if not exists pgcrypto;
 create extension if not exists vector;
 create extension if not exists pg_trgm;
 create extension if not exists btree_gin;
+create extension if not exists citext;
 
 -- Postgres 16 has no native uuidv7(); this derives a time-ordered UUID from a
 -- random v4 (for entropy/variant bits) by overlaying a millisecond timestamp

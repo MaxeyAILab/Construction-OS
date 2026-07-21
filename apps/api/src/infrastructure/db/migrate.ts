@@ -2,7 +2,7 @@ import path from "node:path";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { loadEnv } from "../../config/env.js";
+import { loadEnv } from "../../config/env";
 
 async function main() {
   const env = loadEnv();

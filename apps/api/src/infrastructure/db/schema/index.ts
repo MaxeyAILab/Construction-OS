@@ -1,3 +1,7 @@
 // Per-module schema files register their tables here as they're built
-// (database.md §3). Empty until the multi-tenant core migration lands.
-export {};
+// (database.md §3).
+export * from "./companies";
+export * from "./users";
+export * from "./company_users";
+export * from "./roles";
+export * from "./sessions";
