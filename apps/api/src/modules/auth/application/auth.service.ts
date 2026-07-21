@@ -88,14 +88,12 @@ export class AuthService {
         .values({ tenantId: company!.id, name: "Owner", isSystem: true })
         .returning();
       await tx.insert(companyUsers).values({ tenantId: company!.id, userId: user!.id });
-      await tx
-        .insert(userRoles)
-        .values({
-          tenantId: company!.id,
-          userId: user!.id,
-          roleId: ownerRole!.id,
-          scopeType: "company",
-        });
+      await tx.insert(userRoles).values({
+        tenantId: company!.id,
+        userId: user!.id,
+        roleId: ownerRole!.id,
+        scopeType: "company",
+      });
 
       return this.issueSession(tx, user!.id, company!.id, ["Owner"], device);
     });

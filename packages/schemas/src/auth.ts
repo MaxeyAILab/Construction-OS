@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidSchema } from "./common.js";
+import { uuidSchema } from "./common";
 
 export const signUpSchema = z.object({
   email: z.string().email(),

@@ -1,4 +1,13 @@
-import { Body, Controller, Post, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from "@nestjs/common";
 import {
   loginSchema,
   magicLinkConsumeSchema,
@@ -19,8 +28,9 @@ import { AccessTokenGuard, type AuthenticatedRequest } from "./access-token.guar
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  @Post("signup")
-  signUp(
+  // api.md §2: POST /auth/register — "Create company + owner account".
+  @Post("register")
+  register(
     @Body(new ZodValidationPipe(signUpSchema)) body: z.infer<typeof signUpSchema>,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -43,13 +53,14 @@ export class AuthController {
     return this.auth.refresh(body.refreshToken, this.deviceContext(req));
   }
 
+  // api.md §2: POST /auth/logout — "Revoke session family" — 204.
   @Post("logout")
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessTokenGuard)
-  async logout(@Req() req: AuthenticatedRequest) {
+  async logout(@Req() req: AuthenticatedRequest): Promise<void> {
     const auth = req.auth;
     if (!auth) throw new UnauthorizedException();
     await this.auth.logout(auth.tenantId, auth.sessionId, auth.jti, new Date());
-    return { success: true };
   }
 
   @Post("mfa/enroll")
@@ -68,7 +79,11 @@ export class AuthController {
     return { success: true };
   }
 
-  @Post("magic-link/request")
+  // api.md §2: POST /auth/magic-link — "Client/external low-friction login".
+  // The documented table lists one path for the whole flow; split here into
+  // request (send) + verify (consume) since those are two distinct calls —
+  // named to match the /auth/mfa/verify convention.
+  @Post("magic-link")
   async requestMagicLink(
     @Body(new ZodValidationPipe(magicLinkRequestSchema))
     body: z.infer<typeof magicLinkRequestSchema>,
@@ -79,7 +94,7 @@ export class AuthController {
     return { token };
   }
 
-  @Post("magic-link/consume")
+  @Post("magic-link/verify")
   consumeMagicLink(
     @Body(new ZodValidationPipe(magicLinkConsumeSchema))
     body: z.infer<typeof magicLinkConsumeSchema>,

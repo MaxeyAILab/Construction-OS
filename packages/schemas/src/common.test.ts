@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moneyAmountSchema, quantitySchema, uuidSchema } from "./common.js";
+import { moneyAmountSchema, quantitySchema, uuidSchema } from "./common";
 
 describe("moneyAmountSchema", () => {
   it("accepts exact 2-decimal strings", () => {
