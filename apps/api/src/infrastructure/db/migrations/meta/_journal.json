@@ -29,6 +29,13 @@
       "when": 1784647483022,
       "tag": "0003_user_company_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784649480494,
+      "tag": "0004_seed_permissions",
+      "breakpoints": true
     }
   ]
 }

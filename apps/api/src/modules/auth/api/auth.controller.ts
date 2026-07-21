@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-  UnauthorizedException,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, Req } from "@nestjs/common";
 import {
   loginSchema,
   magicLinkConsumeSchema,
@@ -17,12 +8,14 @@ import {
   signUpSchema,
 } from "@constructionos/schemas";
 import type { z } from "zod";
+import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
+import { Public } from "../../../platform/decorators/public.decorator";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 // AuthService import must stay a real (non-type-only) import: NestJS
 // constructor injection resolves it via emitDecoratorMetadata, which needs
 // the actual class reference at runtime.
 import { AuthService, type DeviceContext } from "../application/auth.service";
-import { AccessTokenGuard, type AuthenticatedRequest } from "./access-token.guard";
+import type { AuthenticatedRequest } from "./access-token.guard";
 
 @Controller("auth")
 export class AuthController {
@@ -30,6 +23,7 @@ export class AuthController {
 
   // api.md §2: POST /auth/register — "Create company + owner account".
   @Post("register")
+  @Public()
   register(
     @Body(new ZodValidationPipe(signUpSchema)) body: z.infer<typeof signUpSchema>,
     @Req() req: AuthenticatedRequest,
@@ -38,6 +32,7 @@ export class AuthController {
   }
 
   @Post("login")
+  @Public()
   login(
     @Body(new ZodValidationPipe(loginSchema)) body: z.infer<typeof loginSchema>,
     @Req() req: AuthenticatedRequest,
@@ -46,6 +41,7 @@ export class AuthController {
   }
 
   @Post("refresh")
+  @Public()
   refresh(
     @Body(new ZodValidationPipe(refreshSchema)) body: z.infer<typeof refreshSchema>,
     @Req() req: AuthenticatedRequest,
@@ -56,21 +52,20 @@ export class AuthController {
   // api.md §2: POST /auth/logout — "Revoke session family" — 204.
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AccessTokenGuard)
+  @Authenticated()
   async logout(@Req() req: AuthenticatedRequest): Promise<void> {
-    const auth = req.auth;
-    if (!auth) throw new UnauthorizedException();
+    const auth = req.auth!;
     await this.auth.logout(auth.tenantId, auth.sessionId, auth.jti, new Date());
   }
 
   @Post("mfa/enroll")
-  @UseGuards(AccessTokenGuard)
+  @Authenticated()
   startMfaEnrollment(@Req() req: AuthenticatedRequest) {
     return this.auth.startMfaEnrollment(req.auth!.sub);
   }
 
   @Post("mfa/confirm")
-  @UseGuards(AccessTokenGuard)
+  @Authenticated()
   async confirmMfaEnrollment(
     @Body(new ZodValidationPipe(mfaConfirmSchema)) body: z.infer<typeof mfaConfirmSchema>,
     @Req() req: AuthenticatedRequest,
@@ -84,6 +79,7 @@ export class AuthController {
   // request (send) + verify (consume) since those are two distinct calls —
   // named to match the /auth/mfa/verify convention.
   @Post("magic-link")
+  @Public()
   async requestMagicLink(
     @Body(new ZodValidationPipe(magicLinkRequestSchema))
     body: z.infer<typeof magicLinkRequestSchema>,
@@ -95,6 +91,7 @@ export class AuthController {
   }
 
   @Post("magic-link/verify")
+  @Public()
   consumeMagicLink(
     @Body(new ZodValidationPipe(magicLinkConsumeSchema))
     body: z.infer<typeof magicLinkConsumeSchema>,

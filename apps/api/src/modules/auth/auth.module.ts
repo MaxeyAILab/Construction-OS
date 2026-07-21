@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
@@ -30,6 +31,7 @@ const env = loadEnv();
     TotpService,
     SessionDenylistService,
     AccessTokenGuard,
+    { provide: APP_GUARD, useClass: AccessTokenGuard },
     AuthService,
   ],
   exports: [AuthService],

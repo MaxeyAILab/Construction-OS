@@ -7,6 +7,8 @@ import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/
 import {
   companies,
   companyUsers,
+  permissions,
+  rolePermissions,
   roles,
   sessions,
   userRoles,
@@ -82,6 +84,11 @@ export class AuthService {
       .values({ name: input.companyName, slug: this.slugify(input.companyName) })
       .returning();
 
+    // Owner gets every permission in the catalog — it's the only role that
+    // exists at signup, and nobody could otherwise call any RBAC-gated
+    // endpoint (including the ones that create further roles).
+    const catalog = await this.db.select({ key: permissions.key }).from(permissions);
+
     const session = await withTenant(this.db, company!.id, async (tx) => {
       const [ownerRole] = await tx
         .insert(roles)
@@ -94,6 +101,17 @@ export class AuthService {
         roleId: ownerRole!.id,
         scopeType: "company",
       });
+      if (catalog.length > 0) {
+        await tx
+          .insert(rolePermissions)
+          .values(
+            catalog.map((p) => ({
+              tenantId: company!.id,
+              roleId: ownerRole!.id,
+              permissionKey: p.key,
+            })),
+          );
+      }
 
       return this.issueSession(tx, user!.id, company!.id, ["Owner"], device);
     });
