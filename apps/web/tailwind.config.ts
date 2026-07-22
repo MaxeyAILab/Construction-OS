@@ -1,11 +1,10 @@
 import type { Config } from "tailwindcss";
+import uiPreset from "@constructionos/ui/tailwind-preset";
 
-// Design tokens (ui-design-system.md §2) land with the design-system-v1
-// workstream; this config extends as those tokens are defined.
 export default {
-  content: ["./src/**/*.{ts,tsx}"],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
+  presets: [uiPreset as Partial<Config>],
+  content: [
+    "./src/**/*.{ts,tsx}",
+    "../../packages/ui/src/**/*.{ts,tsx}",
+  ],
 } satisfies Config;

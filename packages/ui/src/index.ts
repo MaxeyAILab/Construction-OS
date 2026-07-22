@@ -1,4 +1,32 @@
-// Design system v1 (tokens + core components, ui-design-system.md §2-3) lands
-// as its own Phase 1A workstream. This package boundary exists now so
-// apps/web can depend on it from day one.
-export {};
+// Design system v1 (tokens + core components, ui-design-system.md §2-3).
+export * from "./tokens";
+export * from "./lib/cn";
+export * from "./theme/theme-provider";
+
+export * from "./components/button";
+export * from "./components/label";
+export * from "./components/field";
+export * from "./components/input";
+export * from "./components/number-input";
+export * from "./components/currency-input";
+export * from "./components/textarea";
+export * from "./components/checkbox";
+export * from "./components/radio-group";
+export * from "./components/switch";
+export * from "./components/select";
+export * from "./components/combobox";
+export * from "./components/card";
+export * from "./components/metric-card";
+export * from "./components/dialog";
+export * from "./components/drawer";
+export * from "./components/tabs";
+export * from "./components/tooltip";
+export * from "./components/avatar";
+export * from "./components/toast";
+export * from "./components/use-toast";
+export * from "./components/toaster";
+export * from "./components/table";
+export * from "./components/status-chip";
+export * from "./components/skeleton";
+export * from "./components/empty-state";
+export * from "./components/error-state";

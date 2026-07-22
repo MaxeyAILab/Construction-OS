@@ -1,0 +1,136 @@
+/*
+ * Design tokens as CSS custom properties (ui-design-system.md §2).
+ * Mirrors tokens.ts — keep both in sync when changing a value.
+ *
+ * Theme resolution (§5.1, "system-follow default, manual override"):
+ * light values live on :root; the prefers-color-scheme media query
+ * supplies the dark values when the OS is dark and no explicit choice has
+ * been made; [data-theme="dark"|"light"] on the root element (set by
+ * ThemeProvider) always wins over the media query in both directions.
+ */
+
+:root {
+  /* Neutral — "Concrete" scale */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f7f7f6;
+  --color-neutral-100: #f0f0ee;
+  --color-neutral-200: #e4e4e1;
+  --color-neutral-300: #cfcfca;
+  --color-neutral-500: #8a8a84;
+  --color-neutral-700: #4a4a46;
+  --color-neutral-900: #1c1c1a;
+
+  /* Brand — "Safety Blue" */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  /* The one accent actually used for primary actions/focus/active nav. */
+  --color-brand-solid: var(--color-brand-600);
+
+  /* Semantic */
+  --color-success-50: #f0fdf4;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-warning-50: #fffbeb;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-danger-50: #fef2f2;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-ai-50: #f5f3ff;
+  --color-ai-600: #7c3aed;
+  --color-ai-700: #6d28d9;
+
+  /* Typography */
+  --font-sans:
+    InterVariable, Inter, sans-serif;
+  --font-display:
+    "Inter Display", InterVariable, Inter, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Elevation — shadows are physical and subtle; dark mode replaces these
+     with surface-lightening instead (see the dark block below). */
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.05);
+  --elevation-2: 0 4px 12px rgb(0 0 0 / 0.08);
+  --elevation-3: 0 12px 32px rgb(0 0 0 / 0.14);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 150ms;
+  --duration-slow: 240ms;
+  --easing-swift-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-neutral-0: #0e0f11;
+    --color-neutral-50: #16181b;
+    --color-neutral-100: #1d2024;
+    --color-neutral-200: #26292e;
+    --color-neutral-300: #33373d;
+    --color-neutral-500: #7a7f87;
+    --color-neutral-700: #b6bbc2;
+    --color-neutral-900: #edeff2;
+
+    /* Brand desaturated one step in dark mode (§5.1). */
+    --color-brand-solid: var(--color-brand-500);
+
+    /* Elevation = surface lightening; shadows are nearly invisible by
+       design, so they're left as-is and surfaces do the work instead. */
+    --elevation-1: 0 1px 2px rgb(0 0 0 / 0.24);
+    --elevation-2: 0 4px 12px rgb(0 0 0 / 0.32);
+    --elevation-3: 0 12px 32px rgb(0 0 0 / 0.4);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-neutral-0: #0e0f11;
+  --color-neutral-50: #16181b;
+  --color-neutral-100: #1d2024;
+  --color-neutral-200: #26292e;
+  --color-neutral-300: #33373d;
+  --color-neutral-500: #7a7f87;
+  --color-neutral-700: #b6bbc2;
+  --color-neutral-900: #edeff2;
+
+  --color-brand-solid: var(--color-brand-500);
+
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.24);
+  --elevation-2: 0 4px 12px rgb(0 0 0 / 0.32);
+  --elevation-3: 0 12px 32px rgb(0 0 0 / 0.4);
+
+  color-scheme: dark;
+}
+
+/* Field High-Contrast mode (§2.1, §5.1) — third scheme, opt-in via
+   data-theme="high-contrast" (auto-suggested on mobile by an ambient-light
+   check that's out of scope for this web-first pass). */
+:root[data-theme="high-contrast"] {
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #ffffff;
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #000000;
+  --color-neutral-300: #8a8a84;
+  --color-neutral-500: #4a4a46;
+  --color-neutral-700: #1c1c1a;
+  --color-neutral-900: #000000;
+  --color-brand-solid: var(--color-brand-700);
+  color-scheme: light;
+}

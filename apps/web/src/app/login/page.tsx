@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, Card, ErrorState, Field, Input } from "@constructionos/ui";
 import { apiClient, ApiError } from "../../lib/api-client";
 import { saveSession } from "../../lib/session";
 
@@ -26,41 +27,47 @@ export default function LoginPage() {
       saveSession(session.accessToken, session.refreshToken);
       router.push("/admin/roles");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "login failed");
+      setError(err instanceof ApiError ? err.message : "Login failed");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-4">
-      <h1 className="text-xl font-semibold">Sign in</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded border border-gray-300 px-3 py-2"
-        />
-        <input
-          type="password"
-          required
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded border border-gray-300 px-3 py-2"
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-blue-600 px-3 py-2 text-white disabled:opacity-50"
-        >
-          {submitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
+      <Card padding="lg" className="flex flex-col gap-5">
+        <h1 className="text-xl font-semibold text-neutral-900">Sign in</h1>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Email">
+            {({ inputId }) => (
+              <Input
+                id={inputId}
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Password">
+            {({ inputId }) => (
+              <Input
+                id={inputId}
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            )}
+          </Field>
+          {error && <ErrorState variant="inline" message={error} />}
+          <Button type="submit" loading={submitting}>
+            Sign in
+          </Button>
+        </form>
+      </Card>
     </main>
   );
 }

@@ -37,6 +37,29 @@ export const base = tseslint.config(
   },
 );
 
+// CLAUDE.md: "Design tokens only: no raw hex/px values in components"
+// (ui-design-system.md §2); §10's governance section calls this out by
+// name as "hex-literal lint." Scoped to design-system consuming packages
+// (packages/ui, apps/web) — hex-looking strings elsewhere (fixtures,
+// secrets, non-UI code) aren't this rule's concern.
+export const noRawHexColors = {
+  rules: {
+    "no-restricted-syntax": [
+      "error",
+      {
+        selector: "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        message:
+          "No raw hex colors in component code — use design tokens from @constructionos/ui (ui-design-system.md §2).",
+      },
+      {
+        selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]",
+        message:
+          "No raw hex colors in component code — use design tokens from @constructionos/ui (ui-design-system.md §2).",
+      },
+    ],
+  },
+};
+
 export const moduleBoundaries = {
   plugins: { import: importPlugin },
   rules: {
