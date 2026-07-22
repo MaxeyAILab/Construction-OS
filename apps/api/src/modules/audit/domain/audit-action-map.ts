@@ -237,6 +237,16 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "drawing_set",
     entityId: payload.drawingSetId as string,
   }),
+  "rfi.created.v1": (payload) => ({
+    action: "docs.rfi.create",
+    entityType: "rfi",
+    entityId: payload.rfiId as string,
+  }),
+  "rfi.updated.v1": (payload) => ({
+    action: "docs.rfi.update",
+    entityType: "rfi",
+    entityId: payload.rfiId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

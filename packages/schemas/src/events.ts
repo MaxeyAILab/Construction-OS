@@ -367,6 +367,26 @@ export const drawingSetPublishedV1Schema = z.object({
 });
 export type DrawingSetPublishedV1 = z.infer<typeof drawingSetPublishedV1Schema>;
 
+// M3 RFIs (FR-DOC-4). rfi.updated.v1 is the generic "something about the
+// header changed" event — covers header edits and every status transition
+// (open/answer/close/void) — same "one generic updated event" reasoning as
+// project.updated.v1.
+export const rfiCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  rfiId: uuidSchema,
+  number: z.number().int(),
+});
+export type RfiCreatedV1 = z.infer<typeof rfiCreatedV1Schema>;
+
+export const rfiUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  rfiId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type RfiUpdatedV1 = z.infer<typeof rfiUpdatedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -411,6 +431,8 @@ export const eventRegistry = {
   "document_version.created.v1": documentVersionCreatedV1Schema,
   "drawing_set.created.v1": drawingSetCreatedV1Schema,
   "drawing_set.published.v1": drawingSetPublishedV1Schema,
+  "rfi.created.v1": rfiCreatedV1Schema,
+  "rfi.updated.v1": rfiUpdatedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

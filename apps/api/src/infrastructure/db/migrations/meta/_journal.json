@@ -211,6 +211,27 @@
       "when": 1784706983864,
       "tag": "0029_documents_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1784708358831,
+      "tag": "0030_rfis_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1784708368236,
+      "tag": "0031_rfis_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1784708461206,
+      "tag": "0032_rfis_permissions",
+      "breakpoints": true
     }
   ]
 }

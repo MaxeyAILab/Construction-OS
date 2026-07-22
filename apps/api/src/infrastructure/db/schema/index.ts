@@ -16,3 +16,4 @@ export * from "./budgets";
 export * from "./estimates";
 export * from "./change_orders";
 export * from "./documents";
+export * from "./rfis";

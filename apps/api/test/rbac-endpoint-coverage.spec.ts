@@ -10,6 +10,7 @@ import { EstimatingController } from "../src/modules/estimating/api/estimating.c
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
+import { RfisController } from "../src/modules/rfis/api/rfis.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
 import { IS_PUBLIC_KEY } from "../src/platform/decorators/public.decorator";
@@ -36,6 +37,7 @@ const controllers = [
   EstimatingController,
   ChangeOrdersController,
   DocumentsController,
+  RfisController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
