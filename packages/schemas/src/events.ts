@@ -146,6 +146,45 @@ export const milestoneCreatedV1Schema = z.object({
 });
 export type MilestoneCreatedV1 = z.infer<typeof milestoneCreatedV1Schema>;
 
+// M9 Financials core (FR-FIN-1). budget_line.updated.v1 covers both a
+// direct PATCH and the actual/forecast maintenance that happens when a
+// cost transaction posts — same "one generic updated event" reasoning as
+// project.updated.v1.
+export const budgetCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  budgetId: uuidSchema,
+});
+export type BudgetCreatedV1 = z.infer<typeof budgetCreatedV1Schema>;
+
+export const budgetLineCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  budgetId: uuidSchema,
+  budgetLineId: uuidSchema,
+  costCodeId: uuidSchema,
+});
+export type BudgetLineCreatedV1 = z.infer<typeof budgetLineCreatedV1Schema>;
+
+export const budgetLineUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  budgetId: uuidSchema,
+  budgetLineId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type BudgetLineUpdatedV1 = z.infer<typeof budgetLineUpdatedV1Schema>;
+
+export const costTransactionPostedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  costCodeId: uuidSchema,
+  costTransactionId: uuidSchema,
+  source: z.string(),
+  amount: z.string(),
+});
+export type CostTransactionPostedV1 = z.infer<typeof costTransactionPostedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -166,6 +205,10 @@ export const eventRegistry = {
   "project_member.removed.v1": projectMemberRemovedV1Schema,
   "cost_code.created.v1": costCodeCreatedV1Schema,
   "milestone.created.v1": milestoneCreatedV1Schema,
+  "budget.created.v1": budgetCreatedV1Schema,
+  "budget_line.created.v1": budgetLineCreatedV1Schema,
+  "budget_line.updated.v1": budgetLineUpdatedV1Schema,
+  "cost_transaction.posted.v1": costTransactionPostedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

@@ -127,6 +127,27 @@
       "when": 1784698260000,
       "tag": "0017_seed_projects_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784699673101,
+      "tag": "0018_budgets_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784699700000,
+      "tag": "0019_budgets_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784699760000,
+      "tag": "0020_seed_finance_permissions",
+      "breakpoints": true
     }
   ]
 }

@@ -108,6 +108,26 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "project",
     entityId: payload.projectId as string,
   }),
+  "budget.created.v1": (payload) => ({
+    action: "finance.budget.update",
+    entityType: "project",
+    entityId: payload.projectId as string,
+  }),
+  "budget_line.created.v1": (payload) => ({
+    action: "finance.budget.update",
+    entityType: "project",
+    entityId: payload.projectId as string,
+  }),
+  "budget_line.updated.v1": (payload) => ({
+    action: "finance.budget.update",
+    entityType: "project",
+    entityId: payload.projectId as string,
+  }),
+  "cost_transaction.posted.v1": (payload) => ({
+    action: "finance.costtxn.create",
+    entityType: "project",
+    entityId: payload.projectId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

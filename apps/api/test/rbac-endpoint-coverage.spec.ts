@@ -3,6 +3,7 @@ import { PATH_METADATA } from "@nestjs/common/constants";
 import { describe, expect, it } from "vitest";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
+import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
@@ -28,6 +29,7 @@ const controllers = [
   NotificationsController,
   AuditController,
   ProjectsController,
+  BudgetsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
