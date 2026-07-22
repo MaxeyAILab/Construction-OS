@@ -18,6 +18,8 @@ type ClaimedOutboxRow = Record<string, unknown> & {
   occurred_at: string;
   claimed_at: string | null;
   published_at: string | null;
+  actor_id: string | null;
+  actor_type: string;
 };
 
 const jsonCodec = JSONCodec<OutboxEnvelope>();
@@ -74,6 +76,8 @@ export class RelayService {
           payload: row.payload,
           dedupeKey: row.dedupe_key,
           occurredAt: new Date(row.occurred_at).toISOString(),
+          actorId: row.actor_id,
+          actorType: row.actor_type as OutboxEnvelope["actorType"],
         };
         await jetstream.publish(eventSubject(row.event_type), jsonCodec.encode(envelope), {
           msgID: row.dedupe_key,

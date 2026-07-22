@@ -118,6 +118,8 @@ export class AuthService {
         eventType: "company.registered.v1",
         payload: { companyId: company!.id, companyName: company!.name, ownerUserId: user!.id },
         dedupeKey: `company.registered.v1:${company!.id}`,
+        // Self-registration: the new owner is their own actor here.
+        actorId: user!.id,
       });
 
       return this.issueSession(tx, user!.id, company!.id, ["Owner"], device);

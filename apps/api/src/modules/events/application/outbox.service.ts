@@ -9,6 +9,12 @@ export interface AppendEventInput {
   eventType: EventType;
   payload: unknown;
   dedupeKey: string;
+  // Required (not optional) so every call site has to consciously decide
+  // who's responsible for this event — database.md §6's audit_log needs
+  // actor_id to attribute privileged actions (FR-RBAC-4); pass null only
+  // for genuinely actor-less events (e.g. a future scheduled job).
+  actorId: string | null;
+  actorType?: "user" | "system" | "ai" | "integration";
 }
 
 /**
@@ -33,6 +39,8 @@ export class OutboxService {
       eventType: input.eventType,
       payload: parsed.data,
       dedupeKey: input.dedupeKey,
+      actorId: input.actorId,
+      actorType: input.actorType ?? (input.actorId ? "user" : "system"),
     });
   }
 }

@@ -29,12 +29,55 @@ export const roleAssignedV1Schema = z.object({
 });
 export type RoleAssignedV1 = z.infer<typeof roleAssignedV1Schema>;
 
+// The following five round out FR-RBAC-4 ("every grant/revoke/elevation is
+// audited") — role.assigned.v1/user.invited.v1 above were the first two
+// RBAC mutations wired to the outbox; these cover the rest.
+
+export const roleCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  roleId: uuidSchema,
+  roleName: z.string(),
+});
+export type RoleCreatedV1 = z.infer<typeof roleCreatedV1Schema>;
+
+export const permissionGrantedV1Schema = z.object({
+  companyId: uuidSchema,
+  roleId: uuidSchema,
+  permissionKey: z.string(),
+});
+export type PermissionGrantedV1 = z.infer<typeof permissionGrantedV1Schema>;
+
+export const permissionRevokedV1Schema = z.object({
+  companyId: uuidSchema,
+  roleId: uuidSchema,
+  permissionKey: z.string(),
+});
+export type PermissionRevokedV1 = z.infer<typeof permissionRevokedV1Schema>;
+
+export const companyUserRemovedV1Schema = z.object({
+  companyId: uuidSchema,
+  userId: uuidSchema,
+});
+export type CompanyUserRemovedV1 = z.infer<typeof companyUserRemovedV1Schema>;
+
+export const userRoleRevokedV1Schema = z.object({
+  companyId: uuidSchema,
+  userId: uuidSchema,
+  roleId: uuidSchema,
+});
+export type UserRoleRevokedV1 = z.infer<typeof userRoleRevokedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
   "company.registered.v1": companyRegisteredV1Schema,
   "user.invited.v1": userInvitedV1Schema,
   "role.assigned.v1": roleAssignedV1Schema,
+  "role.created.v1": roleCreatedV1Schema,
+  "permission.granted.v1": permissionGrantedV1Schema,
+  "permission.revoked.v1": permissionRevokedV1Schema,
+  "company_user.removed.v1": companyUserRemovedV1Schema,
+  "user_role.revoked.v1": userRoleRevokedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;
@@ -46,5 +89,10 @@ export const outboxEnvelopeSchema = z.object({
   payload: z.unknown(),
   dedupeKey: z.string(),
   occurredAt: z.string().datetime({ offset: true }),
+  // Who did this (database.md §6, FR-RBAC-4) — null for genuinely
+  // actor-less events; actorType still distinguishes "no actor" (system)
+  // from "human actor" even when actorId itself is present.
+  actorId: uuidSchema.nullable(),
+  actorType: z.enum(["user", "system", "ai", "integration"]),
 });
 export type OutboxEnvelope = z.infer<typeof outboxEnvelopeSchema>;

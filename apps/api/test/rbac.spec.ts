@@ -31,7 +31,7 @@ describe("RBAC", () => {
 
     const granted = await permissionResolver.resolve(
       signUp.companyId,
-      signUp.accessToken ? decodeSub(signUp.accessToken) : "",
+      decodeSub(signUp.accessToken),
     );
     expect(granted).toContain("platform.role.manage");
     expect(granted).toContain("platform.company_user.invite");
@@ -45,8 +45,9 @@ describe("RBAC", () => {
       fullName: "Owner",
       companyName: `Fresh Co ${suffix}`,
     });
+    const ownerId = decodeSub(signUp.accessToken);
 
-    const role = await rbacService.createRole(signUp.companyId, "Viewer");
+    const role = await rbacService.createRole(signUp.companyId, "Viewer", ownerId);
     const roles = await rbacService.listRoles(signUp.companyId);
     const viewer = roles.find((r) => r.id === role.id);
     expect(viewer?.permissions).toEqual([]);
@@ -60,9 +61,10 @@ describe("RBAC", () => {
       fullName: "Owner",
       companyName: `Dup Co ${suffix}`,
     });
+    const ownerId = decodeSub(signUp.accessToken);
 
-    await rbacService.createRole(signUp.companyId, "Estimator");
-    await expect(rbacService.createRole(signUp.companyId, "Estimator")).rejects.toThrow(
+    await rbacService.createRole(signUp.companyId, "Estimator", ownerId);
+    await expect(rbacService.createRole(signUp.companyId, "Estimator", ownerId)).rejects.toThrow(
       DuplicateRoleNameError,
     );
   });
@@ -75,10 +77,16 @@ describe("RBAC", () => {
       fullName: "Owner",
       companyName: `Unknown Co ${suffix}`,
     });
-    const role = await rbacService.createRole(signUp.companyId, "Viewer");
+    const ownerId = decodeSub(signUp.accessToken);
+    const role = await rbacService.createRole(signUp.companyId, "Viewer", ownerId);
 
     await expect(
-      rbacService.grantPermissionToRole(signUp.companyId, role.id, "not.a.real.permission"),
+      rbacService.grantPermissionToRole(
+        signUp.companyId,
+        role.id,
+        "not.a.real.permission",
+        ownerId,
+      ),
     ).rejects.toThrow(UnknownPermissionError);
   });
 
@@ -90,26 +98,37 @@ describe("RBAC", () => {
       fullName: "Owner",
       companyName: `Invite Co ${suffix}`,
     });
+    const ownerId = decodeSub(signUp.accessToken);
 
-    const role = await rbacService.createRole(signUp.companyId, "Field Crew");
-    await rbacService.grantPermissionToRole(signUp.companyId, role.id, "platform.role.read");
+    const role = await rbacService.createRole(signUp.companyId, "Field Crew", ownerId);
+    await rbacService.grantPermissionToRole(
+      signUp.companyId,
+      role.id,
+      "platform.role.read",
+      ownerId,
+    );
 
     const invited = await rbacService.inviteUser(
       signUp.companyId,
       `invitee-${suffix}@example.com`,
       "Invitee Person",
+      ownerId,
     );
 
     expect(await permissionResolver.resolve(signUp.companyId, invited.userId)).toEqual([]);
 
-    await rbacService.assignRole(signUp.companyId, invited.userId, role.id, {
-      scopeType: "company",
-    });
+    await rbacService.assignRole(
+      signUp.companyId,
+      invited.userId,
+      role.id,
+      { scopeType: "company" },
+      ownerId,
+    );
     expect(await permissionResolver.resolve(signUp.companyId, invited.userId)).toContain(
       "platform.role.read",
     );
 
-    await rbacService.revokeRole(signUp.companyId, invited.userId, role.id);
+    await rbacService.revokeRole(signUp.companyId, invited.userId, role.id, ownerId);
     expect(await permissionResolver.resolve(signUp.companyId, invited.userId)).toEqual([]);
   });
 
@@ -121,13 +140,15 @@ describe("RBAC", () => {
       fullName: "Owner",
       companyName: `Remove Co ${suffix}`,
     });
+    const ownerId = decodeSub(signUp.accessToken);
     const invited = await rbacService.inviteUser(
       signUp.companyId,
       `removeme-${suffix}@example.com`,
       "Remove Me",
+      ownerId,
     );
 
-    await rbacService.removeUser(signUp.companyId, invited.userId);
+    await rbacService.removeUser(signUp.companyId, invited.userId, ownerId);
 
     const membership = await withTenant(db, signUp.companyId, (tx) =>
       tx.query.companyUsers.findFirst({

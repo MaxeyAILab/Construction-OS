@@ -43,7 +43,7 @@ export class RbacController {
     @Body(new ZodValidationPipe(createRoleSchema)) body: z.infer<typeof createRoleSchema>,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.rbac.createRole(req.auth!.tenantId, body.name);
+    return this.rbac.createRole(req.auth!.tenantId, body.name, req.auth!.sub);
   }
 
   @Post("roles/:roleId/permissions")
@@ -54,7 +54,12 @@ export class RbacController {
     @Body(new ZodValidationPipe(grantPermissionSchema)) body: z.infer<typeof grantPermissionSchema>,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
-    await this.rbac.grantPermissionToRole(req.auth!.tenantId, roleId, body.permissionKey);
+    await this.rbac.grantPermissionToRole(
+      req.auth!.tenantId,
+      roleId,
+      body.permissionKey,
+      req.auth!.sub,
+    );
   }
 
   @Delete("roles/:roleId/permissions/:permissionKey")
@@ -65,7 +70,12 @@ export class RbacController {
     @Param("permissionKey") permissionKey: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
-    await this.rbac.revokePermissionFromRole(req.auth!.tenantId, roleId, permissionKey);
+    await this.rbac.revokePermissionFromRole(
+      req.auth!.tenantId,
+      roleId,
+      permissionKey,
+      req.auth!.sub,
+    );
   }
 
   @Post("company-users")
@@ -74,7 +84,7 @@ export class RbacController {
     @Body(new ZodValidationPipe(inviteUserSchema)) body: z.infer<typeof inviteUserSchema>,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.rbac.inviteUser(req.auth!.tenantId, body.email, body.fullName);
+    return this.rbac.inviteUser(req.auth!.tenantId, body.email, body.fullName, req.auth!.sub);
   }
 
   @Delete("company-users/:userId")
@@ -84,7 +94,7 @@ export class RbacController {
     @Param("userId") userId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
-    await this.rbac.removeUser(req.auth!.tenantId, userId);
+    await this.rbac.removeUser(req.auth!.tenantId, userId, req.auth!.sub);
   }
 
   @Post("user-roles")
@@ -94,10 +104,13 @@ export class RbacController {
     @Body(new ZodValidationPipe(assignRoleSchema)) body: z.infer<typeof assignRoleSchema>,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
-    await this.rbac.assignRole(req.auth!.tenantId, body.userId, body.roleId, {
-      scopeType: body.scopeType,
-      projectId: body.projectId,
-    });
+    await this.rbac.assignRole(
+      req.auth!.tenantId,
+      body.userId,
+      body.roleId,
+      { scopeType: body.scopeType, projectId: body.projectId },
+      req.auth!.sub,
+    );
   }
 
   @Delete("user-roles/:userId/:roleId")
@@ -108,6 +121,6 @@ export class RbacController {
     @Param("roleId") roleId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
-    await this.rbac.revokeRole(req.auth!.tenantId, userId, roleId);
+    await this.rbac.revokeRole(req.auth!.tenantId, userId, roleId, req.auth!.sub);
   }
 }

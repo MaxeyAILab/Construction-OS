@@ -41,16 +41,17 @@ describe("Notifications", () => {
       payload: { companyId: tenantId, userId, roleId, scopeType: "company" },
       dedupeKey: randomUUID(),
       occurredAt: new Date().toISOString(),
+      actorId: userId,
+      actorType: "user",
     };
   }
 
   it("dispatches a role.assigned.v1 event into an in-app notification row", async () => {
     const signUp = await signUpCompany("dispatch");
-    const role = await rbacService.createRole(signUp.companyId, "Viewer");
+    const ownerId = decodeSub(signUp.accessToken);
+    const role = await rbacService.createRole(signUp.companyId, "Viewer", ownerId);
 
-    await dispatchService.handleEnvelope(
-      roleAssignedEnvelope(signUp.companyId, decodeSub(signUp.accessToken), role.id),
-    );
+    await dispatchService.handleEnvelope(roleAssignedEnvelope(signUp.companyId, ownerId, role.id));
 
     const rows = await withTenant(db, signUp.companyId, (tx) =>
       tx.query.notifications.findMany({ where: eq(notifications.tenantId, signUp.companyId) }),
@@ -67,17 +68,16 @@ describe("Notifications", () => {
   it("ignores event types with no notification mapping (e.g. company.registered.v1)", async () => {
     const signUp = await signUpCompany("unmapped");
 
+    const ownerId = decodeSub(signUp.accessToken);
     await dispatchService.handleEnvelope({
       id: randomUUID(),
       tenantId: signUp.companyId,
       eventType: "company.registered.v1",
-      payload: {
-        companyId: signUp.companyId,
-        companyName: "x",
-        ownerUserId: decodeSub(signUp.accessToken),
-      },
+      payload: { companyId: signUp.companyId, companyName: "x", ownerUserId: ownerId },
       dedupeKey: randomUUID(),
       occurredAt: new Date().toISOString(),
+      actorId: ownerId,
+      actorType: "user",
     });
 
     const rows = await withTenant(db, signUp.companyId, (tx) =>
@@ -88,8 +88,8 @@ describe("Notifications", () => {
 
   it("a disabled in_app preference is recorded as skipped but the row is still created", async () => {
     const signUp = await signUpCompany("pref-disabled");
-    const role = await rbacService.createRole(signUp.companyId, "Viewer");
     const userId = decodeSub(signUp.accessToken);
+    const role = await rbacService.createRole(signUp.companyId, "Viewer", userId);
 
     await notificationsService.replacePreferences(signUp.companyId, userId, [
       { category: "role.assigned", channel: "in_app", enabled: false, digest: "instant" },
@@ -110,8 +110,8 @@ describe("Notifications", () => {
 
   it("list filters by unread and markRead clears it", async () => {
     const signUp = await signUpCompany("list");
-    const role = await rbacService.createRole(signUp.companyId, "Viewer");
     const userId = decodeSub(signUp.accessToken);
+    const role = await rbacService.createRole(signUp.companyId, "Viewer", userId);
 
     await dispatchService.handleEnvelope(roleAssignedEnvelope(signUp.companyId, userId, role.id));
 
@@ -160,14 +160,16 @@ describe("Notifications", () => {
   it("RLS: a tenant only sees its own notifications", async () => {
     const companyA = await signUpCompany("rls-a");
     const companyB = await signUpCompany("rls-b");
-    const roleA = await rbacService.createRole(companyA.companyId, "Viewer");
-    const roleB = await rbacService.createRole(companyB.companyId, "Viewer");
+    const ownerA = decodeSub(companyA.accessToken);
+    const ownerB = decodeSub(companyB.accessToken);
+    const roleA = await rbacService.createRole(companyA.companyId, "Viewer", ownerA);
+    const roleB = await rbacService.createRole(companyB.companyId, "Viewer", ownerB);
 
     await dispatchService.handleEnvelope(
-      roleAssignedEnvelope(companyA.companyId, decodeSub(companyA.accessToken), roleA.id),
+      roleAssignedEnvelope(companyA.companyId, ownerA, roleA.id),
     );
     await dispatchService.handleEnvelope(
-      roleAssignedEnvelope(companyB.companyId, decodeSub(companyB.accessToken), roleB.id),
+      roleAssignedEnvelope(companyB.companyId, ownerB, roleB.id),
     );
 
     const rowsA = await withTenant(db, companyA.companyId, (tx) =>

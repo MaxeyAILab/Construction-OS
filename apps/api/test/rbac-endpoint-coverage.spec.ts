@@ -1,7 +1,9 @@
 import "reflect-metadata";
 import { PATH_METADATA } from "@nestjs/common/constants";
 import { describe, expect, it } from "vitest";
+import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
+import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
@@ -14,7 +16,17 @@ import { REQUIRED_PERMISSION_KEY } from "../src/modules/rbac/api/require-permiss
 // @Authenticated(), or @RequirePermission(key) — PermissionGuard denies by
 // default at runtime too (FR-RBAC-1), but this catches a missing marker at
 // PR time instead of via a manual probe.
-const controllers = [HealthController, AuthController, RbacController];
+//
+// This list has to be kept in sync by hand (no auto-discovery) — every new
+// controller module must be added here too, or its endpoints silently
+// stop being checked.
+const controllers = [
+  HealthController,
+  AuthController,
+  RbacController,
+  NotificationsController,
+  AuditController,
+];
 
 describe("every endpoint declares exactly one access marker", () => {
   for (const ControllerClass of controllers) {

@@ -88,22 +88,34 @@ describe("Events backbone", () => {
 
   it("inviteUser and assignRole append user.invited.v1 / role.assigned.v1 outbox rows", async () => {
     const signUp = await signUpCompany("rbac");
-    const role = await rbacService.createRole(signUp.companyId, "Field Crew");
+    const ownerId = decodeSub(signUp.accessToken);
+    const role = await rbacService.createRole(signUp.companyId, "Field Crew", ownerId);
 
     const invited = await rbacService.inviteUser(
       signUp.companyId,
       `events-invitee-${Date.now()}@example.com`,
       "Invitee",
+      ownerId,
     );
-    await rbacService.assignRole(signUp.companyId, invited.userId, role.id, {
-      scopeType: "company",
-    });
+    await rbacService.assignRole(
+      signUp.companyId,
+      invited.userId,
+      role.id,
+      { scopeType: "company" },
+      ownerId,
+    );
 
     const rows = await withTenant(db, signUp.companyId, (tx) =>
       tx.query.outbox.findMany({ where: eq(outbox.tenantId, signUp.companyId) }),
     );
     const eventTypes = rows.map((r) => r.eventType).sort();
-    expect(eventTypes).toEqual(["company.registered.v1", "role.assigned.v1", "user.invited.v1"]);
+    expect(eventTypes).toEqual([
+      "company.registered.v1",
+      "role.assigned.v1",
+      "role.created.v1",
+      "user.invited.v1",
+    ]);
+    expect(rows.every((r) => r.actorId === ownerId)).toBe(true);
   });
 
   it("rejects appending an unknown event type", async () => {
@@ -116,6 +128,7 @@ describe("Events backbone", () => {
           eventType: "not.a.real.event",
           payload: {},
           dedupeKey: randomUUID(),
+          actorId: null,
         }),
       ).rejects.toThrow(UnknownEventTypeError);
     });
@@ -130,6 +143,7 @@ describe("Events backbone", () => {
           eventType: "user.invited.v1",
           payload: { companyId: signUp.companyId }, // missing userId/email
           dedupeKey: randomUUID(),
+          actorId: null,
         }),
       ).rejects.toThrow(InvalidEventPayloadError);
     });
@@ -207,3 +221,8 @@ describe("Events backbone", () => {
     expect(tenantIds.has(companyB.companyId)).toBe(true);
   });
 });
+
+function decodeSub(jwt: string): string {
+  const payload = JSON.parse(Buffer.from(jwt.split(".")[1]!, "base64url").toString());
+  return payload.sub;
+}

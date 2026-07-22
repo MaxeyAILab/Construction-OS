@@ -64,6 +64,34 @@
       "when": 1784688581592,
       "tag": "0008_notifications_rls_and_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784691296863,
+      "tag": "0009_outbox_actor_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784691652874,
+      "tag": "0010_audit_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784691659528,
+      "tag": "0011_audit_log_rls_and_immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784691816026,
+      "tag": "0012_seed_audit_permission",
+      "breakpoints": true
     }
   ]
 }

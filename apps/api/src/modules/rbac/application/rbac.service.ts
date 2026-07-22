@@ -50,7 +50,7 @@ export class RbacService {
     return this.db.select().from(permissions);
   }
 
-  async createRole(tenantId: string, name: string) {
+  async createRole(tenantId: string, name: string, actorId: string) {
     return withTenant(this.db, tenantId, async (tx) => {
       const existing = await tx.query.roles.findFirst({
         where: and(eq(roles.tenantId, tenantId), eq(roles.name, name)),
@@ -58,6 +58,13 @@ export class RbacService {
       if (existing) throw new DuplicateRoleNameError();
 
       const [role] = await tx.insert(roles).values({ tenantId, name }).returning();
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "role.created.v1",
+        payload: { companyId: tenantId, roleId: role!.id, roleName: role!.name },
+        dedupeKey: randomUUID(),
+        actorId,
+      });
       return role!;
     });
   }
@@ -66,6 +73,7 @@ export class RbacService {
     tenantId: string,
     roleId: string,
     permissionKey: string,
+    actorId: string,
   ): Promise<void> {
     const permission = await this.db.query.permissions.findFirst({
       where: eq(permissions.key, permissionKey),
@@ -78,10 +86,23 @@ export class RbacService {
       });
       if (!role) throw new RoleNotFoundError();
 
-      await tx
+      // .onConflictDoNothing().returning() is empty when the grant already
+      // existed — skip the event in that case so re-granting an existing
+      // permission doesn't produce a spurious audit entry.
+      const inserted = await tx
         .insert(rolePermissions)
         .values({ tenantId, roleId, permissionKey })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning();
+      if (inserted.length > 0) {
+        await this.outbox.append(tx, {
+          tenantId,
+          eventType: "permission.granted.v1",
+          payload: { companyId: tenantId, roleId, permissionKey },
+          dedupeKey: randomUUID(),
+          actorId,
+        });
+      }
     });
 
     await this.cache.invalidateTenant(tenantId);
@@ -91,18 +112,34 @@ export class RbacService {
     tenantId: string,
     roleId: string,
     permissionKey: string,
+    actorId: string,
   ): Promise<void> {
-    await withTenant(this.db, tenantId, (tx) =>
-      tx
+    await withTenant(this.db, tenantId, async (tx) => {
+      const deleted = await tx
         .delete(rolePermissions)
         .where(
           and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.permissionKey, permissionKey)),
-        ),
-    );
+        )
+        .returning();
+      if (deleted.length > 0) {
+        await this.outbox.append(tx, {
+          tenantId,
+          eventType: "permission.revoked.v1",
+          payload: { companyId: tenantId, roleId, permissionKey },
+          dedupeKey: randomUUID(),
+          actorId,
+        });
+      }
+    });
     await this.cache.invalidateTenant(tenantId);
   }
 
-  async inviteUser(tenantId: string, email: string, fullName: string): Promise<{ userId: string }> {
+  async inviteUser(
+    tenantId: string,
+    email: string,
+    fullName: string,
+    actorId: string,
+  ): Promise<{ userId: string }> {
     let user = await this.db.query.users.findFirst({ where: eq(users.email, email) });
     if (!user) {
       const [created] = await this.db
@@ -124,20 +161,31 @@ export class RbacService {
         eventType: "user.invited.v1",
         payload: { companyId: tenantId, userId: user!.id, email: user!.email },
         dedupeKey: randomUUID(),
+        actorId,
       });
     });
 
     return { userId: user.id };
   }
 
-  async removeUser(tenantId: string, userId: string): Promise<void> {
+  async removeUser(tenantId: string, userId: string, actorId: string): Promise<void> {
     await withTenant(this.db, tenantId, async (tx) => {
       await tx
         .delete(userRoles)
         .where(and(eq(userRoles.tenantId, tenantId), eq(userRoles.userId, userId)));
-      await tx
+      const removed = await tx
         .delete(companyUsers)
-        .where(and(eq(companyUsers.tenantId, tenantId), eq(companyUsers.userId, userId)));
+        .where(and(eq(companyUsers.tenantId, tenantId), eq(companyUsers.userId, userId)))
+        .returning();
+      if (removed.length > 0) {
+        await this.outbox.append(tx, {
+          tenantId,
+          eventType: "company_user.removed.v1",
+          payload: { companyId: tenantId, userId },
+          dedupeKey: randomUUID(),
+          actorId,
+        });
+      }
     });
     await this.cache.invalidateUser(tenantId, userId);
   }
@@ -147,6 +195,7 @@ export class RbacService {
     userId: string,
     roleId: string,
     scope: { scopeType: "company" | "project"; projectId?: string | undefined },
+    actorId: string,
   ): Promise<void> {
     const targetUser = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
     if (!targetUser) throw new UserNotFoundError();
@@ -175,15 +224,21 @@ export class RbacService {
           projectId: scope.projectId,
         },
         dedupeKey: randomUUID(),
+        actorId,
       });
     });
 
     await this.cache.invalidateUser(tenantId, userId);
   }
 
-  async revokeRole(tenantId: string, userId: string, roleId: string): Promise<void> {
-    await withTenant(this.db, tenantId, (tx) =>
-      tx
+  async revokeRole(
+    tenantId: string,
+    userId: string,
+    roleId: string,
+    actorId: string,
+  ): Promise<void> {
+    await withTenant(this.db, tenantId, async (tx) => {
+      const revoked = await tx
         .delete(userRoles)
         .where(
           and(
@@ -191,8 +246,18 @@ export class RbacService {
             eq(userRoles.userId, userId),
             eq(userRoles.roleId, roleId),
           ),
-        ),
-    );
+        )
+        .returning();
+      if (revoked.length > 0) {
+        await this.outbox.append(tx, {
+          tenantId,
+          eventType: "user_role.revoked.v1",
+          payload: { companyId: tenantId, userId, roleId },
+          dedupeKey: randomUUID(),
+          actorId,
+        });
+      }
+    });
     await this.cache.invalidateUser(tenantId, userId);
   }
 }
