@@ -89,6 +89,63 @@ export const fileScanCompletedV1Schema = z.object({
 });
 export type FileScanCompletedV1 = z.infer<typeof fileScanCompletedV1Schema>;
 
+// M4 Project Management (FR-PM-1). Field-level edits and status
+// transitions share one project.updated.v1 event (a `changedFields` list)
+// rather than a proliferation of near-duplicate types — unlike RBAC's
+// grant/revoke events, these aren't individually permission-gated actions
+// that need their own audit action string.
+export const projectCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  name: z.string(),
+  code: z.string(),
+  templateId: uuidSchema.nullable(),
+});
+export type ProjectCreatedV1 = z.infer<typeof projectCreatedV1Schema>;
+
+export const projectUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type ProjectUpdatedV1 = z.infer<typeof projectUpdatedV1Schema>;
+
+export const projectDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+});
+export type ProjectDeletedV1 = z.infer<typeof projectDeletedV1Schema>;
+
+export const projectMemberAddedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  userId: uuidSchema,
+});
+export type ProjectMemberAddedV1 = z.infer<typeof projectMemberAddedV1Schema>;
+
+export const projectMemberRemovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  userId: uuidSchema,
+});
+export type ProjectMemberRemovedV1 = z.infer<typeof projectMemberRemovedV1Schema>;
+
+export const costCodeCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  costCodeId: uuidSchema,
+  code: z.string(),
+});
+export type CostCodeCreatedV1 = z.infer<typeof costCodeCreatedV1Schema>;
+
+export const milestoneCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  milestoneId: uuidSchema,
+  name: z.string(),
+});
+export type MilestoneCreatedV1 = z.infer<typeof milestoneCreatedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -102,6 +159,13 @@ export const eventRegistry = {
   "user_role.revoked.v1": userRoleRevokedV1Schema,
   "file.uploaded.v1": fileUploadedV1Schema,
   "file.scan_completed.v1": fileScanCompletedV1Schema,
+  "project.created.v1": projectCreatedV1Schema,
+  "project.updated.v1": projectUpdatedV1Schema,
+  "project.deleted.v1": projectDeletedV1Schema,
+  "project_member.added.v1": projectMemberAddedV1Schema,
+  "project_member.removed.v1": projectMemberRemovedV1Schema,
+  "cost_code.created.v1": costCodeCreatedV1Schema,
+  "milestone.created.v1": milestoneCreatedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

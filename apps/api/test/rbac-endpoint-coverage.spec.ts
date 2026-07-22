@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
+import { ProjectsController } from "../src/modules/projects/api/projects.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
@@ -26,6 +27,7 @@ const controllers = [
   RbacController,
   NotificationsController,
   AuditController,
+  ProjectsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
