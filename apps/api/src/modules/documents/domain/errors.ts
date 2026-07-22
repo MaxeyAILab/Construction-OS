@@ -53,3 +53,13 @@ export class DocumentVersionNotOnProjectError extends DomainError {
     super("document version does not belong to this project");
   }
 }
+
+// M13 Client Portal v1 (FR-CLIENT-1): thrown when the caller has neither
+// the internal docs.document.read permission nor a project-level "view" share.
+export class DocumentReadDeniedError extends DomainError {
+  readonly code = "permission_denied";
+  readonly status = 403;
+  constructor() {
+    super("missing permission: docs.document.read (or a valid client-portal share)");
+  }
+}

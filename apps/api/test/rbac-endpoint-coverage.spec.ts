@@ -5,6 +5,8 @@ import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
 import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
 import { ChangeOrdersController } from "../src/modules/change-orders/api/change-orders.controller";
+import { PortalMessagesController } from "../src/modules/client-portal/api/portal-messages.controller";
+import { SelectionsController } from "../src/modules/client-portal/api/selections.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
@@ -40,6 +42,8 @@ const controllers = [
   BudgetsController,
   EstimatingController,
   ChangeOrdersController,
+  SelectionsController,
+  PortalMessagesController,
   DocumentsController,
   RfisController,
   SchedulingController,

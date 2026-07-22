@@ -20,3 +20,4 @@ export * from "./rfis";
 export * from "./schedules";
 export * from "./tasks";
 export * from "./comments";
+export * from "./client_portal";

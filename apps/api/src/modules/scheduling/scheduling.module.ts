@@ -3,6 +3,7 @@ import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createQueueConnection, QUEUE_CONNECTION } from "../../infrastructure/queue/connection";
 import { EventsModule } from "../events";
+import { RbacModule } from "../rbac";
 import { SchedulingController } from "./api/scheduling.controller";
 import { ActivitiesService } from "./application/activities.service";
 import { DependenciesService } from "./application/dependencies.service";
@@ -14,7 +15,7 @@ import { ScheduleRecalcWorker } from "./infrastructure/schedule-recalc.worker";
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule],
+  imports: [EventsModule, RbacModule],
   controllers: [SchedulingController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

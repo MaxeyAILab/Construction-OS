@@ -82,6 +82,49 @@ export const externalShareCreatedV1Schema = z.object({
 });
 export type ExternalShareCreatedV1 = z.infer<typeof externalShareCreatedV1Schema>;
 
+// M13 Client Portal v1 (FR-CLIENT-2/3). client_selection.updated.v1 is the
+// generic "header changed" event, same reasoning as project.updated.v1.
+// client_selection.decided.v1 carries costDeltaAmount (selected option's
+// cost minus the allowance) so a future consumer can act on cost-impacting
+// decisions — see client_portal.ts's schema comment on why that consumer
+// isn't built yet (no cost_code_id on this table).
+export const clientSelectionCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  selectionId: uuidSchema,
+  title: z.string(),
+});
+export type ClientSelectionCreatedV1 = z.infer<typeof clientSelectionCreatedV1Schema>;
+
+export const clientSelectionUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  selectionId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type ClientSelectionUpdatedV1 = z.infer<typeof clientSelectionUpdatedV1Schema>;
+
+export const clientSelectionDecidedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  selectionId: uuidSchema,
+  selectedOption: z.string(),
+  costDeltaAmount: z.string(),
+});
+export type ClientSelectionDecidedV1 = z.infer<typeof clientSelectionDecidedV1Schema>;
+
+// entity_type/entity_id name whatever the thread is attached to (v1 only
+// ever uses "project", but the table itself is generic — same "polymorphic
+// stream" precedent as comment.created.v1).
+export const portalMessageCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+  messageId: uuidSchema,
+  audience: z.enum(["client", "subcontractor", "supplier"]),
+});
+export type PortalMessageCreatedV1 = z.infer<typeof portalMessageCreatedV1Schema>;
+
 // architecture.md §13's file pipeline: uploaded (client completed the
 // presigned upload) and scan-completed (the processing worker finished
 // virus-scanning + thumbnailing) are separate events since they happen at
@@ -518,6 +561,10 @@ export const eventRegistry = {
   "company_user.removed.v1": companyUserRemovedV1Schema,
   "user_role.revoked.v1": userRoleRevokedV1Schema,
   "external_share.created.v1": externalShareCreatedV1Schema,
+  "client_selection.created.v1": clientSelectionCreatedV1Schema,
+  "client_selection.updated.v1": clientSelectionUpdatedV1Schema,
+  "client_selection.decided.v1": clientSelectionDecidedV1Schema,
+  "portal_message.created.v1": portalMessageCreatedV1Schema,
   "file.uploaded.v1": fileUploadedV1Schema,
   "file.scan_completed.v1": fileScanCompletedV1Schema,
   "project.created.v1": projectCreatedV1Schema,

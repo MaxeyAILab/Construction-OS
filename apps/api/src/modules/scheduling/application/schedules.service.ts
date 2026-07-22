@@ -4,19 +4,29 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { activityDependencies, projects, scheduleActivities, schedules } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
-import { ProjectNotFoundError, ScheduleNotFoundError } from "../domain/errors";
+import { ExternalSharesService, PermissionResolverService } from "../../rbac";
+import { ProjectNotFoundError, ScheduleNotFoundError, ScheduleReadDeniedError } from "../domain/errors";
 
 @Injectable()
 export class SchedulesService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly outbox: OutboxService,
+    private readonly permissions: PermissionResolverService,
+    private readonly externalShares: ExternalSharesService,
   ) {}
 
   // api.md §6 has no dedicated "create schedule" endpoint — GET
   // /projects/{id}/schedule lazily get-or-creates the one master schedule
   // database.md §14 says every project has ("One active ... per project").
+  //
+  // M13 Client Portal v1 (FR-CLIENT-1): a client with a project-level
+  // "view" share (entity_type='project') can read the schedule the same
+  // way an internal `schedule.read` grant does — same dual-path pattern as
+  // Change Orders' approve(), and the controller drops to @Authenticated()
+  // for the same reason.
   async getActiveSchedule(tenantId: string, actorId: string, projectId: string) {
+    await this.authorizeRead(tenantId, actorId, projectId);
     return withTenant(this.db, tenantId, async (tx) => {
       const project = await tx.query.projects.findFirst({
         where: and(eq(projects.id, projectId), isNull(projects.deletedAt)),
@@ -189,5 +199,12 @@ export class SchedulesService {
         inArray(activityDependencies.successorId, activityIds),
       ),
     });
+  }
+
+  private async authorizeRead(tenantId: string, actorId: string, projectId: string): Promise<void> {
+    const hasPermission = await this.permissions.has(tenantId, actorId, "schedule.read");
+    if (hasPermission) return;
+    const hasShare = await this.externalShares.hasAccess(tenantId, actorId, "project", projectId, "view");
+    if (!hasShare) throw new ScheduleReadDeniedError();
   }
 }

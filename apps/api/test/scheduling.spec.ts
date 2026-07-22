@@ -12,7 +12,7 @@ describe("Scheduling", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService } = buildTestProjectServices(db);
-  const { schedulesService, activitiesService, dependenciesService, recalculateService, queueConnection } =
+  const { schedulesService, activitiesService, dependenciesService, recalculateService, queueConnection, cacheRedis } =
     buildTestSchedulingServices(db);
 
   beforeAll(async () => {
@@ -22,6 +22,7 @@ describe("Scheduling", () => {
   afterAll(async () => {
     await redis.quit();
     await queueConnection.quit();
+    await cacheRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {

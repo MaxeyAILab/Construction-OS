@@ -4,7 +4,8 @@ import { and, desc, eq, ilike, isNull, lt, or, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { documents, documentVersions, folders, projects } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
-import { DocumentNotFoundError, FolderNotFoundError, ProjectNotFoundError } from "../domain/errors";
+import { ExternalSharesService, PermissionResolverService } from "../../rbac";
+import { DocumentNotFoundError, DocumentReadDeniedError, FolderNotFoundError, ProjectNotFoundError } from "../domain/errors";
 
 interface Cursor {
   createdAt: string;
@@ -24,10 +25,17 @@ export class DocumentsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly outbox: OutboxService,
+    private readonly permissions: PermissionResolverService,
+    private readonly externalShares: ExternalSharesService,
   ) {}
 
   // api.md §8: "Tree + metadata; ?q= name search".
-  async list(tenantId: string, projectId: string, query: ListDocumentsQuery) {
+  //
+  // M13 Client Portal v1 (FR-CLIENT-1): docs.document.read (internal) or a
+  // project-level client-portal "view" share — same dual-path pattern as
+  // Change Orders' approve() and Scheduling's getActiveSchedule().
+  async list(tenantId: string, actorId: string, projectId: string, query: ListDocumentsQuery) {
+    await this.authorizeRead(tenantId, actorId, projectId);
     return withTenant(this.db, tenantId, async (tx) => {
       const conditions: SQL[] = [eq(documents.projectId, projectId), isNull(documents.deletedAt)];
       if (query.folderId) conditions.push(eq(documents.folderId, query.folderId));
@@ -55,7 +63,13 @@ export class DocumentsService {
     });
   }
 
-  async getById(tenantId: string, documentId: string) {
+  async getById(tenantId: string, actorId: string, documentId: string) {
+    const projectId = await withTenant(this.db, tenantId, async (tx) => {
+      const document = await this.requireDocument(tx, documentId);
+      return document.projectId;
+    });
+    await this.authorizeRead(tenantId, actorId, projectId);
+
     return withTenant(this.db, tenantId, async (tx) => {
       const document = await this.requireDocument(tx, documentId);
       const versions = await tx.query.documentVersions.findMany({
@@ -147,5 +161,12 @@ export class DocumentsService {
     });
     if (!document) throw new DocumentNotFoundError();
     return document;
+  }
+
+  async authorizeRead(tenantId: string, actorId: string, projectId: string): Promise<void> {
+    const hasPermission = await this.permissions.has(tenantId, actorId, "docs.document.read");
+    if (hasPermission) return;
+    const hasShare = await this.externalShares.hasAccess(tenantId, actorId, "project", projectId, "view");
+    if (!hasShare) throw new DocumentReadDeniedError();
   }
 }

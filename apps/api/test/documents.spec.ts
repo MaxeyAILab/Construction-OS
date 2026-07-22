@@ -13,10 +13,8 @@ describe("Documents v1", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService } = buildTestProjectServices(db);
   const { storage, fileUploadService, fileProcessingService, queueConnection } = buildTestFileServices(db);
-  const { foldersService, documentsService, versionsService, drawingSetsService } = buildTestDocumentServices(
-    db,
-    fileUploadService,
-  );
+  const { foldersService, documentsService, versionsService, drawingSetsService, cacheRedis } =
+    buildTestDocumentServices(db, fileUploadService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -25,6 +23,7 @@ describe("Documents v1", () => {
   afterAll(async () => {
     await redis.quit();
     await queueConnection.quit();
+    await cacheRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
@@ -101,10 +100,10 @@ describe("Documents v1", () => {
     });
     expect(unfiled.folderId).toBeNull();
 
-    const all = await documentsService.list(tenantId, project.id, { limit: 20 });
+    const all = await documentsService.list(tenantId, ownerId, project.id, { limit: 20 });
     expect(all.data.map((d) => d.id).sort()).toEqual([filed.id, unfiled.id].sort());
 
-    const searched = await documentsService.list(tenantId, project.id, { limit: 20, q: "Foundation" });
+    const searched = await documentsService.list(tenantId, ownerId, project.id, { limit: 20, q: "Foundation" });
     expect(searched.data).toHaveLength(1);
     expect(searched.data[0]!.id).toBe(filed.id);
 
@@ -123,14 +122,14 @@ describe("Documents v1", () => {
     const v1 = await uploadVersion(tenantId, ownerId, document.id, Buffer.from("v1 content"), "spec-v1.txt", true);
     expect(v1.versionNo).toBe(1);
 
-    let fetched = await documentsService.getById(tenantId, document.id);
+    let fetched = await documentsService.getById(tenantId, ownerId, document.id);
     expect(fetched.currentVersionId).toBe(v1.id);
     expect(fetched.versions).toHaveLength(1);
 
     const v2 = await uploadVersion(tenantId, ownerId, document.id, Buffer.from("v2 content"), "spec-v2.txt", true);
     expect(v2.versionNo).toBe(2);
 
-    fetched = await documentsService.getById(tenantId, document.id);
+    fetched = await documentsService.getById(tenantId, ownerId, document.id);
     expect(fetched.currentVersionId).toBe(v2.id);
     expect(fetched.versions).toHaveLength(2);
 
@@ -147,10 +146,13 @@ describe("Documents v1", () => {
     });
     const version = await uploadVersion(tenantId, ownerId, document.id, Buffer.from("permit bytes"), "permit.txt", false);
 
-    await expect(versionsService.getDownloadUrl(tenantId, version.id)).rejects.toThrow(/not downloadable/);
+    await expect(versionsService.getDownloadUrl(tenantId, ownerId, version.id)).rejects.toThrow(/not downloadable/);
 
-    await fileProcessingService.process({ fileId: (await documentsService.getById(tenantId, document.id)).versions[0]!.fileId, tenantId });
-    const url = await versionsService.getDownloadUrl(tenantId, version.id);
+    await fileProcessingService.process({
+      fileId: (await documentsService.getById(tenantId, ownerId, document.id)).versions[0]!.fileId,
+      tenantId,
+    });
+    const url = await versionsService.getDownloadUrl(tenantId, ownerId, version.id);
     expect(url).toContain("fake://download/");
   });
 

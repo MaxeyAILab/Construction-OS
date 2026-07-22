@@ -317,6 +317,32 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "schedule",
     entityId: payload.scheduleId as string,
   }),
+  // M13 Client Portal v1 (FR-CLIENT-2/3). client_selection.decided.v1
+  // reuses the manage permission as its audit action even though it can
+  // be reached via a client-portal share (no external principal has
+  // client.selection.manage itself) — same convention as every other
+  // mapper here: the action string names the permission that gates the
+  // equivalent internal mutation.
+  "client_selection.created.v1": (payload) => ({
+    action: "client.selection.manage",
+    entityType: "client_selection",
+    entityId: payload.selectionId as string,
+  }),
+  "client_selection.updated.v1": (payload) => ({
+    action: "client.selection.manage",
+    entityType: "client_selection",
+    entityId: payload.selectionId as string,
+  }),
+  "client_selection.decided.v1": (payload) => ({
+    action: "client.selection.manage",
+    entityType: "client_selection",
+    entityId: payload.selectionId as string,
+  }),
+  "portal_message.created.v1": (payload) => ({
+    action: "client.message.create",
+    entityType: payload.entityType as string,
+    entityId: payload.entityId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

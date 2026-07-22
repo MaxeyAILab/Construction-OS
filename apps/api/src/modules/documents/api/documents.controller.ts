@@ -22,6 +22,7 @@ import {
   updateFolderSchema,
 } from "@constructionos/schemas";
 import type { z } from "zod";
+import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
@@ -67,14 +68,16 @@ export class DocumentsController {
     return this.folders.update(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 
+  // M13 Client Portal v1 (FR-CLIENT-1): dual authorization inside
+  // DocumentsService (docs.document.read internal or a project-view share).
   @Get("projects/:id/documents")
-  @RequirePermission("docs.document.read")
+  @Authenticated()
   listDocuments(
     @Param("id") projectId: string,
     @Query(new ZodValidationPipe(listDocumentsQuerySchema)) query: z.infer<typeof listDocumentsQuerySchema>,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.documents.list(req.auth!.tenantId, projectId, query);
+    return this.documents.list(req.auth!.tenantId, req.auth!.sub, projectId, query);
   }
 
   @Post("projects/:id/documents")
@@ -89,9 +92,9 @@ export class DocumentsController {
   }
 
   @Get("documents/:id")
-  @RequirePermission("docs.document.read")
+  @Authenticated()
   getDocument(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    return this.documents.getById(req.auth!.tenantId, id);
+    return this.documents.getById(req.auth!.tenantId, req.auth!.sub, id);
   }
 
   @Patch("documents/:id")
@@ -132,10 +135,10 @@ export class DocumentsController {
   }
 
   @Get("document-versions/:id/download")
-  @RequirePermission("docs.document.read")
+  @Authenticated()
   @Redirect()
   async download(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    const url = await this.versions.getDownloadUrl(req.auth!.tenantId, id);
+    const url = await this.versions.getDownloadUrl(req.auth!.tenantId, req.auth!.sub, id);
     return { url, statusCode: HttpStatus.FOUND };
   }
 

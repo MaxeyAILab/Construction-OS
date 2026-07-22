@@ -47,3 +47,13 @@ export class CycleDetectedError extends DomainError {
     super(`dependency cycle detected among activities: ${cycle.join(", ")}`);
   }
 }
+
+// M13 Client Portal v1 (FR-CLIENT-1): thrown when the caller has neither
+// the internal schedule.read permission nor a project-level "view" share.
+export class ScheduleReadDeniedError extends DomainError {
+  readonly code = "permission_denied";
+  readonly status = 403;
+  constructor() {
+    super("missing permission: schedule.read (or a valid client-portal share)");
+  }
+}

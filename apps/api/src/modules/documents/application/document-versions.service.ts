@@ -83,11 +83,18 @@ export class DocumentVersionsService {
     });
   }
 
-  async getDownloadUrl(tenantId: string, documentVersionId: string): Promise<string> {
-    const version = await withTenant(this.db, tenantId, (tx) =>
-      tx.query.documentVersions.findFirst({ where: eq(documentVersions.id, documentVersionId) }),
-    );
-    if (!version) throw new DocumentVersionNotFoundError();
+  // M13 Client Portal v1 (FR-CLIENT-1): reuses DocumentsService.
+  // authorizeRead (docs.document.read internal, or a project-level
+  // client-portal "view" share) rather than duplicating the check.
+  async getDownloadUrl(tenantId: string, actorId: string, documentVersionId: string): Promise<string> {
+    const version = await withTenant(this.db, tenantId, async (tx) => {
+      const found = await tx.query.documentVersions.findFirst({ where: eq(documentVersions.id, documentVersionId) });
+      if (!found) throw new DocumentVersionNotFoundError();
+      const document = await this.documentsService.requireDocument(tx, found.documentId);
+      return { ...found, projectId: document.projectId };
+    });
+
+    await this.documentsService.authorizeRead(tenantId, actorId, version.projectId);
     return this.fileUpload.getDownloadUrl(tenantId, version.fileId);
   }
 }

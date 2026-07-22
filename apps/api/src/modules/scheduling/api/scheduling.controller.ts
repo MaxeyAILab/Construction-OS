@@ -22,6 +22,7 @@ import {
 } from "@constructionos/schemas";
 import type { FastifyReply } from "fastify";
 import type { z } from "zod";
+import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
@@ -39,8 +40,12 @@ export class SchedulingController {
     private readonly recalculateService: RecalculateService,
   ) {}
 
+  // M13 Client Portal v1 (FR-CLIENT-1): schedule.read (internal) or a
+  // project-level client-portal "view" share — dual authorization inside
+  // SchedulesService.getActiveSchedule(), same @Authenticated() pattern as
+  // Change Orders' approve().
   @Get("projects/:id/schedule")
-  @RequirePermission("schedule.read")
+  @Authenticated()
   getActiveSchedule(@Param("id") projectId: string, @Req() req: AuthenticatedRequest) {
     return this.schedules.getActiveSchedule(req.auth!.tenantId, req.auth!.sub, projectId);
   }
