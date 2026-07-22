@@ -10,6 +10,7 @@ import { NotificationsModule } from "./modules/notifications";
 import { ProjectsModule } from "./modules/projects";
 import { RbacModule } from "./modules/rbac";
 import { RfisModule } from "./modules/rfis";
+import { SchedulingModule } from "./modules/scheduling";
 import { TasksModule } from "./modules/tasks";
 import { HealthModule } from "./platform/health/health.module";
 
@@ -31,6 +32,7 @@ import { HealthModule } from "./platform/health/health.module";
     ChangeOrdersModule,
     DocumentsModule,
     RfisModule,
+    SchedulingModule,
     TasksModule,
   ],
 })

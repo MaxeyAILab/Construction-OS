@@ -253,6 +253,27 @@
       "when": 1784709182821,
       "tag": "0035_tasks_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1784711116336,
+      "tag": "0036_scheduling_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1784711150939,
+      "tag": "0037_scheduling_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1784711152852,
+      "tag": "0038_scheduling_permissions",
+      "breakpoints": true
     }
   ]
 }

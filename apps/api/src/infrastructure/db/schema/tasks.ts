@@ -4,6 +4,7 @@ import { tenantColumns } from "./columns";
 import { documentVersions } from "./documents";
 import { projects } from "./projects";
 import { rfis } from "./rfis";
+import { scheduleActivities } from "./schedules";
 import { users } from "./users";
 
 // database.md §15 (M6/M8/M12 section — this table covers M6 only; M8/M12's
@@ -33,8 +34,9 @@ export const tasks = pgTable(
     locationDocumentVersionId: uuid("location_document_version_id").references(() => documentVersions.id),
     locationX: numeric("location_x", { precision: 7, scale: 4 }),
     locationY: numeric("location_y", { precision: 7, scale: 4 }),
-    // No FK yet: Scheduling v1 (M7) is a later roadmap row.
-    scheduleActivityId: uuid("schedule_activity_id"),
+    // Real FK, added retroactively now that Scheduling (M7) exists — see
+    // the migration that backfills this constraint on the existing column.
+    scheduleActivityId: uuid("schedule_activity_id").references(() => scheduleActivities.id),
     // Real FK, unlike scheduleActivityId — RFIs (M3) already exists.
     rfiId: uuid("rfi_id").references(() => rfis.id),
     checklist: jsonb("checklist"),

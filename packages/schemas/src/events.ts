@@ -425,6 +425,72 @@ export const commentCreatedV1Schema = z.object({
 });
 export type CommentCreatedV1 = z.infer<typeof commentCreatedV1Schema>;
 
+// M7 Scheduling (FR-SCH-1/2). schedule.created.v1 fires once, the first
+// time a project's master schedule is lazily get-or-created (api.md §6 has
+// no dedicated "create schedule" endpoint — see schedules.ts's schema
+// comment). schedule_activity.updated.v1 is the generic "header changed"
+// event, same reasoning as project.updated.v1. schedule.recalculated.v1 is
+// its own event (not folded into schedule_activity.updated.v1) since a CPM
+// run can touch every activity in the schedule at once.
+export const scheduleCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+});
+export type ScheduleCreatedV1 = z.infer<typeof scheduleCreatedV1Schema>;
+
+export const scheduleBaselineCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+  baselineOfId: uuidSchema,
+});
+export type ScheduleBaselineCreatedV1 = z.infer<typeof scheduleBaselineCreatedV1Schema>;
+
+export const scheduleActivityCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+  activityId: uuidSchema,
+});
+export type ScheduleActivityCreatedV1 = z.infer<typeof scheduleActivityCreatedV1Schema>;
+
+export const scheduleActivityUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+  activityId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type ScheduleActivityUpdatedV1 = z.infer<typeof scheduleActivityUpdatedV1Schema>;
+
+export const scheduleActivityDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+  activityId: uuidSchema,
+});
+export type ScheduleActivityDeletedV1 = z.infer<typeof scheduleActivityDeletedV1Schema>;
+
+export const activityDependencyReplacedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+  activityId: uuidSchema,
+  predecessorIds: z.array(uuidSchema),
+});
+export type ActivityDependencyReplacedV1 = z.infer<typeof activityDependencyReplacedV1Schema>;
+
+export const scheduleRecalculatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  scheduleId: uuidSchema,
+  scheduleVersion: z.number().int(),
+  activityCount: z.number().int(),
+  criticalActivityCount: z.number().int(),
+});
+export type ScheduleRecalculatedV1 = z.infer<typeof scheduleRecalculatedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -475,6 +541,13 @@ export const eventRegistry = {
   "task.updated.v1": taskUpdatedV1Schema,
   "task.deleted.v1": taskDeletedV1Schema,
   "comment.created.v1": commentCreatedV1Schema,
+  "schedule.created.v1": scheduleCreatedV1Schema,
+  "schedule_baseline.created.v1": scheduleBaselineCreatedV1Schema,
+  "schedule_activity.created.v1": scheduleActivityCreatedV1Schema,
+  "schedule_activity.updated.v1": scheduleActivityUpdatedV1Schema,
+  "schedule_activity.deleted.v1": scheduleActivityDeletedV1Schema,
+  "activity_dependency.replaced.v1": activityDependencyReplacedV1Schema,
+  "schedule.recalculated.v1": scheduleRecalculatedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

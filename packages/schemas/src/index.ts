@@ -10,5 +10,6 @@ export * from "./estimates";
 export * from "./change-orders";
 export * from "./documents";
 export * from "./rfis";
+export * from "./scheduling";
 export * from "./tasks";
 export * from "./comments";

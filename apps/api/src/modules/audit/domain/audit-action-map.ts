@@ -270,6 +270,45 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: payload.entityType as string,
     entityId: payload.entityId as string,
   }),
+  // M7 Scheduling. schedule.created.v1 fires from inside the GET
+  // /projects/{id}/schedule handler (lazy get-or-create — see
+  // schedules.ts's schema comment), so its gating permission is
+  // schedule.read, not schedule.update, unlike every other mutation here.
+  "schedule.created.v1": (payload) => ({
+    action: "schedule.read",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
+  "schedule_baseline.created.v1": (payload) => ({
+    action: "schedule.baseline",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
+  "schedule_activity.created.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
+  "schedule_activity.updated.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
+  "schedule_activity.deleted.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
+  "activity_dependency.replaced.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
+  "schedule.recalculated.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "schedule",
+    entityId: payload.scheduleId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
