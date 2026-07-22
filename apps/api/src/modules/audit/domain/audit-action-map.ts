@@ -247,6 +247,29 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "rfi",
     entityId: payload.rfiId as string,
   }),
+  "task.created.v1": (payload) => ({
+    action: "tasks.task.create",
+    entityType: "task",
+    entityId: payload.taskId as string,
+  }),
+  "task.updated.v1": (payload) => ({
+    action: "tasks.task.update",
+    entityType: "task",
+    entityId: payload.taskId as string,
+  }),
+  "task.deleted.v1": (payload) => ({
+    action: "tasks.task.delete",
+    entityType: "task",
+    entityId: payload.taskId as string,
+  }),
+  // Only entity_type='task' has a real comment endpoint today (Tasks &
+  // Punch, M6) — a future RFI/PO comment consumer will need this mapper
+  // widened to branch on payload.entityType when it lands.
+  "comment.created.v1": (payload) => ({
+    action: "tasks.task.comment",
+    entityType: payload.entityType as string,
+    entityId: payload.entityId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

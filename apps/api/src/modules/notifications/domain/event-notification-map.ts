@@ -10,7 +10,7 @@ export interface NotificationDraft {
   entityId?: string;
 }
 
-type NotificationBuilder = (payload: Record<string, unknown>) => NotificationDraft;
+type NotificationBuilder = (payload: Record<string, unknown>) => NotificationDraft | NotificationDraft[];
 
 // architecture.md §10 pipeline step 1: "event -> eligibility". For these two
 // event types the recipient is the direct subject named in the payload
@@ -38,10 +38,26 @@ const builders: Partial<Record<EventType, NotificationBuilder>> = {
     entityType: "role",
     entityId: payload.roleId as string,
   }),
+  // database.md §17: "mentions uuid[] (drives notifications)" — one draft
+  // per mentioned user, the first builder here that needs real fan-out
+  // rather than a single named recipient.
+  "comment.created.v1": (payload) => {
+    const mentions = payload.mentions as string[];
+    return mentions.map((userId) => ({
+      recipientUserId: userId,
+      category: "comment.mention",
+      kind: "comment_mention",
+      title: "You were mentioned in a comment",
+      body: "Someone mentioned you in a comment.",
+      entityType: payload.entityType as string,
+      entityId: payload.entityId as string,
+    }));
+  },
 };
 
-export function draftNotification(envelope: OutboxEnvelope): NotificationDraft | null {
+export function draftNotifications(envelope: OutboxEnvelope): NotificationDraft[] {
   const builder = builders[envelope.eventType as EventType];
-  if (!builder) return null;
-  return builder(envelope.payload as Record<string, unknown>);
+  if (!builder) return [];
+  const result = builder(envelope.payload as Record<string, unknown>);
+  return Array.isArray(result) ? result : [result];
 }

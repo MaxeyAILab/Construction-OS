@@ -232,6 +232,27 @@
       "when": 1784708461206,
       "tag": "0032_rfis_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784709068818,
+      "tag": "0033_tasks_and_comments_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1784709084529,
+      "tag": "0034_tasks_and_comments_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1784709182821,
+      "tag": "0035_tasks_permissions",
+      "breakpoints": true
     }
   ]
 }

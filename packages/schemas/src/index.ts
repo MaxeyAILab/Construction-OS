@@ -10,3 +10,5 @@ export * from "./estimates";
 export * from "./change-orders";
 export * from "./documents";
 export * from "./rfis";
+export * from "./tasks";
+export * from "./comments";

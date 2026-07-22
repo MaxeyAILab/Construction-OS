@@ -387,6 +387,44 @@ export const rfiUpdatedV1Schema = z.object({
 });
 export type RfiUpdatedV1 = z.infer<typeof rfiUpdatedV1Schema>;
 
+// M6 Tasks & Punch (FR-TASK-1..3). task.updated.v1 is the generic "header
+// or status changed" event — same "one generic updated event" reasoning as
+// project.updated.v1. Punch items are kind='punch' on the same table
+// (database.md §15), so no separate punch.*.v1 events exist.
+export const taskCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  taskId: uuidSchema,
+  kind: z.string(),
+});
+export type TaskCreatedV1 = z.infer<typeof taskCreatedV1Schema>;
+
+export const taskUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  taskId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type TaskUpdatedV1 = z.infer<typeof taskUpdatedV1Schema>;
+
+export const taskDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  taskId: uuidSchema,
+});
+export type TaskDeletedV1 = z.infer<typeof taskDeletedV1Schema>;
+
+// database.md §17: "mentions uuid[] (drives notifications)" — the
+// Notifications module fans this out to one draft per mentioned user.
+export const commentCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+  commentId: uuidSchema,
+  mentions: z.array(uuidSchema),
+});
+export type CommentCreatedV1 = z.infer<typeof commentCreatedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -433,6 +471,10 @@ export const eventRegistry = {
   "drawing_set.published.v1": drawingSetPublishedV1Schema,
   "rfi.created.v1": rfiCreatedV1Schema,
   "rfi.updated.v1": rfiUpdatedV1Schema,
+  "task.created.v1": taskCreatedV1Schema,
+  "task.updated.v1": taskUpdatedV1Schema,
+  "task.deleted.v1": taskDeletedV1Schema,
+  "comment.created.v1": commentCreatedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

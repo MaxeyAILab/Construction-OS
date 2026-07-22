@@ -17,3 +17,5 @@ export * from "./estimates";
 export * from "./change_orders";
 export * from "./documents";
 export * from "./rfis";
+export * from "./tasks";
+export * from "./comments";

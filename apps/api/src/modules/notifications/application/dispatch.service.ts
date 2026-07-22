@@ -3,7 +3,7 @@ import type { OutboxEnvelope } from "@constructionos/schemas";
 import { and, eq } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { notificationPreferences, notifications } from "../../../infrastructure/db/schema";
-import { draftNotification } from "../domain/event-notification-map";
+import { draftNotifications } from "../domain/event-notification-map";
 import {
   type ChannelDeliveryResult,
   EMAIL_CHANNEL,
@@ -25,44 +25,46 @@ export class DispatchService {
   ) {}
 
   async handleEnvelope(envelope: OutboxEnvelope): Promise<void> {
-    const draft = draftNotification(envelope);
-    if (!draft) return; // no notification mapping for this event type — not an error
+    const drafts = draftNotifications(envelope);
+    if (drafts.length === 0) return; // no notification mapping for this event type — not an error
 
     await withTenant(this.db, envelope.tenantId, async (tx) => {
-      const preferences = await this.resolvePreferences(
-        tx,
-        envelope.tenantId,
-        draft.recipientUserId,
-        draft.category,
-      );
+      for (const draft of drafts) {
+        const preferences = await this.resolvePreferences(
+          tx,
+          envelope.tenantId,
+          draft.recipientUserId,
+          draft.category,
+        );
 
-      const channelState: Record<string, ChannelDeliveryResult> = {};
+        const channelState: Record<string, ChannelDeliveryResult> = {};
 
-      // The row itself IS the in-app delivery (architecture.md §10: "In-app
-      // notifications persisted"), so recording its own status is just
-      // bookkeeping for a uniform channel_state shape.
-      channelState.in_app = preferences.in_app
-        ? { status: "sent" }
-        : { status: "skipped", reason: "preference_disabled" };
+        // The row itself IS the in-app delivery (architecture.md §10: "In-app
+        // notifications persisted"), so recording its own status is just
+        // bookkeeping for a uniform channel_state shape.
+        channelState.in_app = preferences.in_app
+          ? { status: "sent" }
+          : { status: "skipped", reason: "preference_disabled" };
 
-      channelState.email = preferences.email
-        ? await this.emailChannel.send(envelope.tenantId, draft.recipientUserId, draft)
-        : { status: "skipped", reason: "preference_disabled" };
+        channelState.email = preferences.email
+          ? await this.emailChannel.send(envelope.tenantId, draft.recipientUserId, draft)
+          : { status: "skipped", reason: "preference_disabled" };
 
-      channelState.push = preferences.push
-        ? await this.pushChannel.send(envelope.tenantId, draft.recipientUserId, draft)
-        : { status: "skipped", reason: "preference_disabled" };
+        channelState.push = preferences.push
+          ? await this.pushChannel.send(envelope.tenantId, draft.recipientUserId, draft)
+          : { status: "skipped", reason: "preference_disabled" };
 
-      await tx.insert(notifications).values({
-        tenantId: envelope.tenantId,
-        userId: draft.recipientUserId,
-        kind: draft.kind,
-        title: draft.title,
-        body: draft.body,
-        entityType: draft.entityType,
-        entityId: draft.entityId,
-        channelState,
-      });
+        await tx.insert(notifications).values({
+          tenantId: envelope.tenantId,
+          userId: draft.recipientUserId,
+          kind: draft.kind,
+          title: draft.title,
+          body: draft.body,
+          entityType: draft.entityType,
+          entityId: draft.entityId,
+          channelState,
+        });
+      }
     });
 
     this.logger.debug(`dispatched notification for ${envelope.eventType} (${envelope.id})`);

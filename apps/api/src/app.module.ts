@@ -10,6 +10,7 @@ import { NotificationsModule } from "./modules/notifications";
 import { ProjectsModule } from "./modules/projects";
 import { RbacModule } from "./modules/rbac";
 import { RfisModule } from "./modules/rfis";
+import { TasksModule } from "./modules/tasks";
 import { HealthModule } from "./platform/health/health.module";
 
 // Global guard order matters: AuthModule registers AccessTokenGuard
@@ -30,6 +31,7 @@ import { HealthModule } from "./platform/health/health.module";
     ChangeOrdersModule,
     DocumentsModule,
     RfisModule,
+    TasksModule,
   ],
 })
 export class AppModule {}
