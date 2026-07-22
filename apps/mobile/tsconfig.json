@@ -6,5 +6,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "App.tsx"]
+  "include": ["src", "app"]
 }
