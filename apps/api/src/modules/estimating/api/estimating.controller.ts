@@ -90,7 +90,13 @@ export class EstimatingController {
     return this.lines.addLine(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 
-  @Post("estimates/:id/lines:batch")
+  // find-my-way (Fastify's router) treats a bare mid-segment ":" as a
+  // parameter start, which would collide with the sibling
+  // lines:from-assembly route below the moment both share an
+  // identifier-only suffix; "::" escapes it to a literal colon (the path
+  // clients actually call is still the literal api.md-documented
+  // "lines:batch").
+  @Post("estimates/:id/lines::batch")
   @RequirePermission("estimating.estimate.update")
   @HttpCode(HttpStatus.CREATED)
   batchAddLines(
@@ -106,7 +112,7 @@ export class EstimatingController {
   // explode into priced lines — same reasoning as the Budget module's
   // gap-fill endpoints. Mirrors the ":batch" action-suffix convention
   // api.md already uses for bulk line ops.
-  @Post("estimates/:id/lines:from-assembly")
+  @Post("estimates/:id/lines::from-assembly")
   @RequirePermission("estimating.estimate.update")
   @HttpCode(HttpStatus.CREATED)
   addAssemblyToEstimate(

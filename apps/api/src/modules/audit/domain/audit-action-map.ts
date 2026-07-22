@@ -203,6 +203,40 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "change_order",
     entityId: payload.changeOrderId as string,
   }),
+  "folder.created.v1": (payload) => ({
+    action: "docs.document.create",
+    entityType: "folder",
+    entityId: payload.folderId as string,
+  }),
+  "document.created.v1": (payload) => ({
+    action: "docs.document.create",
+    entityType: "document",
+    entityId: payload.documentId as string,
+  }),
+  "document.updated.v1": (payload) => ({
+    action: "docs.document.update",
+    entityType: "document",
+    entityId: payload.documentId as string,
+  }),
+  // Uploading a version is gated by docs.document.update (see
+  // DocumentsController.completeVersion), not .create — the action string
+  // reuses that exact permission key, same convention as every other
+  // mapper here.
+  "document_version.created.v1": (payload) => ({
+    action: "docs.document.update",
+    entityType: "document",
+    entityId: payload.documentId as string,
+  }),
+  "drawing_set.created.v1": (payload) => ({
+    action: "docs.drawings.manage",
+    entityType: "drawing_set",
+    entityId: payload.drawingSetId as string,
+  }),
+  "drawing_set.published.v1": (payload) => ({
+    action: "docs.drawings.manage",
+    entityType: "drawing_set",
+    entityId: payload.drawingSetId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

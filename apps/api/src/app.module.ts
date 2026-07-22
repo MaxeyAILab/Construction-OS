@@ -3,6 +3,7 @@ import { AuditModule } from "./modules/audit";
 import { AuthModule } from "./modules/auth";
 import { BudgetsModule } from "./modules/budgets";
 import { ChangeOrdersModule } from "./modules/change-orders";
+import { DocumentsModule } from "./modules/documents";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
 import { NotificationsModule } from "./modules/notifications";
@@ -26,6 +27,7 @@ import { HealthModule } from "./platform/health/health.module";
     BudgetsModule,
     EstimatingModule,
     ChangeOrdersModule,
+    DocumentsModule,
   ],
 })
 export class AppModule {}

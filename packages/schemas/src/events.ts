@@ -311,6 +311,62 @@ export const changeOrderLineDeletedV1Schema = z.object({
 });
 export type ChangeOrderLineDeletedV1 = z.infer<typeof changeOrderLineDeletedV1Schema>;
 
+// M3 Documents (FR-DOC-1/2/5). document.updated.v1 is the generic
+// "something about the header changed" event — covers rename/move/category
+// and the current_version_id pointer moving — same "one generic updated
+// event" reasoning as project.updated.v1. document_version rows are
+// immutable once created (no updated/deleted event needed).
+export const folderCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  folderId: uuidSchema,
+  name: z.string(),
+});
+export type FolderCreatedV1 = z.infer<typeof folderCreatedV1Schema>;
+
+export const documentCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  documentId: uuidSchema,
+  name: z.string(),
+  category: z.string(),
+});
+export type DocumentCreatedV1 = z.infer<typeof documentCreatedV1Schema>;
+
+export const documentUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  documentId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type DocumentUpdatedV1 = z.infer<typeof documentUpdatedV1Schema>;
+
+export const documentVersionCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  documentId: uuidSchema,
+  documentVersionId: uuidSchema,
+  versionNo: z.number().int(),
+});
+export type DocumentVersionCreatedV1 = z.infer<typeof documentVersionCreatedV1Schema>;
+
+export const drawingSetCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  drawingSetId: uuidSchema,
+  name: z.string(),
+});
+export type DrawingSetCreatedV1 = z.infer<typeof drawingSetCreatedV1Schema>;
+
+// FR-DOC-5: the signal a future Mobile/Sync module's "GET /sync/working-set"
+// needs to know which set is now the field working set.
+export const drawingSetPublishedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  drawingSetId: uuidSchema,
+});
+export type DrawingSetPublishedV1 = z.infer<typeof drawingSetPublishedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -349,6 +405,12 @@ export const eventRegistry = {
   "change_order_line.created.v1": changeOrderLineCreatedV1Schema,
   "change_order_line.updated.v1": changeOrderLineUpdatedV1Schema,
   "change_order_line.deleted.v1": changeOrderLineDeletedV1Schema,
+  "folder.created.v1": folderCreatedV1Schema,
+  "document.created.v1": documentCreatedV1Schema,
+  "document.updated.v1": documentUpdatedV1Schema,
+  "document_version.created.v1": documentVersionCreatedV1Schema,
+  "drawing_set.created.v1": drawingSetCreatedV1Schema,
+  "drawing_set.published.v1": drawingSetPublishedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;
