@@ -171,6 +171,38 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "assembly",
     entityId: payload.assemblyId as string,
   }),
+  // entityType "change_order" (not "project") — same "the entity's own id
+  // is the natural audit query anchor" reasoning as estimate.*.v1.
+  "change_order.created.v1": (payload) => ({
+    action: "finance.co.create",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order.updated.v1": (payload) => ({
+    action: "finance.co.update",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order.approved.v1": (payload) => ({
+    action: "finance.co.approve",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order_line.created.v1": (payload) => ({
+    action: "finance.co.update",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order_line.updated.v1": (payload) => ({
+    action: "finance.co.update",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order_line.deleted.v1": (payload) => ({
+    action: "finance.co.update",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

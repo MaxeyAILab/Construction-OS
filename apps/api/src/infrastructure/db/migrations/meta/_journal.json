@@ -169,6 +169,27 @@
       "when": 1784702772991,
       "tag": "0023_estimating_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784705568154,
+      "tag": "0024_change_orders_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784705579370,
+      "tag": "0025_change_orders_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784705669253,
+      "tag": "0026_change_orders_permissions",
+      "breakpoints": true
     }
   ]
 }

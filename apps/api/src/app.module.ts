@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuditModule } from "./modules/audit";
 import { AuthModule } from "./modules/auth";
 import { BudgetsModule } from "./modules/budgets";
+import { ChangeOrdersModule } from "./modules/change-orders";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
 import { NotificationsModule } from "./modules/notifications";
@@ -24,6 +25,7 @@ import { HealthModule } from "./platform/health/health.module";
     ProjectsModule,
     BudgetsModule,
     EstimatingModule,
+    ChangeOrdersModule,
   ],
 })
 export class AppModule {}

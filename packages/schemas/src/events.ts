@@ -254,6 +254,63 @@ export const assemblyCreatedV1Schema = z.object({
 });
 export type AssemblyCreatedV1 = z.infer<typeof assemblyCreatedV1Schema>;
 
+// M9 Change Orders (FR-FIN-2). change_order.updated.v1 is the generic
+// "something about the header or status changed" event — covers header
+// edits, submit-to-client, reject, and void — same "one generic updated
+// event" reasoning as project.updated.v1/budget_line.updated.v1.
+// change_order.approved.v1 is broken out separately because it's the one
+// event that actually carries the propagation payload a future Scheduling
+// module needs (schedule_impact_days) — FR-FIN-2's "schedule impact event".
+export const changeOrderCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  number: z.number().int(),
+});
+export type ChangeOrderCreatedV1 = z.infer<typeof changeOrderCreatedV1Schema>;
+
+export const changeOrderUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type ChangeOrderUpdatedV1 = z.infer<typeof changeOrderUpdatedV1Schema>;
+
+export const changeOrderApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  costImpactAmount: z.string(),
+  scheduleImpactDays: z.number().int(),
+});
+export type ChangeOrderApprovedV1 = z.infer<typeof changeOrderApprovedV1Schema>;
+
+export const changeOrderLineCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  changeOrderLineId: uuidSchema,
+});
+export type ChangeOrderLineCreatedV1 = z.infer<typeof changeOrderLineCreatedV1Schema>;
+
+export const changeOrderLineUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  changeOrderLineId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type ChangeOrderLineUpdatedV1 = z.infer<typeof changeOrderLineUpdatedV1Schema>;
+
+export const changeOrderLineDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  changeOrderLineId: uuidSchema,
+});
+export type ChangeOrderLineDeletedV1 = z.infer<typeof changeOrderLineDeletedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -286,6 +343,12 @@ export const eventRegistry = {
   "cost_item.created.v1": costItemCreatedV1Schema,
   "cost_item.price_observed.v1": costItemPriceObservedV1Schema,
   "assembly.created.v1": assemblyCreatedV1Schema,
+  "change_order.created.v1": changeOrderCreatedV1Schema,
+  "change_order.updated.v1": changeOrderUpdatedV1Schema,
+  "change_order.approved.v1": changeOrderApprovedV1Schema,
+  "change_order_line.created.v1": changeOrderLineCreatedV1Schema,
+  "change_order_line.updated.v1": changeOrderLineUpdatedV1Schema,
+  "change_order_line.deleted.v1": changeOrderLineDeletedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

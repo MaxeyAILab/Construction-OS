@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
 import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
+import { ChangeOrdersController } from "../src/modules/change-orders/api/change-orders.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
@@ -32,6 +33,7 @@ const controllers = [
   ProjectsController,
   BudgetsController,
   EstimatingController,
+  ChangeOrdersController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
