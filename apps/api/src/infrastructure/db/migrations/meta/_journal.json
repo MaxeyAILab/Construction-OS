@@ -50,6 +50,20 @@
       "when": 1784686390715,
       "tag": "0006_outbox_rls_and_relay_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784688573504,
+      "tag": "0007_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784688581592,
+      "tag": "0008_notifications_rls_and_triggers",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./modules/auth";
+import { NotificationsModule } from "./modules/notifications";
 import { RbacModule } from "./modules/rbac";
 import { HealthModule } from "./platform/health/health.module";
 
@@ -8,6 +9,6 @@ import { HealthModule } from "./platform/health/health.module";
 // (authorize) the same way. Nest runs APP_GUARDs in resolution order, so
 // AuthModule must come before RbacModule here.
 @Module({
-  imports: [HealthModule, AuthModule, RbacModule],
+  imports: [HealthModule, AuthModule, RbacModule, NotificationsModule],
 })
 export class AppModule {}
