@@ -23,3 +23,4 @@ export * from "./comments";
 export * from "./client_portal";
 export * from "./dashboards";
 export * from "./imports_exports";
+export * from "./sync";

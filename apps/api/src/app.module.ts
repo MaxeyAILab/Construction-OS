@@ -14,6 +14,7 @@ import { ProjectsModule } from "./modules/projects";
 import { RbacModule } from "./modules/rbac";
 import { RfisModule } from "./modules/rfis";
 import { SchedulingModule } from "./modules/scheduling";
+import { SyncModule } from "./modules/sync";
 import { TasksModule } from "./modules/tasks";
 import { HealthModule } from "./platform/health/health.module";
 
@@ -40,6 +41,7 @@ import { HealthModule } from "./platform/health/health.module";
     SchedulingModule,
     TasksModule,
     ImportsExportsModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

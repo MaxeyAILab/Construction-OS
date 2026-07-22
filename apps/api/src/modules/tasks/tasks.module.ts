@@ -12,5 +12,10 @@ const env = loadEnv();
   imports: [EventsModule, CommentsModule],
   controllers: [TasksController],
   providers: [{ provide: DATABASE, useFactory: () => createDatabase(env) }, TasksService],
+  // M6 Mobile Sync (architecture.md §14.2) reuses TasksService for its
+  // 'tasks' mutation handler rather than duplicating create/update/delete
+  // logic — same "broaden an existing module's public surface for a
+  // legitimate new cross-module need" precedent as Projects' CostCodesService.
+  exports: [TasksService],
 })
 export class TasksModule {}

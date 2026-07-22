@@ -65,7 +65,13 @@ export class TasksService {
     return withTenant(this.db, tenantId, (tx) => this.requireTask(tx, taskId));
   }
 
-  async create(tenantId: string, actorId: string, input: CreateTaskInput) {
+  // explicitId: M6 Mobile Sync (architecture.md §14.2) needs the field
+  // client to be able to mint a task's id offline (database.md §1's
+  // "UUIDv7... mobile can generate ids offline" principle) so a create
+  // mutation is idempotent by that same id on retry — REST callers never
+  // pass this, letting the column's own uuid_generate_v7() default apply
+  // as before.
+  async create(tenantId: string, actorId: string, input: CreateTaskInput, explicitId?: string) {
     return withTenant(this.db, tenantId, async (tx) => {
       const project = await tx.query.projects.findFirst({ where: eq(projects.id, input.projectId) });
       if (!project) throw new ProjectNotFoundError();
@@ -73,6 +79,7 @@ export class TasksService {
       const [task] = await tx
         .insert(tasks)
         .values({
+          ...(explicitId ? { id: explicitId } : {}),
           tenantId,
           projectId: input.projectId,
           title: input.title,

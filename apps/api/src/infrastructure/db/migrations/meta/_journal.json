@@ -351,6 +351,20 @@
       "when": 1784728992711,
       "tag": "0049_imports_exports_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1784732692444,
+      "tag": "0050_sync_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1784732697684,
+      "tag": "0051_sync_rls",
+      "breakpoints": true
     }
   ]
 }

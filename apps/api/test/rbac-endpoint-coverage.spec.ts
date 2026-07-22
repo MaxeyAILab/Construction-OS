@@ -10,6 +10,7 @@ import { SelectionsController } from "../src/modules/client-portal/api/selection
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
+import { SyncController } from "../src/modules/sync/api/sync.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
@@ -52,6 +53,7 @@ const controllers = [
   SchedulingController,
   TasksController,
   ImportsExportsController,
+  SyncController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
