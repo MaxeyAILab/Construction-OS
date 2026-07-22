@@ -67,6 +67,21 @@ export const userRoleRevokedV1Schema = z.object({
 });
 export type UserRoleRevokedV1 = z.infer<typeof userRoleRevokedV1Schema>;
 
+// M13 Client Portal foundation (FR-RBAC-3). external_share.created.v1
+// covers a grant to any audience (client/sub/supplier) — one generic event
+// rather than per-audience variants, same "one event, a discriminator
+// field" reasoning as task.created.v1's `kind`.
+export const externalShareCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  shareId: uuidSchema,
+  principalUserId: uuidSchema,
+  audience: z.enum(["client", "subcontractor", "supplier"]),
+  entityType: z.string(),
+  entityId: uuidSchema,
+  access: z.enum(["view", "approve", "comment"]),
+});
+export type ExternalShareCreatedV1 = z.infer<typeof externalShareCreatedV1Schema>;
+
 // architecture.md §13's file pipeline: uploaded (client completed the
 // presigned upload) and scan-completed (the processing worker finished
 // virus-scanning + thumbnailing) are separate events since they happen at
@@ -502,6 +517,7 @@ export const eventRegistry = {
   "permission.revoked.v1": permissionRevokedV1Schema,
   "company_user.removed.v1": companyUserRemovedV1Schema,
   "user_role.revoked.v1": userRoleRevokedV1Schema,
+  "external_share.created.v1": externalShareCreatedV1Schema,
   "file.uploaded.v1": fileUploadedV1Schema,
   "file.scan_completed.v1": fileScanCompletedV1Schema,
   "project.created.v1": projectCreatedV1Schema,

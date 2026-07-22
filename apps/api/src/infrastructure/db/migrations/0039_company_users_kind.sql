@@ -1,0 +1,2 @@
+ALTER TABLE "company_users" ADD COLUMN "kind" text DEFAULT 'internal' NOT NULL;--> statement-breakpoint
+ALTER TABLE "company_users" ADD CONSTRAINT "ck_company_users_kind" CHECK ("company_users"."kind" in ('internal', 'external'));

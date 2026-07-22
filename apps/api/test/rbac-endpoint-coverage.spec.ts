@@ -9,6 +9,7 @@ import { DocumentsController } from "../src/modules/documents/api/documents.cont
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
+import { ExternalSharesController } from "../src/modules/rbac/api/external-shares.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
 import { RfisController } from "../src/modules/rfis/api/rfis.controller";
 import { SchedulingController } from "../src/modules/scheduling/api/scheduling.controller";
@@ -32,6 +33,7 @@ const controllers = [
   HealthController,
   AuthController,
   RbacController,
+  ExternalSharesController,
   NotificationsController,
   AuditController,
   ProjectsController,

@@ -274,6 +274,20 @@
       "when": 1784711152852,
       "tag": "0038_scheduling_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1784713374325,
+      "tag": "0039_company_users_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1784713388686,
+      "tag": "0040_admin_share_permission",
+      "breakpoints": true
     }
   ]
 }

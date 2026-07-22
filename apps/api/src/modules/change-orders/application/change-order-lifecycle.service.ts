@@ -3,7 +3,13 @@ import { and, eq, isNull } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { budgetLines, budgets, changeOrderLines, changeOrders } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
-import { ChangeOrderNotDraftError, ChangeOrderNotPendingClientError, NoActiveBudgetForProjectError } from "../domain/errors";
+import { ExternalSharesService, PermissionResolverService } from "../../rbac";
+import {
+  ChangeOrderApprovalDeniedError,
+  ChangeOrderNotDraftError,
+  ChangeOrderNotPendingClientError,
+  NoActiveBudgetForProjectError,
+} from "../domain/errors";
 import { ChangeOrdersService } from "./change-orders.service";
 
 // api.md §9: submit-to-client and approve are two separate steps
@@ -20,6 +26,8 @@ export class ChangeOrderLifecycleService {
     @Inject(DATABASE) private readonly db: Database,
     private readonly outbox: OutboxService,
     private readonly changeOrdersService: ChangeOrdersService,
+    private readonly permissions: PermissionResolverService,
+    private readonly externalShares: ExternalSharesService,
   ) {}
 
   // Gap-fill: api.md §9 documents this as "Publishes to portal +
@@ -100,15 +108,26 @@ export class ChangeOrderLifecycleService {
   }
 
   // FR-FIN-2: "On approval (one transaction): budget_lines.approved_changes
-  // update + schedule impact event + client-portal visibility." Client-
-  // portal visibility and the actual schedule re-flow have no consumer yet
-  // (Client portal v1 / Scheduling v1 are later roadmap rows) — this emits
-  // change_order.approved.v1 carrying schedule_impact_days so a future
-  // Scheduling consumer can react, and the budget propagation is real and
-  // atomic today. Only the internal finance.co.approve path is implemented;
-  // "portal principal via share" approval is a flagged follow-up since the
-  // Client portal module doesn't exist to authenticate that principal.
+  // update + schedule impact event + client-portal visibility." The actual
+  // schedule re-flow has no consumer yet (Scheduling AI impact simulation,
+  // FR-SCH-6, is a later roadmap row) — this emits change_order.approved.v1
+  // carrying schedule_impact_days so a future consumer can react, and the
+  // budget propagation is real and atomic today.
+  //
+  // api.md §9: "finance.co.approve (internal) or portal principal via
+  // share" — two independent authorization paths for the same action
+  // (architecture.md §11/12's application-layer record-level rules, not a
+  // single @RequirePermission key; see the controller's @Authenticated()).
+  // Only the share path stamps client_approved_by/at/channel — those
+  // columns exist specifically to distinguish "an employee approved this
+  // internally" from "the client approved it via the portal."
   async approve(tenantId: string, actorId: string, changeOrderId: string) {
+    const hasInternalPermission = await this.permissions.has(tenantId, actorId, "finance.co.approve");
+    const viaShare = !hasInternalPermission
+      ? await this.externalShares.hasAccess(tenantId, actorId, "change_order", changeOrderId, "approve")
+      : false;
+    if (!hasInternalPermission && !viaShare) throw new ChangeOrderApprovalDeniedError();
+
     return withTenant(this.db, tenantId, async (tx) => {
       const co = await this.changeOrdersService.requireChangeOrder(tx, changeOrderId);
       if (co.status !== "pending_client") throw new ChangeOrderNotPendingClientError();
@@ -182,7 +201,13 @@ export class ChangeOrderLifecycleService {
 
       const [approvedCo] = await tx
         .update(changeOrders)
-        .set({ status: "approved", updatedBy: actorId })
+        .set({
+          status: "approved",
+          updatedBy: actorId,
+          ...(viaShare
+            ? { clientApprovedBy: actorId, clientApprovedAt: new Date(), clientApprovalChannel: "portal" }
+            : {}),
+        })
         .where(eq(changeOrders.id, changeOrderId))
         .returning();
 

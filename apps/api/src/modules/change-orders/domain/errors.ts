@@ -63,3 +63,15 @@ export class NoActiveBudgetForProjectError extends DomainError {
     super("this project has no active budget to apply the change order impact to");
   }
 }
+
+// api.md §9: "finance.co.approve (internal) or portal principal via
+// share" — thrown when the caller has neither. Duplicated (not imported)
+// from rbac/domain/errors' own PermissionDeniedError, same cross-module
+// precedent as every other duplicated error this session.
+export class ChangeOrderApprovalDeniedError extends DomainError {
+  readonly code = "permission_denied";
+  readonly status = 403;
+  constructor() {
+    super("missing permission: finance.co.approve (or a valid client-portal share)");
+  }
+}

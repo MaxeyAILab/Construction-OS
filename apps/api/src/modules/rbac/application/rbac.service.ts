@@ -139,6 +139,7 @@ export class RbacService {
     email: string,
     fullName: string,
     actorId: string,
+    kind: "internal" | "external" = "internal",
   ): Promise<{ userId: string }> {
     let user = await this.db.query.users.findFirst({ where: eq(users.email, email) });
     if (!user) {
@@ -155,7 +156,7 @@ export class RbacService {
       });
       if (existing) throw new AlreadyAMemberError();
 
-      await tx.insert(companyUsers).values({ tenantId, userId: user!.id });
+      await tx.insert(companyUsers).values({ tenantId, userId: user!.id, kind });
       await this.outbox.append(tx, {
         tenantId,
         eventType: "user.invited.v1",

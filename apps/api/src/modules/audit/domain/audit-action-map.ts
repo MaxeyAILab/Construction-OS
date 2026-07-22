@@ -55,6 +55,14 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "role",
     entityId: payload.roleId as string,
   }),
+  // M13 Client Portal foundation (FR-RBAC-3). Uses the new `admin.*` key
+  // (api.md §15's literal permission string) rather than `platform.*`,
+  // same reasoning as the migration seeding it.
+  "external_share.created.v1": (payload) => ({
+    action: "admin.share.manage",
+    entityType: "external_share",
+    entityId: payload.shareId as string,
+  }),
   // files module has no HTTP endpoint yet (no consuming module — Documents/
   // Photos — exists to gate one), so there's no @RequirePermission key to
   // reuse; these follow api.md §1.1's module.resource.action shape anyway

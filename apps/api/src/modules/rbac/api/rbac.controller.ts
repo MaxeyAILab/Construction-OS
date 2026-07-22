@@ -84,7 +84,7 @@ export class RbacController {
     @Body(new ZodValidationPipe(inviteUserSchema)) body: z.infer<typeof inviteUserSchema>,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.rbac.inviteUser(req.auth!.tenantId, body.email, body.fullName, req.auth!.sub);
+    return this.rbac.inviteUser(req.auth!.tenantId, body.email, body.fullName, req.auth!.sub, body.kind);
   }
 
   @Delete("company-users/:userId")

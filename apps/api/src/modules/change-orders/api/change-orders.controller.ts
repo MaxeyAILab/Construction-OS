@@ -8,6 +8,7 @@ import {
 } from "@constructionos/schemas";
 import type { z } from "zod";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
+import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
 import { ChangeOrderLifecycleService } from "../application/change-order-lifecycle.service";
@@ -92,8 +93,13 @@ export class ChangeOrdersController {
     return this.lifecycle.submitToClient(req.auth!.tenantId, req.auth!.sub, id);
   }
 
+  // api.md §9: "finance.co.approve (internal) or portal principal via
+  // share" — a dual authorization path, not a single fixed permission key,
+  // so the guard only requires login (@Authenticated()) and the real
+  // record-level check happens inside ChangeOrderLifecycleService.approve()
+  // (architecture.md §11/12: application-layer share-scope rules).
   @Post("change-orders/:id/approve")
-  @RequirePermission("finance.co.approve")
+  @Authenticated()
   approve(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.lifecycle.approve(req.auth!.tenantId, req.auth!.sub, id);
   }

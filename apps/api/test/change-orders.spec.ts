@@ -13,7 +13,7 @@ describe("Change Orders", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
-  const { changeOrdersService, lifecycleService } = buildTestChangeOrderServices(db);
+  const { changeOrdersService, lifecycleService, redis: sharesRedis } = buildTestChangeOrderServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -21,6 +21,7 @@ describe("Change Orders", () => {
 
   afterAll(async () => {
     await redis.quit();
+    await sharesRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
