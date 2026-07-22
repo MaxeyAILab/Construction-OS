@@ -13,6 +13,7 @@ import {
   JSONCodec,
   type NatsConnection,
 } from "nats";
+import { recordConsumed, recordDeadLettered } from "../../../infrastructure/observability/consumer-metrics";
 import { EVENTS_STREAM_NAME, NATS_CONNECTION } from "../../../infrastructure/nats/client";
 import { AuditWriterService } from "../application/audit-writer.service";
 
@@ -67,6 +68,7 @@ export class AuditConsumerWorker implements OnModuleInit, OnModuleDestroy {
         const envelope = outboxEnvelopeSchema.parse(jsonCodec.decode(msg.data));
         await this.writer.handleEnvelope(envelope);
         msg.ack();
+        recordConsumed(DURABLE_NAME, msg.subject, "ack");
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (msg.info.deliveryCount >= MAX_DELIVERY_ATTEMPTS) {
@@ -74,11 +76,13 @@ export class AuditConsumerWorker implements OnModuleInit, OnModuleDestroy {
             `giving up on ${msg.subject} after ${msg.info.deliveryCount} attempts, dead-lettering: ${message}`,
           );
           msg.ack();
+          recordDeadLettered(DURABLE_NAME, msg.subject);
         } else {
           this.logger.error(
             `failed to process ${msg.subject} (attempt ${msg.info.deliveryCount}): ${message}`,
           );
           msg.nak(2000);
+          recordConsumed(DURABLE_NAME, msg.subject, "nak");
         }
       }
     }

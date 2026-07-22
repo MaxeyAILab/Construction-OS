@@ -1,0 +1,124 @@
+# Prometheus/Mimir alerting rules for the SLOs documented in
+# ../../../docs/observability/slo.md. Metric names assume the OTel
+# Collector's Prometheus exporter — see that doc + ../README.md for the
+# "not verified against a live collector" caveat before wiring these into
+# a real pager.
+#
+# Load into the local stack's bundled Prometheus via its rule_files config,
+# or into a real Mimir ruler in a deployed environment.
+groups:
+  - name: constructionos-api-availability-slo
+    rules:
+      # Multi-window, multi-burn-rate (Google SRE workbook pattern): a
+      # short window makes the alert responsive, a long window makes it
+      # resistant to single-minute blips: both must agree before firing.
+      - alert: APIAvailabilityFastBurn
+        # 99.9% SLO -> 0.1% error budget. 14.4x burn exhausts a 30-day
+        # budget in ~2 days if sustained — page immediately.
+        expr: |
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_status_code=~"5.."}[1h]))
+            /
+            sum(rate(http_server_request_duration_seconds_count[1h]))
+            > (14.4 * 0.001)
+          )
+          and
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_server_request_duration_seconds_count[5m]))
+            > (14.4 * 0.001)
+          )
+        for: 2m
+        labels:
+          severity: page
+          slo: api-availability
+        annotations:
+          summary: "API availability burning error budget fast (NFR-8, 99.9% SLO)"
+          description: "5xx ratio over both 1h and 5m windows exceeds a 14.4x burn rate — at this rate the 30-day error budget is exhausted in ~2 days."
+
+      - alert: APIAvailabilitySlowBurn
+        # 6x burn exhausts the budget in ~5 days — ticket, not page.
+        expr: |
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_status_code=~"5.."}[6h]))
+            /
+            sum(rate(http_server_request_duration_seconds_count[6h]))
+            > (6 * 0.001)
+          )
+          and
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_status_code=~"5.."}[30m]))
+            /
+            sum(rate(http_server_request_duration_seconds_count[30m]))
+            > (6 * 0.001)
+          )
+        for: 15m
+        labels:
+          severity: ticket
+          slo: api-availability
+        annotations:
+          summary: "API availability burning error budget (NFR-8, 99.9% SLO)"
+          description: "5xx ratio over both 6h and 30m windows exceeds a 6x burn rate."
+
+  - name: constructionos-api-latency-slo
+    rules:
+      # Latency doesn't fit the ratio-of-bad-events burn-rate model as
+      # cleanly as availability does (no fixed "bad event" bucket boundary
+      # sits exactly at 300ms/800ms) — this is a simpler sustained-
+      # threshold check over two windows, not full burn-rate math.
+      - alert: APILatencyP95High
+        expr: |
+          (
+            histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket[30m]))) > 0.3
+          )
+          and
+          (
+            histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket[5m]))) > 0.3
+          )
+        for: 10m
+        labels:
+          severity: ticket
+          slo: api-latency
+        annotations:
+          summary: "API P95 latency above 300ms target (NFR-1)"
+          description: "P95 request latency has exceeded the 300ms target over both a 30m and a 5m window."
+
+      - alert: APILatencyP99High
+        expr: |
+          (
+            histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket[30m]))) > 0.8
+          )
+          and
+          (
+            histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket[5m]))) > 0.8
+          )
+        for: 10m
+        labels:
+          severity: ticket
+          slo: api-latency
+        annotations:
+          summary: "API P99 latency above 800ms target (NFR-1)"
+          description: "P99 request latency has exceeded the 800ms target over both a 30m and a 5m window."
+
+  - name: constructionos-events-queue-dlq
+    rules:
+      - alert: EventsDeadLettered
+        expr: increase(events_dead_lettered_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: page
+          slo: events-dlq
+        annotations:
+          summary: "Events dead-lettered on {{ $labels.consumer }}"
+          description: "{{ $labels.consumer }} gave up on a message on subject {{ $labels.subject }} after exhausting delivery attempts — zero-tolerance SLO, any occurrence is a bug needing a human."
+
+      - alert: OutboxRelayQueueBacklog
+        expr: outbox_relay_queue_depth > 100
+        for: 10m
+        labels:
+          severity: ticket
+          slo: events-queue-depth
+        annotations:
+          summary: "Outbox relay queue backlog sustained above 100"
+          description: "outbox_relay_queue_depth has stayed above 100 for 10m — the relay isn't keeping up with outbox writes; event-driven consumers (notifications, audit log) are falling behind in near-real-time."

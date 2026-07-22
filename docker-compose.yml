@@ -1,0 +1,29 @@
+# Local, self-hosted observability stack (architecture.md §15: "OTel
+# Collector → Grafana LGTM ... self-hosted at MVP"). `grafana/otel-lgtm`
+# bundles Grafana + Loki (logs) + Tempo (traces) + Prometheus (metrics) +
+# an OTel Collector, pre-wired to each other, in one image — the pragmatic
+# MVP substitute for standing up each component separately.
+#
+# Start:  docker compose up -d
+# Grafana: http://localhost:3000 (anonymous admin access, dev-only —
+#          see GF_AUTH_* below; never carry these into a shared environment)
+# OTLP:    point OTEL_EXPORTER_OTLP_ENDPOINT at http://localhost:4318
+#          (apps/api/src/infrastructure/observability/tracing.ts reads this)
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "3000:3000" # Grafana UI
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - otel-lgtm-data:/data
+      - ./infra/observability/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards/custom:ro
+      - ./infra/observability/dashboards-provisioning.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
+
+volumes:
+  otel-lgtm-data:

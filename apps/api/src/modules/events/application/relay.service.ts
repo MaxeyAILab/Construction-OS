@@ -5,6 +5,7 @@ import { JSONCodec, type NatsConnection } from "nats";
 import { DATABASE, type Database } from "../../../infrastructure/db/client";
 import { jobRuns } from "../../../infrastructure/db/schema";
 import { eventSubject, NATS_CONNECTION } from "../../../infrastructure/nats/client";
+import { meter } from "../../../infrastructure/observability/metrics";
 
 type ClaimedOutboxRow = Record<string, unknown> & {
   id: string;
@@ -23,6 +24,17 @@ type ClaimedOutboxRow = Record<string, unknown> & {
 };
 
 const jsonCodec = JSONCodec<OutboxEnvelope>();
+
+const batchDuration = meter.createHistogram("outbox_relay_batch_duration_ms", {
+  description: "Duration of a single outbox relay batch (claim -> publish -> mark-published)",
+  unit: "ms",
+});
+const claimedTotal = meter.createCounter("outbox_relay_claimed_total", {
+  description: "Outbox rows claimed for relay",
+});
+const publishedTotal = meter.createCounter("outbox_relay_published_total", {
+  description: "Outbox rows successfully published to NATS JetStream",
+});
 
 /**
  * Relays claimed outbox rows to NATS JetStream (architecture.md §8). This is
@@ -63,6 +75,7 @@ export class RelayService {
             completedAt: new Date(),
           })
           .where(eq(jobRuns.id, jobRunId));
+        batchDuration.record(Date.now() - startedAt, { outcome: "empty" });
         return { claimed: 0, published: 0 };
       }
 
@@ -101,9 +114,13 @@ export class RelayService {
         })
         .where(eq(jobRuns.id, jobRunId));
 
+      claimedTotal.add(rows.length);
+      publishedTotal.add(publishedIds.length);
+      batchDuration.record(Date.now() - startedAt, { outcome: "success" });
       return { claimed: rows.length, published: publishedIds.length };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      batchDuration.record(Date.now() - startedAt, { outcome: "failed" });
       this.logger.error(`outbox relay batch failed: ${message}`);
       await this.db
         .update(jobRuns)

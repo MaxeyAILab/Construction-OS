@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
+import { attachAuthContext } from "../../../infrastructure/observability/request-context";
 import { IS_PUBLIC_KEY } from "../../../platform/decorators/public.decorator";
 // Real (non-type-only) imports required: NestJS constructor injection
 // resolves providers via emitDecoratorMetadata, which needs the actual
@@ -53,6 +54,7 @@ export class AccessTokenGuard implements CanActivate {
     }
 
     request.auth = payload;
+    attachAuthContext(payload.tenantId, payload.sub);
     return true;
   }
 }
