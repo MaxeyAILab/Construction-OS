@@ -343,6 +343,18 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: payload.entityType as string,
     entityId: payload.entityId as string,
   }),
+  // M18 Imports/Exports (FR-PLAT-7). Only the two privileged actions get an
+  // event at all — see events.ts's comment on why map/validate don't.
+  "export_job.requested.v1": (payload) => ({
+    action: "platform.export.manage",
+    entityType: "export_job",
+    entityId: payload.exportJobId as string,
+  }),
+  "import_job.committed.v1": (payload) => ({
+    action: "platform.import.manage",
+    entityType: "import_job",
+    entityId: payload.importJobId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

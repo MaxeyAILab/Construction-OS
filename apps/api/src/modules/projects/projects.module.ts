@@ -28,5 +28,11 @@ const env = loadEnv();
     ProjectTemplatesService,
     IdempotencyInterceptor,
   ],
+  // CostCodesService: M18 guided imports (FR-PLAT-7) reuse it for the
+  // cost_codes commit step rather than duplicating duplicate-code/parent-
+  // validation/outbox-event logic — same "broaden an existing module's
+  // public surface for a legitimate new cross-module need" precedent as
+  // Client Portal's earlier broadening of Scheduling/Documents.
+  exports: [CostCodesService],
 })
 export class ProjectsModule {}

@@ -549,6 +549,29 @@ export const scheduleRecalculatedV1Schema = z.object({
 });
 export type ScheduleRecalculatedV1 = z.infer<typeof scheduleRecalculatedV1Schema>;
 
+// M18 Platform/Admin (FR-PLAT-7). Only the actually-privileged actions get
+// an event — requesting a full tenant-wide data export, and committing
+// real writes from a guided import. The intermediate map/validate steps
+// are dry runs (no data produced or written) and don't get one, same
+// "audit privileged/financial actions" framing as every other mapper in
+// audit-action-map.ts.
+export const exportJobRequestedV1Schema = z.object({
+  companyId: uuidSchema,
+  exportJobId: uuidSchema,
+  entityType: z.string(),
+});
+export type ExportJobRequestedV1 = z.infer<typeof exportJobRequestedV1Schema>;
+
+export const importJobCommittedV1Schema = z.object({
+  companyId: uuidSchema,
+  importJobId: uuidSchema,
+  entityType: z.string(),
+  projectId: uuidSchema.nullable(),
+  created: z.number().int(),
+  skipped: z.number().int(),
+});
+export type ImportJobCommittedV1 = z.infer<typeof importJobCommittedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -611,6 +634,8 @@ export const eventRegistry = {
   "schedule_activity.deleted.v1": scheduleActivityDeletedV1Schema,
   "activity_dependency.replaced.v1": activityDependencyReplacedV1Schema,
   "schedule.recalculated.v1": scheduleRecalculatedV1Schema,
+  "export_job.requested.v1": exportJobRequestedV1Schema,
+  "import_job.committed.v1": importJobCommittedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

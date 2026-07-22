@@ -8,6 +8,7 @@ import { DashboardsModule } from "./modules/dashboards";
 import { DocumentsModule } from "./modules/documents";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
+import { ImportsExportsModule } from "./modules/imports-exports";
 import { NotificationsModule } from "./modules/notifications";
 import { ProjectsModule } from "./modules/projects";
 import { RbacModule } from "./modules/rbac";
@@ -38,6 +39,7 @@ import { HealthModule } from "./platform/health/health.module";
     RfisModule,
     SchedulingModule,
     TasksModule,
+    ImportsExportsModule,
   ],
 })
 export class AppModule {}
