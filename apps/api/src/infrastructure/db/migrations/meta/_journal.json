@@ -148,6 +148,27 @@
       "when": 1784699760000,
       "tag": "0020_seed_finance_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784702416127,
+      "tag": "0021_estimating_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784702500000,
+      "tag": "0022_estimating_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784702772991,
+      "tag": "0023_estimating_permissions",
+      "breakpoints": true
     }
   ]
 }

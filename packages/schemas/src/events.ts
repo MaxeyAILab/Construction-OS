@@ -185,6 +185,75 @@ export const costTransactionPostedV1Schema = z.object({
 });
 export type CostTransactionPostedV1 = z.infer<typeof costTransactionPostedV1Schema>;
 
+// M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
+// estimate and a new version (FR-EST-4 versions are new rows) — same
+// "one create event regardless of how the row came to exist" reasoning as
+// project.created.v1.
+export const estimateCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  estimateId: uuidSchema,
+  version: z.number().int(),
+});
+export type EstimateCreatedV1 = z.infer<typeof estimateCreatedV1Schema>;
+
+export const estimateUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  estimateId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type EstimateUpdatedV1 = z.infer<typeof estimateUpdatedV1Schema>;
+
+export const estimateLineCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  estimateId: uuidSchema,
+  estimateLineId: uuidSchema,
+});
+export type EstimateLineCreatedV1 = z.infer<typeof estimateLineCreatedV1Schema>;
+
+export const estimateLineUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  estimateId: uuidSchema,
+  estimateLineId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type EstimateLineUpdatedV1 = z.infer<typeof estimateLineUpdatedV1Schema>;
+
+export const estimateLineDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  estimateId: uuidSchema,
+  estimateLineId: uuidSchema,
+});
+export type EstimateLineDeletedV1 = z.infer<typeof estimateLineDeletedV1Schema>;
+
+// Cost book entities are tenant-wide, not project-scoped, so their events
+// carry no projectId (unlike the estimate.*/estimate_line.* events above).
+export const costItemCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  costItemId: uuidSchema,
+  code: z.string(),
+});
+export type CostItemCreatedV1 = z.infer<typeof costItemCreatedV1Schema>;
+
+export const costItemPriceObservedV1Schema = z.object({
+  companyId: uuidSchema,
+  costItemId: uuidSchema,
+  unitCostAmount: z.string(),
+  source: z.string(),
+});
+export type CostItemPriceObservedV1 = z.infer<typeof costItemPriceObservedV1Schema>;
+
+export const assemblyCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  assemblyId: uuidSchema,
+  code: z.string(),
+});
+export type AssemblyCreatedV1 = z.infer<typeof assemblyCreatedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -209,6 +278,14 @@ export const eventRegistry = {
   "budget_line.created.v1": budgetLineCreatedV1Schema,
   "budget_line.updated.v1": budgetLineUpdatedV1Schema,
   "cost_transaction.posted.v1": costTransactionPostedV1Schema,
+  "estimate.created.v1": estimateCreatedV1Schema,
+  "estimate.updated.v1": estimateUpdatedV1Schema,
+  "estimate_line.created.v1": estimateLineCreatedV1Schema,
+  "estimate_line.updated.v1": estimateLineUpdatedV1Schema,
+  "estimate_line.deleted.v1": estimateLineDeletedV1Schema,
+  "cost_item.created.v1": costItemCreatedV1Schema,
+  "cost_item.price_observed.v1": costItemPriceObservedV1Schema,
+  "assembly.created.v1": assemblyCreatedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

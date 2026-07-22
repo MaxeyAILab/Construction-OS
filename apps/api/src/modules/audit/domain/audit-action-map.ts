@@ -128,6 +128,49 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "project",
     entityId: payload.projectId as string,
   }),
+  // entityType "estimate" (not "project") — unlike Budget's sub-resource
+  // events, an estimate's own id is the natural audit query anchor ("show
+  // me everything that happened to this estimate version").
+  "estimate.created.v1": (payload) => ({
+    action: "estimating.estimate.create",
+    entityType: "estimate",
+    entityId: payload.estimateId as string,
+  }),
+  "estimate.updated.v1": (payload) => ({
+    action: "estimating.estimate.update",
+    entityType: "estimate",
+    entityId: payload.estimateId as string,
+  }),
+  "estimate_line.created.v1": (payload) => ({
+    action: "estimating.estimate.update",
+    entityType: "estimate",
+    entityId: payload.estimateId as string,
+  }),
+  "estimate_line.updated.v1": (payload) => ({
+    action: "estimating.estimate.update",
+    entityType: "estimate",
+    entityId: payload.estimateId as string,
+  }),
+  "estimate_line.deleted.v1": (payload) => ({
+    action: "estimating.estimate.delete",
+    entityType: "estimate",
+    entityId: payload.estimateId as string,
+  }),
+  "cost_item.created.v1": (payload) => ({
+    action: "estimating.costbook.manage",
+    entityType: "cost_item",
+    entityId: payload.costItemId as string,
+  }),
+  "cost_item.price_observed.v1": (payload) => ({
+    action: "estimating.costbook.manage",
+    entityType: "cost_item",
+    entityId: payload.costItemId as string,
+  }),
+  "assembly.created.v1": (payload) => ({
+    action: "estimating.costbook.manage",
+    entityType: "assembly",
+    entityId: payload.assemblyId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
