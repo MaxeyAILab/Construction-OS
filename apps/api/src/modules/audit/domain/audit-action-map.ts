@@ -55,6 +55,20 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "role",
     entityId: payload.roleId as string,
   }),
+  // files module has no HTTP endpoint yet (no consuming module — Documents/
+  // Photos — exists to gate one), so there's no @RequirePermission key to
+  // reuse; these follow api.md §1.1's module.resource.action shape anyway
+  // for when one does exist.
+  "file.uploaded.v1": (payload) => ({
+    action: "files.file.upload",
+    entityType: "file",
+    entityId: payload.fileId as string,
+  }),
+  "file.scan_completed.v1": (payload) => ({
+    action: "files.file.scan",
+    entityType: "file",
+    entityId: payload.fileId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

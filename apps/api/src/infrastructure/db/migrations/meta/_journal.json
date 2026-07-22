@@ -92,6 +92,20 @@
       "when": 1784691816026,
       "tag": "0012_seed_audit_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784696840395,
+      "tag": "0013_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784696900000,
+      "tag": "0014_files_rls_and_triggers",
+      "breakpoints": true
     }
   ]
 }

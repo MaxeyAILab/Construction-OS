@@ -67,6 +67,28 @@ export const userRoleRevokedV1Schema = z.object({
 });
 export type UserRoleRevokedV1 = z.infer<typeof userRoleRevokedV1Schema>;
 
+// architecture.md §13's file pipeline: uploaded (client completed the
+// presigned upload) and scan-completed (the processing worker finished
+// virus-scanning + thumbnailing) are separate events since they happen at
+// different times and different actors (a human upload vs. the worker).
+export const fileUploadedV1Schema = z.object({
+  companyId: uuidSchema,
+  fileId: uuidSchema,
+  objectKey: z.string(),
+  originalFilename: z.string(),
+  contentType: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+});
+export type FileUploadedV1 = z.infer<typeof fileUploadedV1Schema>;
+
+export const fileScanCompletedV1Schema = z.object({
+  companyId: uuidSchema,
+  fileId: uuidSchema,
+  status: z.enum(["clean", "infected", "scan_failed"]),
+  signature: z.string().optional(),
+});
+export type FileScanCompletedV1 = z.infer<typeof fileScanCompletedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -78,6 +100,8 @@ export const eventRegistry = {
   "permission.revoked.v1": permissionRevokedV1Schema,
   "company_user.removed.v1": companyUserRemovedV1Schema,
   "user_role.revoked.v1": userRoleRevokedV1Schema,
+  "file.uploaded.v1": fileUploadedV1Schema,
+  "file.scan_completed.v1": fileScanCompletedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

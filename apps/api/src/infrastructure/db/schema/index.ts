@@ -9,3 +9,4 @@ export * from "./outbox";
 export * from "./job_runs";
 export * from "./notifications";
 export * from "./audit_log";
+export * from "./files";
