@@ -4,6 +4,7 @@ import { AuthModule } from "./modules/auth";
 import { BudgetsModule } from "./modules/budgets";
 import { ChangeOrdersModule } from "./modules/change-orders";
 import { ClientPortalModule } from "./modules/client-portal";
+import { DashboardsModule } from "./modules/dashboards";
 import { DocumentsModule } from "./modules/documents";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
@@ -32,6 +33,7 @@ import { HealthModule } from "./platform/health/health.module";
     EstimatingModule,
     ChangeOrdersModule,
     ClientPortalModule,
+    DashboardsModule,
     DocumentsModule,
     RfisModule,
     SchedulingModule,

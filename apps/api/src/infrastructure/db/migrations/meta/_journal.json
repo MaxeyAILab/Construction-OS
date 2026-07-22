@@ -309,6 +309,27 @@
       "when": 1784724086995,
       "tag": "0043_client_portal_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1784727093320,
+      "tag": "0044_dashboards_projections_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1784727101851,
+      "tag": "0045_dashboards_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1784727114194,
+      "tag": "0046_dashboards_permissions",
+      "breakpoints": true
     }
   ]
 }

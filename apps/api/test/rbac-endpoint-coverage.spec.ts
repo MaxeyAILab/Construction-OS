@@ -7,6 +7,7 @@ import { BudgetsController } from "../src/modules/budgets/api/budgets.controller
 import { ChangeOrdersController } from "../src/modules/change-orders/api/change-orders.controller";
 import { PortalMessagesController } from "../src/modules/client-portal/api/portal-messages.controller";
 import { SelectionsController } from "../src/modules/client-portal/api/selections.controller";
+import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
@@ -44,6 +45,7 @@ const controllers = [
   ChangeOrdersController,
   SelectionsController,
   PortalMessagesController,
+  DashboardsController,
   DocumentsController,
   RfisController,
   SchedulingController,
