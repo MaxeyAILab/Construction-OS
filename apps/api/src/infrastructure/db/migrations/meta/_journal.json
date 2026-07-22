@@ -36,6 +36,20 @@
       "when": 1784649480494,
       "tag": "0004_seed_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784686379088,
+      "tag": "0005_events_backbone",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784686390715,
+      "tag": "0006_outbox_rls_and_relay_functions",
+      "breakpoints": true
     }
   ]
 }

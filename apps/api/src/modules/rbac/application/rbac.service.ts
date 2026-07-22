@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
@@ -9,6 +10,10 @@ import {
   userRoles,
   users,
 } from "../../../infrastructure/db/schema";
+// Real (non-type-only) import required: NestJS constructor injection
+// resolves providers via emitDecoratorMetadata, which needs the actual
+// class reference at runtime, not just its type.
+import { OutboxService } from "../../events";
 import {
   AlreadyAMemberError,
   DuplicateRoleNameError,
@@ -23,6 +28,7 @@ export class RbacService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly cache: PermissionCacheService,
+    private readonly outbox: OutboxService,
   ) {}
 
   async listRoles(tenantId: string) {
@@ -113,6 +119,12 @@ export class RbacService {
       if (existing) throw new AlreadyAMemberError();
 
       await tx.insert(companyUsers).values({ tenantId, userId: user!.id });
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "user.invited.v1",
+        payload: { companyId: tenantId, userId: user!.id, email: user!.email },
+        dedupeKey: randomUUID(),
+      });
     });
 
     return { userId: user.id };
@@ -151,6 +163,18 @@ export class RbacService {
         roleId,
         scopeType: scope.scopeType,
         projectId: scope.projectId,
+      });
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "role.assigned.v1",
+        payload: {
+          companyId: tenantId,
+          userId,
+          roleId,
+          scopeType: scope.scopeType,
+          projectId: scope.projectId,
+        },
+        dedupeKey: randomUUID(),
       });
     });
 

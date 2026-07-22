@@ -10,6 +10,7 @@ import { RefreshTokenService } from "../../src/modules/auth/infrastructure/refre
 import { SessionDenylistService } from "../../src/modules/auth/infrastructure/session-denylist.service";
 import { TokenService } from "../../src/modules/auth/infrastructure/token.service";
 import { TotpService } from "../../src/modules/auth/infrastructure/totp.service";
+import { OutboxService } from "../../src/modules/events/application/outbox.service";
 
 // Wires AuthService with its real dependencies (no HTTP layer) so tests can
 // exercise the actual login/refresh/RLS/Redis interplay directly, the same
@@ -32,6 +33,7 @@ export function buildTestAuthService(db: Database): {
     new EncryptionService(randomBytes(32).toString("base64")),
     new MagicLinkService("test-magic-link-secret-01234567890123"),
     denylist,
+    new OutboxService(),
   );
 
   return { authService, redis, denylist };

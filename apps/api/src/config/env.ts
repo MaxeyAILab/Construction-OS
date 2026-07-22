@@ -6,6 +6,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
+  NATS_URL: z.string().url(),
   JWT_ACCESS_SECRET: z.string().min(32),
   MAGIC_LINK_SECRET: z.string().min(32),
   MFA_ENCRYPTION_KEY: z

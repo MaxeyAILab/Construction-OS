@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createRedisClient, REDIS_CLIENT } from "../../infrastructure/redis/client";
+import { EventsModule } from "../events";
 import { RbacController } from "./api/rbac.controller";
 import { PermissionGuard } from "./api/permission.guard";
 import { PermissionResolverService } from "./application/permission-resolver.service";
@@ -12,6 +13,7 @@ import { PermissionCacheService } from "./infrastructure/permission-cache.servic
 const env = loadEnv();
 
 @Module({
+  imports: [EventsModule],
   controllers: [RbacController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

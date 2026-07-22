@@ -4,6 +4,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createRedisClient, REDIS_CLIENT } from "../../infrastructure/redis/client";
+import { EventsModule } from "../events";
 import { AccessTokenGuard } from "./api/access-token.guard";
 import { AuthController } from "./api/auth.controller";
 import { AuthService } from "./application/auth.service";
@@ -18,7 +19,7 @@ import { TotpService } from "./infrastructure/totp.service";
 const env = loadEnv();
 
 @Module({
-  imports: [JwtModule.register({ secret: env.JWT_ACCESS_SECRET })],
+  imports: [JwtModule.register({ secret: env.JWT_ACCESS_SECRET }), EventsModule],
   controllers: [AuthController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

@@ -27,6 +27,7 @@ import {
 // Real (non-type-only) imports required: NestJS constructor injection
 // resolves providers via emitDecoratorMetadata, which needs the actual
 // class reference at runtime, not just its type.
+import { OutboxService } from "../../events";
 import { EncryptionService } from "../infrastructure/encryption.service";
 import { MagicLinkService } from "../infrastructure/magic-link.service";
 import { PasswordService } from "../infrastructure/password.service";
@@ -65,6 +66,7 @@ export class AuthService {
     private readonly encryption: EncryptionService,
     private readonly magicLink: MagicLinkService,
     private readonly denylist: SessionDenylistService,
+    private readonly outbox: OutboxService,
   ) {}
 
   async signUp(
@@ -102,16 +104,21 @@ export class AuthService {
         scopeType: "company",
       });
       if (catalog.length > 0) {
-        await tx
-          .insert(rolePermissions)
-          .values(
-            catalog.map((p) => ({
-              tenantId: company!.id,
-              roleId: ownerRole!.id,
-              permissionKey: p.key,
-            })),
-          );
+        await tx.insert(rolePermissions).values(
+          catalog.map((p) => ({
+            tenantId: company!.id,
+            roleId: ownerRole!.id,
+            permissionKey: p.key,
+          })),
+        );
       }
+
+      await this.outbox.append(tx, {
+        tenantId: company!.id,
+        eventType: "company.registered.v1",
+        payload: { companyId: company!.id, companyName: company!.name, ownerUserId: user!.id },
+        dedupeKey: `company.registered.v1:${company!.id}`,
+      });
 
       return this.issueSession(tx, user!.id, company!.id, ["Owner"], device);
     });

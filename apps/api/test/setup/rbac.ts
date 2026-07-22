@@ -1,5 +1,6 @@
 import type { Database } from "../../src/infrastructure/db/client";
 import { createRedisClient, type RedisClient } from "../../src/infrastructure/redis/client";
+import { OutboxService } from "../../src/modules/events/application/outbox.service";
 import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
 import { RbacService } from "../../src/modules/rbac/application/rbac.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
@@ -13,7 +14,7 @@ export function buildTestRbacServices(db: Database): {
   const cache = new PermissionCacheService(redis);
 
   return {
-    rbacService: new RbacService(db, cache),
+    rbacService: new RbacService(db, cache, new OutboxService()),
     permissionResolver: new PermissionResolverService(db, cache),
     redis,
   };

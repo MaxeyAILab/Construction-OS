@@ -5,3 +5,5 @@ export * from "./users";
 export * from "./company_users";
 export * from "./roles";
 export * from "./sessions";
+export * from "./outbox";
+export * from "./job_runs";

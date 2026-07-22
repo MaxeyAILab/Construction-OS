@@ -27,6 +27,7 @@
     "onlyBuiltDependencies": [
       "argon2",
       "esbuild",
+      "msgpackr-extract",
       "sharp"
     ]
   }
