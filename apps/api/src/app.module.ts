@@ -13,6 +13,7 @@ import { FilesModule } from "./modules/files";
 import { ImportsExportsModule } from "./modules/imports-exports";
 import { NotificationsModule } from "./modules/notifications";
 import { PhotosModule } from "./modules/photos";
+import { ProjectAssistantModule } from "./modules/project-assistant";
 import { ProjectsModule } from "./modules/projects";
 import { RagModule } from "./modules/rag";
 import { RbacModule } from "./modules/rbac";
@@ -50,6 +51,7 @@ import { HealthModule } from "./platform/health/health.module";
     SyncModule,
     AiModule,
     RagModule,
+    ProjectAssistantModule,
   ],
 })
 export class AppModule {}

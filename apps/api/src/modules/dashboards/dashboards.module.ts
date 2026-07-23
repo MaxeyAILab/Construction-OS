@@ -29,5 +29,12 @@ const env = loadEnv();
     DashboardProjectionsWriterService,
     DashboardProjectionsConsumerWorker,
   ],
+  // M17 Project Assistant (ai-spec.md §7.2) reuses DashboardsService's
+  // per-project rollup (status/health/margin/risk counts) as its
+  // "get_project_summary" tool rather than re-deriving the same
+  // projection-table + live-count aggregation — same "broaden an existing
+  // module's public surface for a legitimate new cross-module need"
+  // precedent as TasksModule/RfisModule exporting their own services.
+  exports: [DashboardsService],
 })
 export class DashboardsModule {}

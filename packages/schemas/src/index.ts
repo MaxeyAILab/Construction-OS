@@ -20,3 +20,4 @@ export * from "./imports-exports";
 export * from "./sync";
 export * from "./ai";
 export * from "./rag";
+export * from "./project-assistant";

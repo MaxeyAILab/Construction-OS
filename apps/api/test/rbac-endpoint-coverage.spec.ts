@@ -17,6 +17,7 @@ import { SyncController } from "../src/modules/sync/api/sync.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { PhotosController } from "../src/modules/photos/api/photos.controller";
+import { ProjectAssistantController } from "../src/modules/project-assistant/api/project-assistant.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
 import { RagSearchController } from "../src/modules/rag/api/rag-search.controller";
 import { ExternalSharesController } from "../src/modules/rbac/api/external-shares.controller";
@@ -64,6 +65,7 @@ const controllers = [
   SyncController,
   AiController,
   RagSearchController,
+  ProjectAssistantController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

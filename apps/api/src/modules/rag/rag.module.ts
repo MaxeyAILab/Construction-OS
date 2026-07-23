@@ -38,5 +38,12 @@ const env = loadEnv();
     RagIndexingConsumerWorker,
     RagSearchService,
   ],
+  // M17 Project Assistant (ai-spec.md §7.2) reuses RagSearchService as its
+  // "search_project_records" tool rather than duplicating hybrid-
+  // retrieval logic — same "broaden an existing module's public surface
+  // for a legitimate new cross-module need" precedent as
+  // TasksModule/RfisModule/DailyReportsModule already exporting their own
+  // services.
+  exports: [RagSearchService],
 })
 export class RagModule {}

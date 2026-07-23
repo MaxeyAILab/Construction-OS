@@ -28,3 +28,4 @@ export * from "./imports_exports";
 export * from "./sync";
 export * from "./ai";
 export * from "./rag";
+export * from "./project-assistant";

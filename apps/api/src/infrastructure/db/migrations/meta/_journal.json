@@ -456,6 +456,27 @@
       "when": 1784793886066,
       "tag": "0064_rag_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1784800624683,
+      "tag": "0065_project_assistant_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1784800634028,
+      "tag": "0066_project_assistant_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1784800660138,
+      "tag": "0067_project_assistant_permissions",
+      "breakpoints": true
     }
   ]
 }

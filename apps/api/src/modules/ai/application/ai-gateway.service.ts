@@ -3,9 +3,20 @@ import type { AiRunRequest, ListAiRunsQuery } from "@constructionos/schemas";
 import { and, eq, gte, lt, lte, or, sum } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { aiBudgets, aiRuns } from "../../../infrastructure/db/schema";
-import { AI_PROVIDER, type AiProvider } from "../domain/ai-provider";
+import { AI_PROVIDER, type AiMessage, type AiProvider, type AiToolCall, type AiToolSpec } from "../domain/ai-provider";
 import { AiBudgetExceededError } from "../domain/errors";
 import { computeCostUsd, DEGRADED_MODEL } from "../domain/model-pricing";
+
+// Project Assistant's tool-calling loop (ai-spec.md §6) needs multi-turn
+// requests the public AiRunRequest wire schema doesn't model (no product
+// exposes raw completions over HTTP yet) — userPrompt becomes optional
+// once `messages` carries the full conversation instead.
+export type GatewayRunRequest = Omit<AiRunRequest, "userPrompt"> & {
+  userPrompt?: string;
+  messages?: AiMessage[];
+  tools?: AiToolSpec[];
+  forceToolName?: string;
+};
 
 interface Cursor {
   createdAt: string;
@@ -52,7 +63,7 @@ export class AiGatewayService {
   // "resolve local data, call external systems independently" precedent
   // as SyncWorkingSetService's cross-module calls); the resulting run is
   // recorded in a second, separate transaction.
-  async run(tenantId: string, actorId: string | null, request: AiRunRequest) {
+  async run(tenantId: string, actorId: string | null, request: GatewayRunRequest) {
     const { currentMonthUsage, hardLimit, softLimit } = await this.getBudgetStatus(tenantId);
 
     if (currentMonthUsage >= hardLimit) {
@@ -63,12 +74,15 @@ export class AiGatewayService {
     const model = degraded ? DEGRADED_MODEL : request.model;
 
     const startedAt = Date.now();
-    let result: { content: string; inputTokens: number; outputTokens: number };
+    let result: { content: string | null; toolCalls?: AiToolCall[]; inputTokens: number; outputTokens: number };
     try {
       result = await this.provider.complete({
         model,
         ...(request.systemPrompt && { systemPrompt: request.systemPrompt }),
-        userPrompt: request.userPrompt,
+        ...(request.userPrompt !== undefined && { userPrompt: request.userPrompt }),
+        ...(request.messages && { messages: request.messages }),
+        ...(request.tools && { tools: request.tools }),
+        ...(request.forceToolName && { forceToolName: request.forceToolName }),
         maxTokens: request.maxTokens,
       });
     } catch (err) {
@@ -92,6 +106,7 @@ export class AiGatewayService {
     return {
       aiRunId,
       content: result.content,
+      toolCalls: result.toolCalls ?? [],
       model,
       degraded,
       costUsd: computeCostUsd(model, result.inputTokens, result.outputTokens),
@@ -101,7 +116,7 @@ export class AiGatewayService {
   private async recordRun(
     tenantId: string,
     actorId: string | null,
-    request: AiRunRequest,
+    request: GatewayRunRequest,
     model: string,
     inputTokens: number,
     outputTokens: number,
