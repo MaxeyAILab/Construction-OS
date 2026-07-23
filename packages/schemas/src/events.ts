@@ -422,6 +422,69 @@ export const stockMovementPostedV1Schema = z.object({
 });
 export type StockMovementPostedV1 = z.infer<typeof stockMovementPostedV1Schema>;
 
+// M11 Equipment & Asset Management (FR-EQ-1..3).
+export const equipmentCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+});
+export type EquipmentCreatedV1 = z.infer<typeof equipmentCreatedV1Schema>;
+
+// FR-EQ-1: assignment create/end both maintain the equipment's own
+// status/current_project_id — one generic event with changedFields, same
+// "one event, changedFields tells you what" convention as
+// opportunity.updated.v1.
+export const equipmentAssignmentCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  equipmentAssignmentId: uuidSchema,
+  projectId: uuidSchema,
+});
+export type EquipmentAssignmentCreatedV1 = z.infer<typeof equipmentAssignmentCreatedV1Schema>;
+
+export const equipmentAssignmentEndedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  equipmentAssignmentId: uuidSchema,
+});
+export type EquipmentAssignmentEndedV1 = z.infer<typeof equipmentAssignmentEndedV1Schema>;
+
+export const equipmentUsageLogCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  equipmentUsageLogId: uuidSchema,
+});
+export type EquipmentUsageLogCreatedV1 = z.infer<typeof equipmentUsageLogCreatedV1Schema>;
+
+export const maintenanceScheduleCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  maintenanceScheduleId: uuidSchema,
+});
+export type MaintenanceScheduleCreatedV1 = z.infer<typeof maintenanceScheduleCreatedV1Schema>;
+
+export const maintenanceWorkOrderCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  maintenanceWorkOrderId: uuidSchema,
+});
+export type MaintenanceWorkOrderCreatedV1 = z.infer<typeof maintenanceWorkOrderCreatedV1Schema>;
+
+export const maintenanceWorkOrderUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  maintenanceWorkOrderId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type MaintenanceWorkOrderUpdatedV1 = z.infer<typeof maintenanceWorkOrderUpdatedV1Schema>;
+
+export const equipmentInspectionCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  equipmentInspectionId: uuidSchema,
+  passed: z.boolean(),
+});
+export type EquipmentInspectionCreatedV1 = z.infer<typeof equipmentInspectionCreatedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -886,6 +949,14 @@ export const eventRegistry = {
   "inventory_item.created.v1": inventoryItemCreatedV1Schema,
   "inventory_location.created.v1": inventoryLocationCreatedV1Schema,
   "stock_movement.posted.v1": stockMovementPostedV1Schema,
+  "equipment.created.v1": equipmentCreatedV1Schema,
+  "equipment_assignment.created.v1": equipmentAssignmentCreatedV1Schema,
+  "equipment_assignment.ended.v1": equipmentAssignmentEndedV1Schema,
+  "equipment_usage_log.created.v1": equipmentUsageLogCreatedV1Schema,
+  "maintenance_schedule.created.v1": maintenanceScheduleCreatedV1Schema,
+  "maintenance_work_order.created.v1": maintenanceWorkOrderCreatedV1Schema,
+  "maintenance_work_order.updated.v1": maintenanceWorkOrderUpdatedV1Schema,
+  "equipment_inspection.created.v1": equipmentInspectionCreatedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

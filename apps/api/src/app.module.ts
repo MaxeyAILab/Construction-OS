@@ -9,6 +9,7 @@ import { CrmModule } from "./modules/crm";
 import { DailyReportsModule } from "./modules/daily-reports";
 import { DashboardsModule } from "./modules/dashboards";
 import { DocumentsModule } from "./modules/documents";
+import { EquipmentModule } from "./modules/equipment";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
 import { FinanceAlertsModule } from "./modules/finance-alerts";
@@ -52,6 +53,7 @@ import { HealthModule } from "./platform/health/health.module";
     PhotosModule,
     InventoryModule,
     ProcurementModule,
+    EquipmentModule,
     RfisModule,
     SchedulingModule,
     TasksModule,

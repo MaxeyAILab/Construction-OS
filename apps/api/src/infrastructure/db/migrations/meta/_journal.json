@@ -561,6 +561,27 @@
       "when": 1784829109059,
       "tag": "0079_inventory_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1784830647213,
+      "tag": "0080_equipment_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1784830653146,
+      "tag": "0081_equipment_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1784830677257,
+      "tag": "0082_equipment_permissions",
+      "breakpoints": true
     }
   ]
 }

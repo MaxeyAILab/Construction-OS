@@ -12,6 +12,8 @@ import { DailyReportsController } from "../src/modules/daily-reports/api/daily-r
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
+import { EquipmentController } from "../src/modules/equipment/api/equipment.controller";
+import { MaintenanceController } from "../src/modules/equipment/api/maintenance.controller";
 import { ContactCompaniesController } from "../src/modules/crm/api/contact-companies.controller";
 import { ContactsController } from "../src/modules/crm/api/contacts.controller";
 import { OpportunitiesController } from "../src/modules/crm/api/opportunities.controller";
@@ -88,6 +90,8 @@ const controllers = [
   InventoryItemsController,
   InventoryLocationsController,
   StockController,
+  EquipmentController,
+  MaintenanceController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

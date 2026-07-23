@@ -256,6 +256,47 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "stock_movement",
     entityId: payload.stockMovementId as string,
   }),
+  // M11 Equipment (FR-EQ-1..3).
+  "equipment.created.v1": (payload) => ({
+    action: "equipment.equipment.create",
+    entityType: "equipment",
+    entityId: payload.equipmentId as string,
+  }),
+  "equipment_assignment.created.v1": (payload) => ({
+    action: "equipment.assignment.create",
+    entityType: "equipment_assignment",
+    entityId: payload.equipmentAssignmentId as string,
+  }),
+  "equipment_assignment.ended.v1": (payload) => ({
+    action: "equipment.assignment.create",
+    entityType: "equipment_assignment",
+    entityId: payload.equipmentAssignmentId as string,
+  }),
+  "equipment_usage_log.created.v1": (payload) => ({
+    action: "equipment.usage.create",
+    entityType: "equipment_usage_log",
+    entityId: payload.equipmentUsageLogId as string,
+  }),
+  "maintenance_schedule.created.v1": (payload) => ({
+    action: "equipment.maintenance.create",
+    entityType: "maintenance_schedule",
+    entityId: payload.maintenanceScheduleId as string,
+  }),
+  "maintenance_work_order.created.v1": (payload) => ({
+    action: "equipment.maintenance.create",
+    entityType: "maintenance_work_order",
+    entityId: payload.maintenanceWorkOrderId as string,
+  }),
+  "maintenance_work_order.updated.v1": (payload) => ({
+    action: "equipment.maintenance.create",
+    entityType: "maintenance_work_order",
+    entityId: payload.maintenanceWorkOrderId as string,
+  }),
+  "equipment_inspection.created.v1": (payload) => ({
+    action: "equipment.maintenance.create",
+    entityType: "equipment_inspection",
+    entityId: payload.equipmentInspectionId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").
