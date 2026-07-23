@@ -22,6 +22,25 @@ export class DrawingSetsService {
     );
   }
 
+  // roadmap.md "Field tasks/punch + drawing viewer offline". FR-DOC-5's
+  // "the field working set pins one set" — null (not an error) when the
+  // project has never had a set published, same "not computable yet"
+  // treatment sync-working-set.service.ts already gives lookbackDays.
+  async getPublished(tenantId: string, projectId: string) {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const set = await tx.query.drawingSets.findFirst({
+        where: and(eq(drawingSets.projectId, projectId), eq(drawingSets.isPublished, true)),
+      });
+      if (!set) return null;
+
+      const sheets = await tx.query.drawingSetSheets.findMany({
+        where: eq(drawingSetSheets.drawingSetId, set.id),
+        orderBy: (t, { asc }) => [asc(t.sortOrder)],
+      });
+      return { ...set, sheets };
+    });
+  }
+
   async getById(tenantId: string, drawingSetId: string) {
     return withTenant(this.db, tenantId, async (tx) => {
       const set = await this.requireDrawingSet(tx, drawingSetId);

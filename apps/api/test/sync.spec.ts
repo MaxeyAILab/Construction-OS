@@ -5,6 +5,8 @@ import { withTenant } from "../src/infrastructure/db/client";
 import { syncMutations } from "../src/infrastructure/db/schema";
 import { buildTestAuthService } from "./setup/auth";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
+import { buildTestDocumentServices } from "./setup/documents";
+import { buildTestFileServices } from "./setup/files";
 import { buildTestProjectServices } from "./setup/projects";
 import { buildTestRbacServices } from "./setup/rbac";
 import { buildTestSyncServices } from "./setup/sync";
@@ -12,8 +14,10 @@ import { buildTestSyncServices } from "./setup/sync";
 describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
-  const { projectsService, costCodesService } = buildTestProjectServices(db);
+  const { projectsService, costCodesService, membersService } = buildTestProjectServices(db);
   const { rbacService, redis: rbacRedis } = buildTestRbacServices(db);
+  const { storage, fileUploadService, fileProcessingService, queueConnection } = buildTestFileServices(db);
+  const { documentsService, versionsService, drawingSetsService } = buildTestDocumentServices(db, fileUploadService);
   const {
     syncMutationsService,
     syncDeltaService,
@@ -22,7 +26,7 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
     tasksService,
     dailyReportsService,
     cacheRedis,
-  } = buildTestSyncServices(db);
+  } = buildTestSyncServices(db, documentsService, versionsService, drawingSetsService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -32,6 +36,7 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
     await redis.quit();
     await rbacRedis.quit();
     await cacheRedis.quit();
+    await queueConnection.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
@@ -59,6 +64,24 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
 
   function capturedNow(): string {
     return new Date().toISOString();
+  }
+
+  // Mirrors documents.spec.ts's helper: drives a version through
+  // initiate -> fake client upload -> complete -> processing so drawing-set
+  // sheets have a real, downloadable document_version to point at.
+  async function uploadVersion(tenantId: string, actorId: string, documentId: string, content: Buffer, filename: string) {
+    const initiated = await versionsService.initiateVersion(tenantId, actorId, documentId, {
+      filename,
+      contentType: "text/plain",
+      sizeBytes: content.length,
+    });
+    if (initiated.uploadMode !== "single") throw new Error("expected single mode");
+    const file = await fileUploadService.getFile(tenantId, initiated.fileId);
+    storage.fakeClientUploadSingle(file.objectKey, content, "text/plain");
+
+    const version = await versionsService.completeVersion(tenantId, actorId, documentId, { fileId: initiated.fileId });
+    await fileProcessingService.process({ fileId: initiated.fileId, tenantId });
+    return version;
   }
 
   it("create: applies a mutation with a client-generated id", async () => {
@@ -335,11 +358,59 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
     expect(pull.timeEntries).toHaveLength(0); // not in requested scopes
   });
 
-  it("working-set: returns the caller's assigned projects", async () => {
+  it("working-set: returns the caller's assigned projects, each with its own drawing set (null when none published)", async () => {
     const { tenantId, ownerId, project } = await signUpCompanyWithProject("working-set");
     const workingSet = await syncWorkingSetService.getWorkingSet(tenantId, ownerId);
-    expect(workingSet.projects.map((p) => p.id)).toContain(project.id);
-    expect(workingSet.drawingSet).toBeNull();
+    const summary = workingSet.projects.find((p) => p.id === project.id);
+    expect(summary).toBeDefined();
+    expect(summary!.drawingSet).toBeNull();
+  });
+
+  it("working-set: a project's published drawing set includes sheets with real download URLs", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("working-set-drawings");
+    const document = await documentsService.create(tenantId, ownerId, project.id, {
+      name: "Sheet A-101",
+      category: "drawing",
+    });
+    const version = await uploadVersion(tenantId, ownerId, document.id, Buffer.from("drawing bytes"), "a101.pdf");
+    const set = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "IFC 2026-07-01",
+      sheets: [{ documentVersionId: version.id }],
+    });
+    await drawingSetsService.publish(tenantId, ownerId, set.id);
+
+    const workingSet = await syncWorkingSetService.getWorkingSet(tenantId, ownerId);
+    const summary = workingSet.projects.find((p) => p.id === project.id)!;
+    expect(summary.drawingSet).not.toBeNull();
+    expect(summary.drawingSet!.id).toBe(set.id);
+    expect(summary.drawingSet!.sheets).toHaveLength(1);
+    expect(summary.drawingSet!.sheets[0]!.documentVersionId).toBe(version.id);
+    expect(summary.drawingSet!.sheets[0]!.downloadUrl).toContain("fake://download/");
+  });
+
+  it("working-set: omits the drawing set (rather than failing the manifest) when the caller lacks docs read access", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("working-set-no-docs-access");
+    const document = await documentsService.create(tenantId, ownerId, project.id, {
+      name: "Sheet A-102",
+      category: "drawing",
+    });
+    const version = await uploadVersion(tenantId, ownerId, document.id, Buffer.from("drawing bytes"), "a102.pdf");
+    const set = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "IFC 2026-07-02",
+      sheets: [{ documentVersionId: version.id }],
+    });
+    await drawingSetsService.publish(tenantId, ownerId, set.id);
+
+    const bystander = await rbacService.inviteUser(tenantId, `sync-docs-bystander-${Date.now()}@example.com`, "Bystander", ownerId);
+    // Assigned to the project (so it shows up in the working set) but with
+    // no role/permissions granted — exercises the authorizeRead-denial path
+    // rather than the "not even a project member" no-op.
+    await membersService.add(tenantId, ownerId, project.id, bystander.userId);
+
+    const workingSet = await syncWorkingSetService.getWorkingSet(tenantId, bystander.userId);
+    const summary = workingSet.projects.find((p) => p.id === project.id);
+    expect(summary).toBeDefined();
+    expect(summary!.drawingSet).toBeNull();
   });
 
   it("RLS: a tenant only sees its own sync_mutations", async () => {

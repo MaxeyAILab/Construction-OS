@@ -22,5 +22,10 @@ const env = loadEnv();
     DocumentVersionsService,
     DrawingSetsService,
   ],
+  // M6 Mobile Sync (roadmap.md "Field tasks/punch + drawing viewer
+  // offline") reuses these for the working-set manifest's drawing set —
+  // same "broaden an existing module's public surface" precedent as
+  // TasksModule exporting TasksService for the same sync engine.
+  exports: [DocumentsService, DocumentVersionsService, DrawingSetsService],
 })
 export class DocumentsModule {}

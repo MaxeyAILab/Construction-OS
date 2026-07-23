@@ -4,6 +4,9 @@ import { createRedisClient } from "../../src/infrastructure/redis/client";
 import { CostTransactionsService } from "../../src/modules/budgets/application/cost-transactions.service";
 import { DailyReportsService } from "../../src/modules/daily-reports/application/daily-reports.service";
 import { TimeEntriesService } from "../../src/modules/daily-reports/application/time-entries.service";
+import type { DocumentVersionsService } from "../../src/modules/documents/application/document-versions.service";
+import type { DocumentsService } from "../../src/modules/documents/application/documents.service";
+import type { DrawingSetsService } from "../../src/modules/documents/application/drawing-sets.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
 import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
@@ -13,7 +16,12 @@ import { SyncMutationsService } from "../../src/modules/sync/application/sync-mu
 import { SyncWorkingSetService } from "../../src/modules/sync/application/sync-working-set.service";
 import { TasksService } from "../../src/modules/tasks/application/tasks.service";
 
-export function buildTestSyncServices(db: Database): {
+export function buildTestSyncServices(
+  db: Database,
+  documentsService: DocumentsService,
+  documentVersionsService: DocumentVersionsService,
+  drawingSetsService: DrawingSetsService,
+): {
   syncMutationsService: SyncMutationsService;
   syncDeltaService: SyncDeltaService;
   syncWorkingSetService: SyncWorkingSetService;
@@ -35,7 +43,7 @@ export function buildTestSyncServices(db: Database): {
   return {
     syncMutationsService: new SyncMutationsService(db, permissions, tasksService, dailyReportsService, timeEntriesService),
     syncDeltaService: new SyncDeltaService(db),
-    syncWorkingSetService: new SyncWorkingSetService(db),
+    syncWorkingSetService: new SyncWorkingSetService(db, documentsService, documentVersionsService, drawingSetsService),
     syncConflictsService: new SyncConflictsService(db, permissions, tasksService, dailyReportsService, timeEntriesService),
     tasksService,
     dailyReportsService,
