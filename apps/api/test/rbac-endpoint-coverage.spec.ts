@@ -15,6 +15,7 @@ import { ImportsExportsController } from "../src/modules/imports-exports/api/imp
 import { SyncController } from "../src/modules/sync/api/sync.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
+import { PhotosController } from "../src/modules/photos/api/photos.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
 import { ExternalSharesController } from "../src/modules/rbac/api/external-shares.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
@@ -53,6 +54,7 @@ const controllers = [
   TimeEntriesController,
   DashboardsController,
   DocumentsController,
+  PhotosController,
   RfisController,
   SchedulingController,
   TasksController,

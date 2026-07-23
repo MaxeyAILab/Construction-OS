@@ -299,6 +299,11 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "time_entry",
     entityId: payload.timeEntryId as string,
   }),
+  "photo.captured.v1": (payload) => ({
+    action: "field.photo.create",
+    entityType: "photo",
+    entityId: payload.photoId as string,
+  }),
   // Only entity_type='task' has a real comment endpoint today (Tasks &
   // Punch, M6) — a future RFI/PO comment consumer will need this mapper
   // widened to branch on payload.entityType when it lands.

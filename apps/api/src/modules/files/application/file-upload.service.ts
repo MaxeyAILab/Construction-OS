@@ -139,6 +139,15 @@ export class FileUploadService {
     return this.storage.createDownloadUrl(file.objectKey);
   }
 
+  // M8 Photos (FR-FIELD-3): a photo grid wants thumbnails, not full-size
+  // downloads — null (not an error) when no thumbnail exists yet
+  // (processing still running, or the content-type has no thumbnailer).
+  async getThumbnailUrl(tenantId: string, fileId: string): Promise<string | null> {
+    const file = await this.getFile(tenantId, fileId);
+    if (!file.thumbnailKey) return null;
+    return this.storage.createDownloadUrl(file.thumbnailKey);
+  }
+
   // M18 Imports (FR-PLAT-7): a guided import needs to parse the bytes of an
   // already-uploaded, already-scanned CSV server-side (not hand the caller
   // a presigned URL, since the parsing happens inside the API/worker, not

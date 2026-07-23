@@ -13,6 +13,7 @@ export * from "./rfis";
 export * from "./scheduling";
 export * from "./tasks";
 export * from "./daily-reports";
+export * from "./photos";
 export * from "./comments";
 export * from "./client-portal";
 export * from "./imports-exports";

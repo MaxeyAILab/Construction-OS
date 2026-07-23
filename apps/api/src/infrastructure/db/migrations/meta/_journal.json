@@ -386,6 +386,27 @@
       "when": 1784778500000,
       "tag": "0054_daily_reports_time_entries_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1784782899760,
+      "tag": "0055_photos_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1784782910000,
+      "tag": "0056_photos_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1784782920000,
+      "tag": "0057_photos_permissions",
+      "breakpoints": true
     }
   ]
 }

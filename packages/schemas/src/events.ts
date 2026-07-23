@@ -516,6 +516,19 @@ export const timeEntryApprovedV1Schema = z.object({
 });
 export type TimeEntryApprovedV1 = z.infer<typeof timeEntryApprovedV1Schema>;
 
+// M8 Field Operations (FR-FIELD-3). Fires once the underlying file has
+// completed the Files pipeline's presigned-upload flow (file.uploaded.v1
+// already covers "bytes are in object storage"; this covers "and it's
+// attached as a photo, here's the field-specific metadata").
+export const photoCapturedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  photoId: uuidSchema,
+  entityType: z.string().nullable(),
+  entityId: uuidSchema.nullable(),
+});
+export type PhotoCapturedV1 = z.infer<typeof photoCapturedV1Schema>;
+
 // database.md §17: "mentions uuid[] (drives notifications)" — the
 // Notifications module fans this out to one draft per mentioned user.
 export const commentCreatedV1Schema = z.object({
@@ -675,6 +688,7 @@ export const eventRegistry = {
   "daily_report.submitted.v1": dailyReportSubmittedV1Schema,
   "time_entry.created.v1": timeEntryCreatedV1Schema,
   "time_entry.approved.v1": timeEntryApprovedV1Schema,
+  "photo.captured.v1": photoCapturedV1Schema,
   "comment.created.v1": commentCreatedV1Schema,
   "schedule.created.v1": scheduleCreatedV1Schema,
   "schedule_baseline.created.v1": scheduleBaselineCreatedV1Schema,
