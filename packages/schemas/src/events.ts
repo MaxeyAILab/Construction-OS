@@ -497,6 +497,19 @@ export const dailyReportSubmittedV1Schema = z.object({
 });
 export type DailyReportSubmittedV1 = z.infer<typeof dailyReportSubmittedV1Schema>;
 
+// Daily-report AI summary (FR-FIELD-6, api.md §9's ai-summary GET). Fired
+// after DailyReportAiService writes the generated narrative to
+// daily_reports.ai_summary — carries aiRunId for the same audit_log
+// linkage precedent photo.tagged.v1 established (ai-spec §6: "every
+// execution -> audit_log with ai_run_id").
+export const dailyReportAiSummaryGeneratedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  dailyReportId: uuidSchema,
+  aiRunId: uuidSchema,
+});
+export type DailyReportAiSummaryGeneratedV1 = z.infer<typeof dailyReportAiSummaryGeneratedV1Schema>;
+
 export const timeEntryCreatedV1Schema = z.object({
   companyId: uuidSchema,
   projectId: uuidSchema,
@@ -702,6 +715,7 @@ export const eventRegistry = {
   "daily_report.created.v1": dailyReportCreatedV1Schema,
   "daily_report.updated.v1": dailyReportUpdatedV1Schema,
   "daily_report.submitted.v1": dailyReportSubmittedV1Schema,
+  "daily_report.ai_summary_generated.v1": dailyReportAiSummaryGeneratedV1Schema,
   "time_entry.created.v1": timeEntryCreatedV1Schema,
   "time_entry.approved.v1": timeEntryApprovedV1Schema,
   "photo.captured.v1": photoCapturedV1Schema,

@@ -4,12 +4,16 @@ import type { z } from "zod";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
+import { DailyReportAiService } from "../application/daily-report-ai.service";
 import { DailyReportsService } from "../application/daily-reports.service";
 
 // api.md conventions (M8 Field Operations). FR-FIELD-1.
 @Controller("daily-reports")
 export class DailyReportsController {
-  constructor(private readonly dailyReports: DailyReportsService) {}
+  constructor(
+    private readonly dailyReports: DailyReportsService,
+    private readonly dailyReportAi: DailyReportAiService,
+  ) {}
 
   @Get()
   @RequirePermission("field.daily_report.read")
@@ -49,5 +53,14 @@ export class DailyReportsController {
   ) {
     const version = ifMatch !== undefined ? Number.parseInt(ifMatch, 10) : undefined;
     return this.dailyReports.update(req.auth!.tenantId, req.auth!.sub, id, body, version);
+  }
+
+  // api.md §9: "+ AI" reuses the base read permission — same convention as
+  // /crm/opportunities/{id}/ai-insights ("read + AI") rather than a
+  // separate permission key.
+  @Get(":id/ai-summary")
+  @RequirePermission("field.daily_report.read")
+  generateAiSummary(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.dailyReportAi.generateSummary(req.auth!.tenantId, req.auth!.sub, id);
   }
 }

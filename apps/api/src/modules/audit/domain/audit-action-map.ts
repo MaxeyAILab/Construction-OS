@@ -293,6 +293,15 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "daily_report",
     entityId: payload.dailyReportId as string,
   }),
+  // FR-FIELD-6: fires after DailyReportAiService writes the generated
+  // narrative to daily_reports.ai_summary — same aiRunId linkage precedent
+  // as photo.tagged.v1.
+  "daily_report.ai_summary_generated.v1": (payload) => ({
+    action: "field.daily_report.ai_summarize",
+    entityType: "daily_report",
+    entityId: payload.dailyReportId as string,
+    aiRunId: payload.aiRunId as string,
+  }),
   "time_entry.created.v1": (payload) => ({
     action: "field.time_entry.create",
     entityType: "time_entry",

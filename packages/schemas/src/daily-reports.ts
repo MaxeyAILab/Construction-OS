@@ -79,3 +79,16 @@ export const listTimeEntriesQuerySchema = paginationQuerySchema.extend({
   workDateAfter: isoDateSchema.optional(),
 });
 export type ListTimeEntriesQuery = z.infer<typeof listTimeEntriesQuerySchema>;
+
+// api.md §9: `GET /daily-reports/{id}/ai-summary` — "Generated narrative
+// (FR-FIELD-6) with edit-before-submit." Draft-only: the narrative here is
+// never written to daily_reports.narrative (the field the crew lead
+// actually submits) — it's a suggestion the UI shows alongside that field
+// for the user to copy-edit in, same "never auto-applies" autonomy rule as
+// Estimator AI/Photo AI's defect drafts.
+export const dailyReportAiSummarySchema = z.object({
+  narrative: z.string(),
+  confidence: z.number().min(0).max(1),
+  aiRunId: uuidSchema,
+});
+export type DailyReportAiSummary = z.infer<typeof dailyReportAiSummarySchema>;
