@@ -22,6 +22,9 @@ import { SyncController } from "../src/modules/sync/api/sync.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { PhotosController } from "../src/modules/photos/api/photos.controller";
+import { PurchaseOrdersController } from "../src/modules/procurement/api/purchase-orders.controller";
+import { RfqsController } from "../src/modules/procurement/api/rfqs.controller";
+import { SuppliersController } from "../src/modules/procurement/api/suppliers.controller";
 import { ProjectAssistantController } from "../src/modules/project-assistant/api/project-assistant.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
 import { RagSearchController } from "../src/modules/rag/api/rag-search.controller";
@@ -76,6 +79,9 @@ const controllers = [
   ContactCompaniesController,
   PipelineStagesController,
   OpportunitiesController,
+  SuppliersController,
+  PurchaseOrdersController,
+  RfqsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

@@ -519,6 +519,27 @@
       "when": 1784806643271,
       "tag": "0073_crm_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1784807910346,
+      "tag": "0074_procurement_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1784807944439,
+      "tag": "0075_procurement_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1784807966031,
+      "tag": "0076_procurement_permissions",
+      "breakpoints": true
     }
   ]
 }

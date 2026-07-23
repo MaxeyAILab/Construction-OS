@@ -83,13 +83,14 @@ export const budgetLines = pgTable(
   ],
 );
 
-// Schema only — no write path yet. database.md §11: "Written when a PO/
-// subcontract is approved (FR-PROC-3)". Procurement (M5) doesn't exist,
-// so `source_id` has nothing valid to reference; budget_lines.
-// committed_amount stays 0 until that module lands and starts writing
-// here. Kept in this migration (rather than deferred entirely) so the
-// column exists on budget_lines from day one — a NULL/missing committed
-// figure reading as "$0 committed" is correct today, not a placeholder.
+// database.md §11: "Written when a PO/subcontract is approved
+// (FR-PROC-3)". Now has a real writer: PurchaseOrderLifecycleService.
+// approve() (Procurement, M5) inserts one row per cost code represented
+// on the PO's lines and bumps budget_lines.committed_amount in the same
+// transaction — same direct-schema-write pattern as
+// ChangeOrderLifecycleService.approve()'s budget_lines propagation.
+// `kind='subcontract'` stays unwritten until Subcontractor Management
+// (M14, a later roadmap row) exists to write it.
 export const commitments = pgTable(
   "commitments",
   {

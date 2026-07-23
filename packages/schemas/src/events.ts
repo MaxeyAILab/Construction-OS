@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidSchema } from "./common";
+import { moneyAmountSchema, uuidSchema } from "./common";
 
 // architecture.md §8: "events are versioned JSON with a schema registry in
 // packages/schemas (project.created.v1, changeorder.approved.v1, ...).
@@ -319,6 +319,84 @@ export const activityCreatedV1Schema = z.object({
   entityId: uuidSchema,
 });
 export type ActivityCreatedV1 = z.infer<typeof activityCreatedV1Schema>;
+
+// M5 Procurement & Purchasing (FR-PROC-1..4).
+export const supplierCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  supplierId: uuidSchema,
+});
+export type SupplierCreatedV1 = z.infer<typeof supplierCreatedV1Schema>;
+
+export const purchaseOrderCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  purchaseOrderId: uuidSchema,
+  number: z.number().int(),
+});
+export type PurchaseOrderCreatedV1 = z.infer<typeof purchaseOrderCreatedV1Schema>;
+
+// Header edits and status transitions (submit/send/cancel) all maintain
+// the same PO row — one generic updated event with changedFields, same
+// "one event, changedFields tells you what" convention as
+// opportunity.updated.v1/project.updated.v1. Approval gets its own event
+// (below) since it's the one transition with a real side effect to
+// broadcast (the commitment write).
+export const purchaseOrderUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  purchaseOrderId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type PurchaseOrderUpdatedV1 = z.infer<typeof purchaseOrderUpdatedV1Schema>;
+
+// FR-PROC-3: "Approval -> commitments row (same transaction)." Mirrors
+// change_order.approved.v1's reasoning for carrying the amount so
+// consumers (projections, notifications) don't need a second lookup.
+export const purchaseOrderApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  purchaseOrderId: uuidSchema,
+  totalAmount: moneyAmountSchema,
+});
+export type PurchaseOrderApprovedV1 = z.infer<typeof purchaseOrderApprovedV1Schema>;
+
+export const purchaseOrderLineCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  purchaseOrderId: uuidSchema,
+  purchaseOrderLineId: uuidSchema,
+});
+export type PurchaseOrderLineCreatedV1 = z.infer<typeof purchaseOrderLineCreatedV1Schema>;
+
+export const rfqCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  rfqId: uuidSchema,
+  number: z.number().int(),
+});
+export type RfqCreatedV1 = z.infer<typeof rfqCreatedV1Schema>;
+
+export const supplierQuoteCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  rfqId: uuidSchema,
+  rfqLineId: uuidSchema,
+  supplierQuoteId: uuidSchema,
+  supplierId: uuidSchema,
+});
+export type SupplierQuoteCreatedV1 = z.infer<typeof supplierQuoteCreatedV1Schema>;
+
+// FR-PROC-4: delivery receipt. Carries qtyReceivedTotal so a future
+// Inventory (M10) consumer can react without re-querying delivery_lines —
+// same "carry what a future consumer needs" reasoning as
+// opportunity.won.v1's wonProjectId. No stock/3-way-match side effect
+// happens today (Inventory doesn't exist, no invoices/AP module exists) —
+// this event exists so that wiring is additive, not a schema change.
+export const deliveryCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  purchaseOrderId: uuidSchema,
+  deliveryId: uuidSchema,
+});
+export type DeliveryCreatedV1 = z.infer<typeof deliveryCreatedV1Schema>;
 
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
@@ -773,6 +851,14 @@ export const eventRegistry = {
   "opportunity.won.v1": opportunityWonV1Schema,
   "opportunity.lost.v1": opportunityLostV1Schema,
   "activity.created.v1": activityCreatedV1Schema,
+  "supplier.created.v1": supplierCreatedV1Schema,
+  "purchase_order.created.v1": purchaseOrderCreatedV1Schema,
+  "purchase_order.updated.v1": purchaseOrderUpdatedV1Schema,
+  "purchase_order.approved.v1": purchaseOrderApprovedV1Schema,
+  "purchase_order_line.created.v1": purchaseOrderLineCreatedV1Schema,
+  "rfq.created.v1": rfqCreatedV1Schema,
+  "supplier_quote.created.v1": supplierQuoteCreatedV1Schema,
+  "delivery.created.v1": deliveryCreatedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

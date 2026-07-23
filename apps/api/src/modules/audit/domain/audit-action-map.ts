@@ -196,6 +196,50 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "activity",
     entityId: payload.activityId as string,
   }),
+  // M5 Procurement & Purchasing (FR-PROC-1..4).
+  "supplier.created.v1": (payload) => ({
+    action: "procurement.supplier.create",
+    entityType: "supplier",
+    entityId: payload.supplierId as string,
+  }),
+  "purchase_order.created.v1": (payload) => ({
+    action: "procurement.po.create",
+    entityType: "purchase_order",
+    entityId: payload.purchaseOrderId as string,
+  }),
+  "purchase_order.updated.v1": (payload) => ({
+    action: "procurement.po.update",
+    entityType: "purchase_order",
+    entityId: payload.purchaseOrderId as string,
+  }),
+  // FR-PROC-3: the one PO transition with a real financial side effect
+  // (the commitment write) gets its own action string, same "the
+  // consequential action gets its own key" precedent as crm.opportunity.win.
+  "purchase_order.approved.v1": (payload) => ({
+    action: "procurement.po.approve",
+    entityType: "purchase_order",
+    entityId: payload.purchaseOrderId as string,
+  }),
+  "purchase_order_line.created.v1": (payload) => ({
+    action: "procurement.po.update",
+    entityType: "purchase_order",
+    entityId: payload.purchaseOrderId as string,
+  }),
+  "rfq.created.v1": (payload) => ({
+    action: "procurement.rfq.create",
+    entityType: "rfq",
+    entityId: payload.rfqId as string,
+  }),
+  "supplier_quote.created.v1": (payload) => ({
+    action: "procurement.rfq.create",
+    entityType: "rfq",
+    entityId: payload.rfqId as string,
+  }),
+  "delivery.created.v1": (payload) => ({
+    action: "procurement.delivery.create",
+    entityType: "delivery",
+    entityId: payload.deliveryId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

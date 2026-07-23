@@ -16,6 +16,7 @@ import { ImportsExportsModule } from "./modules/imports-exports";
 import { NotificationsModule } from "./modules/notifications";
 import { PhotoAiModule } from "./modules/photo-ai";
 import { PhotosModule } from "./modules/photos";
+import { ProcurementModule } from "./modules/procurement";
 import { ProjectAssistantModule } from "./modules/project-assistant";
 import { ProjectsModule } from "./modules/projects";
 import { RagModule } from "./modules/rag";
@@ -48,6 +49,7 @@ import { HealthModule } from "./platform/health/health.module";
     DashboardsModule,
     DocumentsModule,
     PhotosModule,
+    ProcurementModule,
     RfisModule,
     SchedulingModule,
     TasksModule,

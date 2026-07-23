@@ -31,3 +31,4 @@ export * from "./rag";
 export * from "./project-assistant";
 export * from "./finance_alerts";
 export * from "./crm";
+export * from "./procurement";
