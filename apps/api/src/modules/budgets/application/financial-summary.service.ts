@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
-import { budgetLines, budgets, projects } from "../../../infrastructure/db/schema";
+import { budgetLines, budgets, costCodes, projects } from "../../../infrastructure/db/schema";
 import { ProjectNotFoundError } from "../domain/errors";
 
 function sum(values: string[]): number {
@@ -67,6 +67,35 @@ export class FinancialSummaryService {
         marginAmount: marginAmount !== null ? toMoney(marginAmount) : null,
         marginPct,
       };
+    });
+  }
+
+  // Margin Erosion Alerts (FR-FIN-6, ai-spec.md §7.10): "causal
+  // decomposition (labor overrun vs material price vs scope creep)".
+  // Groups each line's variance (revised - forecastAtCompletion; negative
+  // = overrun) by its cost code's kind — the closest breakdown this
+  // codebase's schema supports without inventing a new cost-tracking
+  // dimension.
+  async getCategoryVariance(tenantId: string, projectId: string): Promise<{ kind: string; variance: string }[]> {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const budget = await tx.query.budgets.findFirst({
+        where: and(eq(budgets.projectId, projectId), eq(budgets.status, "active")),
+      });
+      if (!budget) return [];
+
+      const rows = await tx
+        .select({ kind: costCodes.kind, revised: budgetLines.revisedAmount, fac: budgetLines.forecastAtCompletionAmount })
+        .from(budgetLines)
+        .innerJoin(costCodes, eq(costCodes.id, budgetLines.costCodeId))
+        .where(eq(budgetLines.budgetId, budget.id));
+
+      const byKind = new Map<string, number>();
+      for (const row of rows) {
+        const variance = Number(row.revised ?? "0") - Number(row.fac);
+        byKind.set(row.kind, (byKind.get(row.kind) ?? 0) + variance);
+      }
+
+      return [...byKind.entries()].map(([kind, variance]) => ({ kind, variance: toMoney(variance) }));
     });
   }
 }

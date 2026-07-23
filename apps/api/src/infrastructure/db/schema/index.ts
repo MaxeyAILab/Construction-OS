@@ -29,3 +29,4 @@ export * from "./sync";
 export * from "./ai";
 export * from "./rag";
 export * from "./project-assistant";
+export * from "./finance_alerts";

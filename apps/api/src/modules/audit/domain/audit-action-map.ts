@@ -140,6 +140,17 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "project",
     entityId: payload.projectId as string,
   }),
+  // FR-FIN-6: fires after MarginErosionService persists a new
+  // finance_alerts row — aiRunId is nullable (the rule always fires; the
+  // causal-decomposition explanation is best-effort), same conditional
+  // insert AuditWriterService already does for photo.tagged.v1/
+  // daily_report.ai_summary_generated.v1.
+  "finance_alert.created.v1": (payload) => ({
+    action: "finance.alert.create",
+    entityType: "finance_alert",
+    entityId: payload.financeAlertId as string,
+    ...(payload.aiRunId ? { aiRunId: payload.aiRunId as string } : {}),
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

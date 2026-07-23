@@ -10,6 +10,7 @@ import { DashboardsModule } from "./modules/dashboards";
 import { DocumentsModule } from "./modules/documents";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
+import { FinanceAlertsModule } from "./modules/finance-alerts";
 import { ImportsExportsModule } from "./modules/imports-exports";
 import { NotificationsModule } from "./modules/notifications";
 import { PhotoAiModule } from "./modules/photo-ai";
@@ -54,6 +55,7 @@ import { HealthModule } from "./platform/health/health.module";
     RagModule,
     ProjectAssistantModule,
     PhotoAiModule,
+    FinanceAlertsModule,
   ],
 })
 export class AppModule {}

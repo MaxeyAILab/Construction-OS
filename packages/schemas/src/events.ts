@@ -243,6 +243,20 @@ export const costTransactionPostedV1Schema = z.object({
 });
 export type CostTransactionPostedV1 = z.infer<typeof costTransactionPostedV1Schema>;
 
+// FR-FIN-6 (ai-spec.md §7.10 Financial AI): fired after MarginErosionService
+// persists a new finance_alerts row. aiRunId is nullable — the rule always
+// fires the alert; the AI causal-decomposition explanation is a best-effort
+// enrichment that can fail (budget exhausted, provider error) without ever
+// blocking the alert itself.
+export const financeAlertCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  financeAlertId: uuidSchema,
+  severity: z.enum(["warning", "critical"]),
+  aiRunId: uuidSchema.nullable(),
+});
+export type FinanceAlertCreatedV1 = z.infer<typeof financeAlertCreatedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -687,6 +701,7 @@ export const eventRegistry = {
   "budget_line.created.v1": budgetLineCreatedV1Schema,
   "budget_line.updated.v1": budgetLineUpdatedV1Schema,
   "cost_transaction.posted.v1": costTransactionPostedV1Schema,
+  "finance_alert.created.v1": financeAlertCreatedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

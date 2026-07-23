@@ -33,6 +33,8 @@ const env = loadEnv();
   // validation/outbox-event logic — same "broaden an existing module's
   // public surface for a legitimate new cross-module need" precedent as
   // Client Portal's earlier broadening of Scheduling/Documents.
-  exports: [CostCodesService],
+  // ProjectsService: Margin Erosion Alerts (FR-FIN-6) reads
+  // projects.settings for configurable alert thresholds.
+  exports: [CostCodesService, ProjectsService],
 })
 export class ProjectsModule {}

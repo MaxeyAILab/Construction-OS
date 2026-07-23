@@ -12,6 +12,7 @@ import { DailyReportsController } from "../src/modules/daily-reports/api/daily-r
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
+import { FinanceAlertsController } from "../src/modules/finance-alerts/api/finance-alerts.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
 import { SyncController } from "../src/modules/sync/api/sync.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
@@ -66,6 +67,7 @@ const controllers = [
   AiController,
   RagSearchController,
   ProjectAssistantController,
+  FinanceAlertsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
