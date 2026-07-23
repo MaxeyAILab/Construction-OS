@@ -17,6 +17,9 @@ export interface LocalTask {
   assigneeId: string | null;
   kind: TaskKind;
   checklist: ChecklistItem[] | null;
+  locationDocumentVersionId: string | null;
+  locationX: number | null;
+  locationY: number | null;
   updatedSeq: number;
   updatedAt: string;
 }
@@ -32,6 +35,9 @@ interface TaskRow {
   assignee_id: string | null;
   kind: TaskKind;
   checklist: string | null;
+  location_document_version_id: string | null;
+  location_x: number | null;
+  location_y: number | null;
   updated_seq: number;
   updated_at: string;
 }
@@ -48,6 +54,9 @@ function fromRow(row: TaskRow): LocalTask {
     assigneeId: row.assignee_id,
     kind: row.kind,
     checklist: row.checklist ? (JSON.parse(row.checklist) as ChecklistItem[]) : null,
+    locationDocumentVersionId: row.location_document_version_id,
+    locationX: row.location_x,
+    locationY: row.location_y,
     updatedSeq: row.updated_seq,
     updatedAt: row.updated_at,
   };
@@ -73,6 +82,12 @@ export interface CreateTaskInput {
   assigneeId?: string;
   kind?: TaskKind;
   checklist?: ChecklistItem[];
+  // FR-DOC-5 / roadmap.md's "drawing viewer offline" row: set when a punch
+  // item is created by tapping a pin on a cached drawing sheet (see
+  // app/drawings/[sheetId].tsx) rather than from the plain Punch list form.
+  locationDocumentVersionId?: string;
+  locationX?: number;
+  locationY?: number;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<LocalTask> {
@@ -84,8 +99,8 @@ export async function createTask(input: CreateTaskInput): Promise<LocalTask> {
   const kind = input.kind ?? "task";
 
   await db.runAsync(
-    `INSERT INTO tasks (id, project_id, title, description, status, priority, due_date, assignee_id, kind, checklist, updated_seq, updated_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL)`,
+    `INSERT INTO tasks (id, project_id, title, description, status, priority, due_date, assignee_id, kind, checklist, location_document_version_id, location_x, location_y, updated_seq, updated_at, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL)`,
     [
       id,
       input.projectId,
@@ -97,6 +112,9 @@ export async function createTask(input: CreateTaskInput): Promise<LocalTask> {
       input.assigneeId ?? null,
       kind,
       input.checklist ? JSON.stringify(input.checklist) : null,
+      input.locationDocumentVersionId ?? null,
+      input.locationX ?? null,
+      input.locationY ?? null,
       now,
     ],
   );
@@ -121,6 +139,9 @@ export async function createTask(input: CreateTaskInput): Promise<LocalTask> {
     assigneeId: input.assigneeId ?? null,
     kind,
     checklist: input.checklist ?? null,
+    locationDocumentVersionId: input.locationDocumentVersionId ?? null,
+    locationX: input.locationX ?? null,
+    locationY: input.locationY ?? null,
     updatedSeq: 0,
     updatedAt: now,
   };

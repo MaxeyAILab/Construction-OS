@@ -36,6 +36,9 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       assignee_id TEXT,
       kind TEXT NOT NULL,
       checklist TEXT,
+      location_document_version_id TEXT,
+      location_x REAL,
+      location_y REAL,
       updated_seq INTEGER NOT NULL,
       updated_at TEXT NOT NULL,
       deleted_at TEXT
@@ -126,5 +129,26 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS ix_photo_queue_status ON photo_queue (status);
+
+    -- roadmap.md's "Field tasks/punch + drawing viewer offline" row
+    -- (FR-DOC-5). Caches the field working set's currently-published
+    -- drawing set for offline viewing — one row per sheet, keyed by
+    -- document_version_id since a sheet only ever belongs to one
+    -- published set at a time (server enforces a single published set
+    -- per project). local_uri/content_type/downloaded_at stay NULL until
+    -- src/features/drawings/repository.ts's downloadSheet() runs.
+    CREATE TABLE IF NOT EXISTS drawing_sheets (
+      document_version_id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      drawing_set_id TEXT NOT NULL,
+      drawing_set_name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      download_url TEXT NOT NULL,
+      content_type TEXT,
+      local_uri TEXT,
+      downloaded_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_drawing_sheets_project ON drawing_sheets (project_id);
   `);
 }

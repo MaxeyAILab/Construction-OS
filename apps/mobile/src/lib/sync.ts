@@ -53,6 +53,9 @@ export interface ServerTask {
   assigneeId: string | null;
   kind: string;
   checklist: unknown;
+  locationDocumentVersionId: string | null;
+  locationX: string | null;
+  locationY: string | null;
   updatedSeq: number;
   updatedAt: string;
   deletedAt: string | null;
@@ -165,12 +168,14 @@ async function applyTaskDeltas(db: Awaited<ReturnType<typeof getDb>>, rows: Serv
       continue;
     }
     await db.runAsync(
-      `INSERT INTO tasks (id, project_id, title, description, status, priority, due_date, assignee_id, kind, checklist, updated_seq, updated_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO tasks (id, project_id, title, description, status, priority, due_date, assignee_id, kind, checklist, location_document_version_id, location_x, location_y, updated_seq, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          project_id = excluded.project_id, title = excluded.title, description = excluded.description,
          status = excluded.status, priority = excluded.priority, due_date = excluded.due_date,
          assignee_id = excluded.assignee_id, kind = excluded.kind, checklist = excluded.checklist,
+         location_document_version_id = excluded.location_document_version_id,
+         location_x = excluded.location_x, location_y = excluded.location_y,
          updated_seq = excluded.updated_seq, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at`,
       [
         task.id,
@@ -183,6 +188,9 @@ async function applyTaskDeltas(db: Awaited<ReturnType<typeof getDb>>, rows: Serv
         task.assigneeId,
         task.kind,
         task.checklist ? JSON.stringify(task.checklist) : null,
+        task.locationDocumentVersionId,
+        task.locationX !== null ? Number(task.locationX) : null,
+        task.locationY !== null ? Number(task.locationY) : null,
         task.updatedSeq,
         task.updatedAt,
         task.deletedAt,
