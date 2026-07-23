@@ -7,6 +7,7 @@
 import { apiRequest } from "./api";
 import type { Session } from "./auth";
 import { getDb } from "./db";
+import { uploadQueuedPhotos } from "./photo-upload";
 import { uuidv7 } from "./uuid";
 
 export type SyncOp = "create" | "update" | "delete";
@@ -276,8 +277,9 @@ async function pullDelta(session: Session, scopes: SyncEntity[] = ALL_SCOPES): P
   return delta.tasks.length + delta.dailyReports.length + delta.timeEntries.length;
 }
 
-export async function syncNow(session: Session): Promise<{ pushed: number; pulled: number }> {
+export async function syncNow(session: Session): Promise<{ pushed: number; pulled: number; photosUploaded: number }> {
   const pushed = await pushMutations(session);
   const pulled = await pullDelta(session);
-  return { pushed, pulled };
+  const { uploaded: photosUploaded } = await uploadQueuedPhotos(session);
+  return { pushed, pulled, photosUploaded };
 }

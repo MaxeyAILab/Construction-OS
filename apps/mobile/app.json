@@ -11,13 +11,28 @@
       "backgroundColor": "#0B1220"
     },
     "assetBundlePatterns": ["**/*"],
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "ConstructionOS uses the camera to capture jobsite photos for daily reports and tasks."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ConstructionOS geo-tags photos and reports with your jobsite location."
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.constructionos.app"
     },
     "android": {
-      "package": "com.constructionos.app"
+      "package": "com.constructionos.app",
+      "permissions": ["CAMERA", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     }
   }
 }

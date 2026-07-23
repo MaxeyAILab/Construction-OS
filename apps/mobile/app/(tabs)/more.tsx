@@ -14,8 +14,8 @@ export default function MoreScreen() {
     setIsSyncing(true);
     setSyncSummary(null);
     try {
-      const { pushed, pulled } = await syncNow(session);
-      setSyncSummary(`Synced: ${pushed} sent, ${pulled} received.`);
+      const { pushed, pulled, photosUploaded } = await syncNow(session);
+      setSyncSummary(`Synced: ${pushed} sent, ${pulled} received, ${photosUploaded} photos uploaded.`);
     } catch {
       setSyncSummary("Sync failed — check your connection.");
     } finally {

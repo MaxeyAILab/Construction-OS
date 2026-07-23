@@ -94,5 +94,37 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
+
+    -- FR-FIELD-3 (roadmap.md's "Photo capture pipeline (offline, EXIF,
+    -- resumable)" row): a photo is captured to local storage immediately
+    -- and queued here — separate from mutation_queue since sync_mutations
+    -- carries JSON diffs, not binary uploads. parts_json tracks per-part
+    -- ETags for multipart uploads so an interrupted upload resumes from
+    -- the first un-acked part instead of restarting.
+    CREATE TABLE IF NOT EXISTS photo_queue (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id TEXT,
+      local_uri TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      taken_at TEXT NOT NULL,
+      geo_lat REAL,
+      geo_lng REAL,
+      heading REAL,
+      device_id TEXT,
+      status TEXT NOT NULL DEFAULT 'queued',
+      file_id TEXT,
+      photo_id TEXT,
+      upload_mode TEXT,
+      upload_id TEXT,
+      upload_url TEXT,
+      parts_json TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_photo_queue_status ON photo_queue (status);
   `);
 }
