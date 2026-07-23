@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, date, index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
+import { contacts } from "./crm";
 import { documentVersions } from "./documents";
 import { projects } from "./projects";
 
@@ -20,9 +21,9 @@ export const rfis = pgTable(
     question: text("question").notNull(),
     answer: text("answer"),
     status: text("status").notNull().default("draft"),
-    // "external A/E" — no FK yet: CRM/contacts (M1) is a Phase 2 row, not
-    // built — same "flag it" precedent as projects.clientContactCompanyId.
-    assignedToContactId: uuid("assigned_to_contact_id"),
+    // "external A/E" — closes the dormant gap this column's original
+    // comment flagged: CRM/contacts (M1) now exists (Phase 2's CRM row).
+    assignedToContactId: uuid("assigned_to_contact_id").references(() => contacts.id),
     dueDate: date("due_date"),
     costImpactFlag: boolean("cost_impact_flag").notNull().default(false),
     scheduleImpactFlag: boolean("schedule_impact_flag").notNull().default(false),

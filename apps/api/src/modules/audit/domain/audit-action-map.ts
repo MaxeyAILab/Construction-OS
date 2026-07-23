@@ -151,6 +151,51 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityId: payload.financeAlertId as string,
     ...(payload.aiRunId ? { aiRunId: payload.aiRunId as string } : {}),
   }),
+  // M1 CRM & Pre-Construction (FR-CRM-1/2/4).
+  "contact_company.created.v1": (payload) => ({
+    action: "crm.contact.create",
+    entityType: "contact_company",
+    entityId: payload.contactCompanyId as string,
+  }),
+  "contact.created.v1": (payload) => ({
+    action: "crm.contact.create",
+    entityType: "contact",
+    entityId: payload.contactId as string,
+  }),
+  "pipeline_stage.created.v1": (payload) => ({
+    action: "crm.settings.manage",
+    entityType: "pipeline_stage",
+    entityId: payload.pipelineStageId as string,
+  }),
+  "opportunity.created.v1": (payload) => ({
+    action: "crm.opportunity.create",
+    entityType: "opportunity",
+    entityId: payload.opportunityId as string,
+  }),
+  "opportunity.updated.v1": (payload) => ({
+    action: "crm.opportunity.update",
+    entityType: "opportunity",
+    entityId: payload.opportunityId as string,
+  }),
+  // FR-CRM-4: "Atomic: marks won, creates project" — entityType stays
+  // "opportunity" (the mutation this audits is the opportunity's own
+  // status transition); the project it created gets its own
+  // project.created.v1 audit row independently.
+  "opportunity.won.v1": (payload) => ({
+    action: "crm.opportunity.win",
+    entityType: "opportunity",
+    entityId: payload.opportunityId as string,
+  }),
+  "opportunity.lost.v1": (payload) => ({
+    action: "crm.opportunity.update",
+    entityType: "opportunity",
+    entityId: payload.opportunityId as string,
+  }),
+  "activity.created.v1": (payload) => ({
+    action: "crm.activity.create",
+    entityType: "activity",
+    entityId: payload.activityId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

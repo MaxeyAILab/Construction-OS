@@ -5,6 +5,7 @@ import { AuthModule } from "./modules/auth";
 import { BudgetsModule } from "./modules/budgets";
 import { ChangeOrdersModule } from "./modules/change-orders";
 import { ClientPortalModule } from "./modules/client-portal";
+import { CrmModule } from "./modules/crm";
 import { DailyReportsModule } from "./modules/daily-reports";
 import { DashboardsModule } from "./modules/dashboards";
 import { DocumentsModule } from "./modules/documents";
@@ -38,6 +39,7 @@ import { HealthModule } from "./platform/health/health.module";
     AuditModule,
     FilesModule,
     ProjectsModule,
+    CrmModule,
     BudgetsModule,
     EstimatingModule,
     ChangeOrdersModule,

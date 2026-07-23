@@ -38,9 +38,13 @@ export const projects = pgTable(
     name: text("name").notNull(),
     code: text("code").notNull(),
     status: text("status").notNull().default("planning"),
-    // No FK: the CRM module (M1) that owns client/contact companies
-    // doesn't exist yet — same "flag it, add the reference once the
-    // module lands" precedent as audit_log.ai_run_id.
+    // The CRM module (M1) that owns contact_companies now exists, closing
+    // this dormant gap — but the FK constraint is added via a hand-written
+    // migration statement (crm's rls_and_triggers migration), not a
+    // drizzle `.references()` call here: crm.ts already imports
+    // projects.ts (opportunities.won_project_id), so projects.ts importing
+    // crm.ts back would be a circular module dependency. The real Postgres
+    // FK exists; it's just declared outside this file's TS schema.
     clientContactCompanyId: uuid("client_contact_company_id"),
     address: text("address"),
     // jsonb {lat, lng} rather than Postgres' native `point` type, which

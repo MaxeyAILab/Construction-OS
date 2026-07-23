@@ -257,6 +257,69 @@ export const financeAlertCreatedV1Schema = z.object({
 });
 export type FinanceAlertCreatedV1 = z.infer<typeof financeAlertCreatedV1Schema>;
 
+// M1 CRM & Pre-Construction (FR-CRM-1). One created event covers both
+// contacts and contact_companies producers each emit their own — same
+// per-resource-type event convention as every other module.
+export const contactCompanyCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  contactCompanyId: uuidSchema,
+});
+export type ContactCompanyCreatedV1 = z.infer<typeof contactCompanyCreatedV1Schema>;
+
+export const contactCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  contactId: uuidSchema,
+});
+export type ContactCreatedV1 = z.infer<typeof contactCreatedV1Schema>;
+
+export const pipelineStageCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  pipelineStageId: uuidSchema,
+});
+export type PipelineStageCreatedV1 = z.infer<typeof pipelineStageCreatedV1Schema>;
+
+export const opportunityCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  opportunityId: uuidSchema,
+});
+export type OpportunityCreatedV1 = z.infer<typeof opportunityCreatedV1Schema>;
+
+// Stage moves, header edits, and win/lose transitions all maintain the
+// same opportunity row — one generic updated event with changedFields,
+// same "one event, changedFields tells you what" reasoning as
+// project.updated.v1 (api.md §4: "Stage moves audited").
+export const opportunityUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  opportunityId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type OpportunityUpdatedV1 = z.infer<typeof opportunityUpdatedV1Schema>;
+
+// FR-CRM-4: "Atomic: marks won, creates project." Carries wonProjectId so
+// consumers (notifications, projections) can link straight to the new
+// project without a second lookup.
+export const opportunityWonV1Schema = z.object({
+  companyId: uuidSchema,
+  opportunityId: uuidSchema,
+  wonProjectId: uuidSchema,
+});
+export type OpportunityWonV1 = z.infer<typeof opportunityWonV1Schema>;
+
+export const opportunityLostV1Schema = z.object({
+  companyId: uuidSchema,
+  opportunityId: uuidSchema,
+  lostReason: z.string(),
+});
+export type OpportunityLostV1 = z.infer<typeof opportunityLostV1Schema>;
+
+export const activityCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  activityId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+});
+export type ActivityCreatedV1 = z.infer<typeof activityCreatedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -702,6 +765,14 @@ export const eventRegistry = {
   "budget_line.updated.v1": budgetLineUpdatedV1Schema,
   "cost_transaction.posted.v1": costTransactionPostedV1Schema,
   "finance_alert.created.v1": financeAlertCreatedV1Schema,
+  "contact_company.created.v1": contactCompanyCreatedV1Schema,
+  "contact.created.v1": contactCreatedV1Schema,
+  "pipeline_stage.created.v1": pipelineStageCreatedV1Schema,
+  "opportunity.created.v1": opportunityCreatedV1Schema,
+  "opportunity.updated.v1": opportunityUpdatedV1Schema,
+  "opportunity.won.v1": opportunityWonV1Schema,
+  "opportunity.lost.v1": opportunityLostV1Schema,
+  "activity.created.v1": activityCreatedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

@@ -40,11 +40,17 @@ export class VersionConflictError extends DomainError {
   }
 }
 
+// The CRM module (M1) now exists, but this direct-from-Projects path
+// stays unsupported: the real FR-CRM-4 "atomic" conversion lives in
+// OpportunitiesService.win() (POST /crm/opportunities/{id}/win), which
+// depends on ProjectsService — ProjectsService reaching back into CRM to
+// validate from_opportunity_id here would make that a circular module
+// dependency. Not invented ahead of a real need for a second entry point.
 export class OpportunityConversionNotSupportedError extends DomainError {
   readonly code = "not_supported";
   readonly status = 422;
   constructor() {
-    super("from_opportunity_id is not supported yet — the CRM module (M1) is not built");
+    super("from_opportunity_id is not supported on POST /projects — use POST /crm/opportunities/{id}/win instead");
   }
 }
 

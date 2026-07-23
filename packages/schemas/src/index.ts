@@ -22,3 +22,4 @@ export * from "./ai";
 export * from "./rag";
 export * from "./project-assistant";
 export * from "./finance-alerts";
+export * from "./crm";

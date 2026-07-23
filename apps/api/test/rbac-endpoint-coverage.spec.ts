@@ -12,6 +12,10 @@ import { DailyReportsController } from "../src/modules/daily-reports/api/daily-r
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
+import { ContactCompaniesController } from "../src/modules/crm/api/contact-companies.controller";
+import { ContactsController } from "../src/modules/crm/api/contacts.controller";
+import { OpportunitiesController } from "../src/modules/crm/api/opportunities.controller";
+import { PipelineStagesController } from "../src/modules/crm/api/pipeline-stages.controller";
 import { FinanceAlertsController } from "../src/modules/finance-alerts/api/finance-alerts.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
 import { SyncController } from "../src/modules/sync/api/sync.controller";
@@ -68,6 +72,10 @@ const controllers = [
   RagSearchController,
   ProjectAssistantController,
   FinanceAlertsController,
+  ContactsController,
+  ContactCompaniesController,
+  PipelineStagesController,
+  OpportunitiesController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

@@ -12,6 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
+import { opportunities } from "./crm";
 import { projects } from "./projects";
 
 // database.md §10 (M2): tenant cost book. cost_items declared first since
@@ -84,16 +85,14 @@ export const assemblyItems = pgTable(
 );
 
 // database.md §10: "versioned pricing container." opportunity_id ties to
-// CRM (M1), which doesn't exist yet — no FK, same precedent as
-// projects.clientContactCompanyId. Every estimate built against this
-// codebase today will have project_id set (opportunity-based pre-award
-// estimating isn't reachable without CRM) — ck_estimates_parent still
-// enforces "exactly one" so the column is ready for when M1 lands.
+// CRM (M1) — closes the dormant gap this column's original comment
+// flagged, now that the CRM row exists. ck_estimates_parent still
+// enforces "exactly one of opportunity_id/project_id".
 export const estimates = pgTable(
   "estimates",
   {
     ...tenantColumns(),
-    opportunityId: uuid("opportunity_id"),
+    opportunityId: uuid("opportunity_id").references(() => opportunities.id),
     projectId: uuid("project_id").references(() => projects.id),
     version: integer("version").notNull().default(1),
     status: text("status").notNull().default("draft"),
