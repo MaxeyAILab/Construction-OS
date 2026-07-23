@@ -29,6 +29,11 @@ const envSchema = z.object({
   // "defaulted, dialed lazily" reasoning as the S3 vars above.
   CLAMAV_HOST: z.string().default("localhost"),
   CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
+  // architecture.md §7 / ai-spec.md §2: AI Gateway provider credential.
+  // Optional (not required) since no account is provisioned yet anywhere
+  // this app currently boots — same "unconfigured is fine at startup,
+  // only fails when actually invoked" reasoning as the S3 vars above.
+  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, inet, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { aiRuns } from "./ai";
 import { companies } from "./companies";
 import { users } from "./users";
 
@@ -25,9 +26,7 @@ export const auditLog = pgTable(
     // null actorId = system/AI-initiated (ai_run_id set in that case).
     actorId: uuid("actor_id").references(() => users.id),
     actorType: text("actor_type").notNull(),
-    // No FK yet: ai_runs (M17, Phase 1D) doesn't exist. Add the reference
-    // once the AI Gateway module lands.
-    aiRunId: uuid("ai_run_id"),
+    aiRunId: uuid("ai_run_id").references(() => aiRuns.id),
     action: text("action").notNull(),
     entityType: text("entity_type").notNull(),
     entityId: uuid("entity_id").notNull(),

@@ -28,6 +28,13 @@ export const percentageSchema = z
   .string()
   .regex(/^\d{1,3}\.\d{2}$/, "percentages must be decimal strings with exactly 2 places");
 
+// database.md §19: ai_runs.cost_usd is NUMERIC(10,6) — a single AI call
+// can cost fractions of a cent, so it needs more precision than the
+// money-amount default (2 places).
+export const costUsdAmountSchema = z
+  .string()
+  .regex(/^\d+\.\d{6}$/, "AI cost amounts must be decimal strings with exactly 6 places");
+
 export const isoDateTimeSchema = z.string().datetime({ offset: true });
 
 export const paginationQuerySchema = z.object({

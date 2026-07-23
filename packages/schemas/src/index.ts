@@ -18,3 +18,4 @@ export * from "./comments";
 export * from "./client-portal";
 export * from "./imports-exports";
 export * from "./sync";
+export * from "./ai";

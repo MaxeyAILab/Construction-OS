@@ -407,6 +407,27 @@
       "when": 1784782920000,
       "tag": "0057_photos_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1784789687104,
+      "tag": "0058_ai_gateway_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1784789727044,
+      "tag": "0059_ai_gateway_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1784789746779,
+      "tag": "0060_ai_gateway_permissions",
+      "breakpoints": true
     }
   ]
 }
