@@ -472,6 +472,50 @@ export const taskDeletedV1Schema = z.object({
 });
 export type TaskDeletedV1 = z.infer<typeof taskDeletedV1Schema>;
 
+// M8 Field Operations (FR-FIELD-1/2). daily_report.updated.v1 covers both
+// header edits and the draft -> submitted transition — same "one generic
+// updated event, changedFields tells you what" reasoning as task.updated.v1.
+export const dailyReportCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  dailyReportId: uuidSchema,
+});
+export type DailyReportCreatedV1 = z.infer<typeof dailyReportCreatedV1Schema>;
+
+export const dailyReportUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  dailyReportId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type DailyReportUpdatedV1 = z.infer<typeof dailyReportUpdatedV1Schema>;
+
+export const dailyReportSubmittedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  dailyReportId: uuidSchema,
+});
+export type DailyReportSubmittedV1 = z.infer<typeof dailyReportSubmittedV1Schema>;
+
+export const timeEntryCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  timeEntryId: uuidSchema,
+});
+export type TimeEntryCreatedV1 = z.infer<typeof timeEntryCreatedV1Schema>;
+
+// FR-FIELD-2: "Approval -> cost_transactions at labor rate." costTransactionId
+// is null when no hourly rate is configured for the worker (documented gap,
+// see company_users.hourlyRateAmount's schema comment) — approval still
+// succeeds, it just doesn't post a cost transaction.
+export const timeEntryApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  timeEntryId: uuidSchema,
+  costTransactionId: uuidSchema.nullable(),
+});
+export type TimeEntryApprovedV1 = z.infer<typeof timeEntryApprovedV1Schema>;
+
 // database.md §17: "mentions uuid[] (drives notifications)" — the
 // Notifications module fans this out to one draft per mentioned user.
 export const commentCreatedV1Schema = z.object({
@@ -626,6 +670,11 @@ export const eventRegistry = {
   "task.created.v1": taskCreatedV1Schema,
   "task.updated.v1": taskUpdatedV1Schema,
   "task.deleted.v1": taskDeletedV1Schema,
+  "daily_report.created.v1": dailyReportCreatedV1Schema,
+  "daily_report.updated.v1": dailyReportUpdatedV1Schema,
+  "daily_report.submitted.v1": dailyReportSubmittedV1Schema,
+  "time_entry.created.v1": timeEntryCreatedV1Schema,
+  "time_entry.approved.v1": timeEntryApprovedV1Schema,
   "comment.created.v1": commentCreatedV1Schema,
   "schedule.created.v1": scheduleCreatedV1Schema,
   "schedule_baseline.created.v1": scheduleBaselineCreatedV1Schema,

@@ -12,10 +12,17 @@ import { buildTestSyncServices } from "./setup/sync";
 describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
-  const { projectsService } = buildTestProjectServices(db);
+  const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { rbacService, redis: rbacRedis } = buildTestRbacServices(db);
-  const { syncMutationsService, syncDeltaService, syncWorkingSetService, syncConflictsService, tasksService, cacheRedis } =
-    buildTestSyncServices(db);
+  const {
+    syncMutationsService,
+    syncDeltaService,
+    syncWorkingSetService,
+    syncConflictsService,
+    tasksService,
+    dailyReportsService,
+    cacheRedis,
+  } = buildTestSyncServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -164,7 +171,7 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
     ]);
     expect(result.result).toBe("conflict");
 
-    const conflicts = await syncConflictsService.list(tenantId);
+    const conflicts = await syncConflictsService.list(tenantId, ownerId);
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0]!.entityId).toBe(created.id);
   });
@@ -185,7 +192,7 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
         capturedAt: capturedNow(),
       },
     ]);
-    const [conflict] = await syncConflictsService.list(tenantId);
+    const [conflict] = await syncConflictsService.list(tenantId, ownerId);
     expect(conflict!.mutationId).toBe(mutationId);
 
     const resolved = await syncConflictsService.resolve(tenantId, ownerId, conflict!.id, { resolution: "accept_client" });
@@ -211,7 +218,7 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
         capturedAt: capturedNow(),
       },
     ]);
-    const [conflict] = await syncConflictsService.list(tenantId);
+    const [conflict] = await syncConflictsService.list(tenantId, ownerId);
 
     const resolved = await syncConflictsService.resolve(tenantId, ownerId, conflict!.id, { resolution: "accept_server" });
     expect(resolved.result).toBe("rejected");
@@ -256,8 +263,76 @@ describe("Mobile Sync v1: mutation log, delta pull, conflict queue (tasks)", () 
 
   it("delta: an unrequested scope returns nothing", async () => {
     const { tenantId, ownerId } = await signUpCompanyWithProject("delta-scope");
-    const result = await syncDeltaService.getDelta(tenantId, ownerId, 0, ["daily_reports"]);
-    expect(result).toEqual({ tasks: [], nextSinceSeq: 0 });
+    const result = await syncDeltaService.getDelta(tenantId, ownerId, 0, ["photos"]);
+    expect(result).toEqual({ tasks: [], dailyReports: [], timeEntries: [], nextSinceSeq: 0 });
+  });
+
+  it("create: applies a daily_reports mutation with a client-generated id", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("dr-create");
+    const dailyReportId = randomUUID();
+
+    const [result] = await syncMutationsService.applyBatch(tenantId, ownerId, [
+      {
+        mutationId: randomUUID(),
+        clientId: "device-1",
+        entity: "daily_reports",
+        entityId: dailyReportId,
+        op: "create",
+        changes: { projectId: project.id, reportDate: "2026-07-20", narrative: "Offline-filed report" },
+        capturedAt: capturedNow(),
+      },
+    ]);
+    expect(result).toEqual({ mutationId: expect.any(String), result: "applied" });
+
+    const report = await dailyReportsService.getById(tenantId, dailyReportId);
+    expect(report.narrative).toBe("Offline-filed report");
+  });
+
+  it("create: applies a time_entries mutation, but a subsequent update mutation is rejected as unsupported (append-only)", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("te-create");
+    const costCode = await costCodesService.create(tenantId, ownerId, project.id, {
+      code: "01-000",
+      name: "General",
+      kind: "labor",
+    });
+    const timeEntryId = randomUUID();
+
+    const [createResult] = await syncMutationsService.applyBatch(tenantId, ownerId, [
+      {
+        mutationId: randomUUID(),
+        clientId: "device-1",
+        entity: "time_entries",
+        entityId: timeEntryId,
+        op: "create",
+        changes: { projectId: project.id, userId: ownerId, costCodeId: costCode.id, hours: 8, workDate: "2026-07-20", kind: "regular" },
+        capturedAt: capturedNow(),
+      },
+    ]);
+    expect(createResult.result).toBe("applied");
+
+    const [updateResult] = await syncMutationsService.applyBatch(tenantId, ownerId, [
+      {
+        mutationId: randomUUID(),
+        clientId: "device-1",
+        entity: "time_entries",
+        entityId: timeEntryId,
+        op: "update",
+        changes: { hours: 9 },
+        capturedAt: capturedNow(),
+      },
+    ]);
+    expect(updateResult.result).toBe("rejected");
+  });
+
+  it("delta: pulling scopes=tasks,daily_reports returns both, and an unrequested scope stays empty", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("dr-delta");
+    await tasksService.create(tenantId, ownerId, { projectId: project.id, title: "A task" });
+    await dailyReportsService.create(tenantId, ownerId, { projectId: project.id, reportDate: "2026-07-20" });
+
+    const pull = await syncDeltaService.getDelta(tenantId, ownerId, 0, ["tasks", "daily_reports"]);
+    expect(pull.tasks).toHaveLength(1);
+    expect(pull.dailyReports).toHaveLength(1);
+    expect(pull.timeEntries).toHaveLength(0); // not in requested scopes
   });
 
   it("working-set: returns the caller's assigned projects", async () => {

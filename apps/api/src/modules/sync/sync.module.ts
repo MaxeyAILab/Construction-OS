@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
+import { DailyReportsModule } from "../daily-reports";
 import { RbacModule } from "../rbac";
 import { TasksModule } from "../tasks";
 import { SyncController } from "./api/sync.controller";
@@ -12,7 +13,7 @@ import { SyncWorkingSetService } from "./application/sync-working-set.service";
 const env = loadEnv();
 
 @Module({
-  imports: [RbacModule, TasksModule],
+  imports: [RbacModule, TasksModule, DailyReportsModule],
   controllers: [SyncController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

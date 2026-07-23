@@ -4,21 +4,18 @@ import type { z } from "zod";
 import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
-import { RequirePermission } from "../../rbac";
 import { SyncConflictsService } from "../application/sync-conflicts.service";
 import { SyncDeltaService } from "../application/sync-delta.service";
 import { SyncMutationsService } from "../application/sync-mutations.service";
 import { SyncWorkingSetService } from "../application/sync-working-set.service";
 
-// api.md §16.2 (architecture.md §14.2, M6 Mobile Sync). /sync/mutations,
-// /delta, and /working-set are @Authenticated() only — a batch of
-// mutations can span create/update/delete on the caller's own working
-// set, each needing a different real permission (checked per-mutation
-// inside SyncMutationsService, same "no single fixed permission fits"
-// reasoning as Change Orders' approve()/Scheduling's getActiveSchedule().
-// /conflicts is gated by tasks.task.update since v1's only syncable
-// entity is tasks — a second entity would need this to become a per-
-// entity check too, same as the mutation engine's own PERMISSIONS map.
+// api.md §16.2 (architecture.md §14.2, M6 Mobile Sync). Every route here is
+// @Authenticated() only — a batch of mutations, or the conflict queue, can
+// each span multiple entities (tasks/daily_reports/time_entries), each
+// needing a different real permission checked per-row inside
+// SyncMutationsService/SyncConflictsService, same "no single fixed
+// permission fits" reasoning as Change Orders' approve()/Scheduling's
+// getActiveSchedule().
 @Controller("sync")
 export class SyncController {
   constructor(
@@ -54,13 +51,13 @@ export class SyncController {
   }
 
   @Get("conflicts")
-  @RequirePermission("tasks.task.update")
+  @Authenticated()
   listConflicts(@Req() req: AuthenticatedRequest) {
-    return this.conflicts.list(req.auth!.tenantId);
+    return this.conflicts.list(req.auth!.tenantId, req.auth!.sub);
   }
 
   @Post("conflicts/:id/resolve")
-  @RequirePermission("tasks.task.update")
+  @Authenticated()
   resolveConflict(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(resolveSyncConflictSchema)) body: z.infer<typeof resolveSyncConflictSchema>,

@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
 
-// api.md §16.2 (architecture.md §14.2). v1 supports entity='tasks' only —
-// the sync engine's own mechanics (mutation log, idempotency, delta pull,
-// conflict queue) are entity-agnostic; wiring in daily reports/photos/etc.
-// is the later, separate roadmap rows that depend on this one.
-export const syncEntityTypeSchema = z.enum(["tasks"]);
+// api.md §16.2 (architecture.md §14.2). The sync engine's own mechanics
+// (mutation log, idempotency, delta pull, conflict queue) are
+// entity-agnostic; daily_reports/time_entries are the roadmap's "Daily
+// reports + time + weather (offline)" row — photos/field_issues are still
+// later, separate rows.
+export const syncEntityTypeSchema = z.enum(["tasks", "daily_reports", "time_entries"]);
 export type SyncEntityType = z.infer<typeof syncEntityTypeSchema>;
 
 export const syncMutationOpSchema = z.enum(["create", "update", "delete"]);

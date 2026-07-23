@@ -270,6 +270,35 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "task",
     entityId: payload.taskId as string,
   }),
+  // M8 Field Operations (FR-FIELD-1/2). daily_report.updated.v1 reuses the
+  // update permission even for the submit transition — see
+  // DailyReportsService.update's own comment for why submit isn't a
+  // separate action/permission.
+  "daily_report.created.v1": (payload) => ({
+    action: "field.daily_report.create",
+    entityType: "daily_report",
+    entityId: payload.dailyReportId as string,
+  }),
+  "daily_report.updated.v1": (payload) => ({
+    action: "field.daily_report.update",
+    entityType: "daily_report",
+    entityId: payload.dailyReportId as string,
+  }),
+  "daily_report.submitted.v1": (payload) => ({
+    action: "field.daily_report.update",
+    entityType: "daily_report",
+    entityId: payload.dailyReportId as string,
+  }),
+  "time_entry.created.v1": (payload) => ({
+    action: "field.time_entry.create",
+    entityType: "time_entry",
+    entityId: payload.timeEntryId as string,
+  }),
+  "time_entry.approved.v1": (payload) => ({
+    action: "field.time_entry.approve",
+    entityType: "time_entry",
+    entityId: payload.timeEntryId as string,
+  }),
   // Only entity_type='task' has a real comment endpoint today (Tasks &
   // Punch, M6) — a future RFI/PO comment consumer will need this mapper
   // widened to branch on payload.entityType when it lands.

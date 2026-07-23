@@ -18,5 +18,10 @@ const env = loadEnv();
     CostTransactionsService,
     FinancialSummaryService,
   ],
+  // M8 Field Operations (FR-FIELD-2) reuses CostTransactionsService for time
+  // entry approval rather than duplicating the actual_amount/budget-line
+  // update logic — same precedent as TasksModule exporting TasksService for
+  // the sync mutation engine.
+  exports: [CostTransactionsService],
 })
 export class BudgetsModule {}

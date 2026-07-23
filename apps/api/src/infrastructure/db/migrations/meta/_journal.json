@@ -365,6 +365,27 @@
       "when": 1784732697684,
       "tag": "0051_sync_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1784778477039,
+      "tag": "0052_daily_reports_time_entries_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1784778490000,
+      "tag": "0053_daily_reports_time_entries_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1784778500000,
+      "tag": "0054_daily_reports_time_entries_permissions",
+      "breakpoints": true
     }
   ]
 }

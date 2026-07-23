@@ -23,3 +23,17 @@ export class ManualResolutionRequiresChangesError extends DomainError {
     super("resolution='manual' requires manualChanges");
   }
 }
+
+// A conflict can now be on any syncable entity (tasks, daily_reports,
+// time_entries) — resolving it needs that entity's own update permission,
+// not a single fixed one (sync.controller.ts's comment on this endpoint
+// explains why it moved from a @RequirePermission() decorator to a
+// per-conflict check here, same "second entity is one more row" pattern
+// as the mutation engine's PERMISSIONS map).
+export class ConflictResolutionPermissionDeniedError extends DomainError {
+  readonly code = "forbidden";
+  readonly status = 403;
+  constructor() {
+    super("you do not have permission to resolve this conflict");
+  }
+}
