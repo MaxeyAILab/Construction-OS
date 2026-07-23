@@ -34,6 +34,9 @@ const envSchema = z.object({
   // this app currently boots — same "unconfigured is fine at startup,
   // only fails when actually invoked" reasoning as the S3 vars above.
   ANTHROPIC_API_KEY: z.string().optional(),
+  // ai-spec.md §4: the embedding provider for RAG (M17). Same "optional,
+  // dialed lazily" reasoning as ANTHROPIC_API_KEY.
+  VOYAGE_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

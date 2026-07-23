@@ -14,6 +14,7 @@ import { ImportsExportsModule } from "./modules/imports-exports";
 import { NotificationsModule } from "./modules/notifications";
 import { PhotosModule } from "./modules/photos";
 import { ProjectsModule } from "./modules/projects";
+import { RagModule } from "./modules/rag";
 import { RbacModule } from "./modules/rbac";
 import { RfisModule } from "./modules/rfis";
 import { SchedulingModule } from "./modules/scheduling";
@@ -48,6 +49,7 @@ import { HealthModule } from "./platform/health/health.module";
     ImportsExportsModule,
     SyncModule,
     AiModule,
+    RagModule,
   ],
 })
 export class AppModule {}

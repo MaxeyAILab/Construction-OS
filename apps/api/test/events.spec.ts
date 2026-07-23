@@ -211,9 +211,14 @@ describe("Events backbone", () => {
     expect(rowsSeenByA.every((r) => r.tenantId === companyA.companyId)).toBe(true);
     expect(rowsSeenByA.some((r) => r.tenantId === companyB.companyId)).toBe(false);
 
+    // Production's relay only ever claims in small batches (relayBatch's
+    // default is 50) — this test uses a much larger limit purely so the
+    // assertion doesn't depend on where these two brand-new rows land
+    // among whatever backlog happens to exist in the shared local sandbox
+    // Postgres (claim order is occurred_at ASC, oldest first).
     const claimed = Array.from(
       await db.execute<{ tenant_id: string }>(
-        sql`select tenant_id from outbox_claim_pending_events(1000, 0)`,
+        sql`select tenant_id from outbox_claim_pending_events(100000, 0)`,
       ),
     );
     const tenantIds = new Set(claimed.map((r) => r.tenant_id));

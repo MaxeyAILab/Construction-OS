@@ -18,6 +18,7 @@ import { EstimatingController } from "../src/modules/estimating/api/estimating.c
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { PhotosController } from "../src/modules/photos/api/photos.controller";
 import { ProjectsController } from "../src/modules/projects/api/projects.controller";
+import { RagSearchController } from "../src/modules/rag/api/rag-search.controller";
 import { ExternalSharesController } from "../src/modules/rbac/api/external-shares.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
 import { RfisController } from "../src/modules/rfis/api/rfis.controller";
@@ -62,6 +63,7 @@ const controllers = [
   ImportsExportsController,
   SyncController,
   AiController,
+  RagSearchController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

@@ -428,6 +428,34 @@
       "when": 1784789746779,
       "tag": "0060_ai_gateway_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1784793482323,
+      "tag": "0061_rag_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1784793490623,
+      "tag": "0062_rag_rls_and_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1784793845326,
+      "tag": "0063_rag_embedding_not_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1784793886066,
+      "tag": "0064_rag_permissions",
+      "breakpoints": true
     }
   ]
 }
