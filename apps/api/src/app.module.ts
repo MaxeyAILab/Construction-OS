@@ -13,6 +13,7 @@ import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
 import { FinanceAlertsModule } from "./modules/finance-alerts";
 import { ImportsExportsModule } from "./modules/imports-exports";
+import { InventoryModule } from "./modules/inventory";
 import { NotificationsModule } from "./modules/notifications";
 import { PhotoAiModule } from "./modules/photo-ai";
 import { PhotosModule } from "./modules/photos";
@@ -49,6 +50,7 @@ import { HealthModule } from "./platform/health/health.module";
     DashboardsModule,
     DocumentsModule,
     PhotosModule,
+    InventoryModule,
     ProcurementModule,
     RfisModule,
     SchedulingModule,

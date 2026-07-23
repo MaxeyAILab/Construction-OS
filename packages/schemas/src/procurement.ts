@@ -42,12 +42,13 @@ export const purchaseOrderStatusSchema = z.enum([
 ]);
 export type PurchaseOrderStatus = z.infer<typeof purchaseOrderStatusSchema>;
 
-// inventoryItemId omitted: Inventory (M10) doesn't exist yet — every line
-// is free-text-described this pass (see purchase_order_lines' schema
-// comment).
+// inventoryItemId is optional — a line can stay free-text-described
+// without ever touching the Inventory (M10) catalog, but linking one
+// closes the loop for DeliveriesService to post a stock receipt.
 export const createPurchaseOrderLineSchema = z.object({
   description: z.string().min(1),
   costCodeId: uuidSchema,
+  inventoryItemId: uuidSchema.optional(),
   qtyOrdered: quantitySchema,
   uom: z.string().min(1),
   unitCostAmount: unitRateAmountSchema,
@@ -137,8 +138,13 @@ export const createDeliveryLineSchema = z.object({
 });
 export type CreateDeliveryLineInput = z.infer<typeof createDeliveryLineSchema>;
 
+// locationId: where the material physically landed — required for
+// StockService to post a receipt movement for any line whose PO line
+// carries an inventory_item_id (Inventory M10 row); a delivery with no
+// inventory-linked lines can omit it.
 export const createDeliverySchema = z.object({
   deliveryDate: isoDateSchema,
+  locationId: uuidSchema.optional(),
   notes: z.string().optional(),
   lines: z.array(createDeliveryLineSchema).min(1),
 });

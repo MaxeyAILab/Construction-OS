@@ -240,6 +240,22 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "delivery",
     entityId: payload.deliveryId as string,
   }),
+  // M10 Inventory & Materials (FR-INV-1..2).
+  "inventory_item.created.v1": (payload) => ({
+    action: "inventory.item.create",
+    entityType: "inventory_item",
+    entityId: payload.inventoryItemId as string,
+  }),
+  "inventory_location.created.v1": (payload) => ({
+    action: "inventory.location.create",
+    entityType: "inventory_location",
+    entityId: payload.inventoryLocationId as string,
+  }),
+  "stock_movement.posted.v1": (payload) => ({
+    action: "inventory.movement.create",
+    entityType: "stock_movement",
+    entityId: payload.stockMovementId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

@@ -24,3 +24,4 @@ export * from "./project-assistant";
 export * from "./finance-alerts";
 export * from "./crm";
 export * from "./procurement";
+export * from "./inventory";

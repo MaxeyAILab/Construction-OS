@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { moneyAmountSchema, uuidSchema } from "./common";
+import { moneyAmountSchema, quantitySchema, uuidSchema } from "./common";
 
 // architecture.md §8: "events are versioned JSON with a schema registry in
 // packages/schemas (project.created.v1, changeorder.approved.v1, ...).
@@ -384,12 +384,10 @@ export const supplierQuoteCreatedV1Schema = z.object({
 });
 export type SupplierQuoteCreatedV1 = z.infer<typeof supplierQuoteCreatedV1Schema>;
 
-// FR-PROC-4: delivery receipt. Carries qtyReceivedTotal so a future
-// Inventory (M10) consumer can react without re-querying delivery_lines —
-// same "carry what a future consumer needs" reasoning as
-// opportunity.won.v1's wonProjectId. No stock/3-way-match side effect
-// happens today (Inventory doesn't exist, no invoices/AP module exists) —
-// this event exists so that wiring is additive, not a schema change.
+// FR-PROC-4: delivery receipt. No stock/3-way-match side effect happened
+// when this was first written (Inventory didn't exist yet) — the stock
+// receipt is now wired (Inventory M10 row, DeliveriesService); the 3-way-
+// match half stays flagged (no invoices/AP module exists).
 export const deliveryCreatedV1Schema = z.object({
   companyId: uuidSchema,
   projectId: uuidSchema,
@@ -397,6 +395,32 @@ export const deliveryCreatedV1Schema = z.object({
   deliveryId: uuidSchema,
 });
 export type DeliveryCreatedV1 = z.infer<typeof deliveryCreatedV1Schema>;
+
+// M10 Inventory & Materials (FR-INV-1..2).
+export const inventoryItemCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  inventoryItemId: uuidSchema,
+});
+export type InventoryItemCreatedV1 = z.infer<typeof inventoryItemCreatedV1Schema>;
+
+export const inventoryLocationCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  inventoryLocationId: uuidSchema,
+});
+export type InventoryLocationCreatedV1 = z.infer<typeof inventoryLocationCreatedV1Schema>;
+
+// One event per ledger post — stock_levels is a maintained aggregate
+// cache of this ledger, same "the ledger post gets the event, the
+// rollup doesn't" precedent as cost_transaction.posted.v1 (no separate
+// budget_lines event fires from CostTransactionsService either).
+export const stockMovementPostedV1Schema = z.object({
+  companyId: uuidSchema,
+  stockMovementId: uuidSchema,
+  itemId: uuidSchema,
+  kind: z.enum(["receipt", "issue", "transfer_out", "transfer_in", "adjustment", "return"]),
+  qty: quantitySchema,
+});
+export type StockMovementPostedV1 = z.infer<typeof stockMovementPostedV1Schema>;
 
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
@@ -859,6 +883,9 @@ export const eventRegistry = {
   "rfq.created.v1": rfqCreatedV1Schema,
   "supplier_quote.created.v1": supplierQuoteCreatedV1Schema,
   "delivery.created.v1": deliveryCreatedV1Schema,
+  "inventory_item.created.v1": inventoryItemCreatedV1Schema,
+  "inventory_location.created.v1": inventoryLocationCreatedV1Schema,
+  "stock_movement.posted.v1": stockMovementPostedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

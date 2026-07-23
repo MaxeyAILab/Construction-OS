@@ -74,6 +74,31 @@ export class CostTransactionsService {
     );
   }
 
+  // FR-INV-2: "record ... consumption and value them into job costs."
+  // Called from StockService (inventory/index.ts's public surface —
+  // cross-module reuse, same "broaden an existing module's public
+  // surface" precedent as postFromTimeEntry) in its own transaction, not
+  // nested inside the caller's — same two-phase-write looseness.
+  async postFromInventoryIssue(
+    tenantId: string,
+    actorId: string,
+    projectId: string,
+    input: { costCodeId: string; stockMovementId: string; txnDate: string; amount: string; qty: string; uom: string },
+  ) {
+    return withTenant(this.db, tenantId, (tx) =>
+      this.post(tx, tenantId, actorId, projectId, {
+        costCodeId: input.costCodeId,
+        source: "inventory_issue",
+        sourceId: input.stockMovementId,
+        txnDate: input.txnDate,
+        amount: input.amount,
+        qty: input.qty,
+        uom: input.uom,
+        memo: null,
+      }),
+    );
+  }
+
   private async post(
     tx: Database,
     tenantId: string,
@@ -81,7 +106,7 @@ export class CostTransactionsService {
     projectId: string,
     input: {
       costCodeId: string;
-      source: "manual" | "time_entry";
+      source: "manual" | "time_entry" | "inventory_issue";
       sourceId: string | null;
       txnDate: string;
       amount: string;

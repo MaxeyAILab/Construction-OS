@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { CreateDeliveryInput } from "@constructionos/schemas";
 import { and, eq, isNull } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
+import { StockService } from "../../inventory";
 import { deliveries, deliveryLines, purchaseOrderLines, purchaseOrders } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
 import {
@@ -12,10 +13,15 @@ import {
 
 // database.md §12 (M5, FR-PROC-4): "Receipt against PO lines... triggers
 // stock_levels update (on-site receipt) and 3-way-match state for
-// supplier invoices (FR-VEND-2)." Both are flagged, not built: Inventory
-// (M10) is a later roadmap row, and no invoices/AP module exists yet.
-// Delivery photos attach via the existing photos.entityType='delivery'
-// (already open-ended text, no schema change needed).
+// supplier invoices (FR-VEND-2)." The stock_levels update is wired below
+// via StockService.postReceipt for any line whose PO line carries an
+// inventory_item_id, when the delivery names a location — its own
+// transaction (two-phase write relative to this service's own,
+// already-committed transaction), same bounded-looseness precedent as
+// CostTransactionsService.postFromTimeEntry. The 3-way-match half stays
+// flagged: no invoices/AP module exists yet. Delivery photos attach via
+// the existing photos.entityType='delivery' (already open-ended text, no
+// schema change needed).
 const RECEIVABLE_STATUSES = ["approved", "sent", "confirmed", "partially_received"];
 
 @Injectable()
@@ -23,6 +29,7 @@ export class DeliveriesService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly outbox: OutboxService,
+    private readonly stock: StockService,
   ) {}
 
   async listForPurchaseOrder(tenantId: string, purchaseOrderId: string) {
@@ -35,7 +42,9 @@ export class DeliveriesService {
   }
 
   async create(tenantId: string, actorId: string, purchaseOrderId: string, input: CreateDeliveryInput) {
-    return withTenant(this.db, tenantId, async (tx) => {
+    const pendingReceipts: Array<{ itemId: string; qty: string; unitCostAmount: string }> = [];
+
+    const created = await withTenant(this.db, tenantId, async (tx) => {
       const po = await tx.query.purchaseOrders.findFirst({
         where: and(eq(purchaseOrders.id, purchaseOrderId), isNull(purchaseOrders.deletedAt)),
       });
@@ -49,6 +58,7 @@ export class DeliveriesService {
           purchaseOrderId,
           deliveryDate: input.deliveryDate,
           receivedBy: actorId,
+          locationId: input.locationId,
           notes: input.notes,
           createdBy: actorId,
         })
@@ -82,6 +92,14 @@ export class DeliveriesService {
           .update(purchaseOrderLines)
           .set({ qtyReceived: newQtyReceived.toFixed(3), updatedBy: actorId })
           .where(eq(purchaseOrderLines.id, line.purchaseOrderLineId));
+
+        if (poLine.inventoryItemId && input.locationId) {
+          pendingReceipts.push({
+            itemId: poLine.inventoryItemId,
+            qty: line.qtyReceived,
+            unitCostAmount: poLine.unitCostAmount,
+          });
+        }
       }
 
       await this.recomputeReceiptStatus(tx, purchaseOrderId, actorId);
@@ -96,6 +114,12 @@ export class DeliveriesService {
 
       return created;
     });
+
+    for (const receipt of pendingReceipts) {
+      await this.stock.postReceipt(tenantId, actorId, { ...receipt, locationId: input.locationId! });
+    }
+
+    return created;
   }
 
   // FR-PROC-1: "track them through delivery." Derives partially_received

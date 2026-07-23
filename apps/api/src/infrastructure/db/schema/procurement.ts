@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { aiRuns } from "./ai";
 import { tenantColumns } from "./columns";
+import { inventoryItems, inventoryLocations } from "./inventory";
 import { costCodes, projects } from "./projects";
 import { users } from "./users";
 
@@ -79,11 +80,12 @@ export const purchaseOrders = pgTable(
   ],
 );
 
-// database.md §12: "inventory_item_id NULL or free-text description".
-// inventory_item_id has no FK yet — Inventory (M10) is a later, separate
-// roadmap row (same "flag it, don't invent" precedent as every other
-// cross-module forward-reference this session); every line is
-// free-text-described until that module exists to be referenced.
+// database.md §12: "inventory_item_id NULL or free-text description" —
+// real FK now that Inventory (M10) exists (closes the gap this column's
+// original comment flagged, same "later row closes an earlier dormant
+// gap" precedent as CRM closing projects.clientContactCompanyId). Still
+// nullable/optional: a line can stay free-text-described without ever
+// touching the catalog.
 export const purchaseOrderLines = pgTable(
   "purchase_order_lines",
   {
@@ -91,7 +93,7 @@ export const purchaseOrderLines = pgTable(
     purchaseOrderId: uuid("purchase_order_id")
       .notNull()
       .references(() => purchaseOrders.id),
-    inventoryItemId: uuid("inventory_item_id"),
+    inventoryItemId: uuid("inventory_item_id").references(() => inventoryItems.id),
     description: text("description").notNull(),
     costCodeId: uuid("cost_code_id")
       .notNull()
@@ -177,11 +179,13 @@ export const supplierQuotes = pgTable(
 
 // database.md §12: "Receipt against PO lines... triggers stock_levels
 // update (on-site receipt) and 3-way-match state for supplier invoices
-// (FR-VEND-2)." Both are flagged, not built: Inventory (M10) is a later
-// roadmap row, and no invoices/AP module exists yet (confirmed via
-// `ls apps/api/src/modules` — no invoices/payments module). Delivery
-// photos need no new column: photos.entityType is open-ended text and
-// already lists "delivery" as an anticipated value (database.md §15).
+// (FR-VEND-2)." The stock_levels update is now wired (DeliveriesService,
+// Inventory M10 row) for lines whose PO line has an inventory_item_id and
+// whose delivery names a location. The 3-way-match half stays flagged: no
+// invoices/AP module exists yet (confirmed via `ls apps/api/src/modules`).
+// Delivery photos need no new column: photos.entityType is open-ended
+// text and already lists "delivery" as an anticipated value (database.md
+// §15).
 export const deliveries = pgTable(
   "deliveries",
   {
@@ -191,6 +195,10 @@ export const deliveries = pgTable(
       .references(() => purchaseOrders.id),
     deliveryDate: date("delivery_date").notNull(),
     receivedBy: uuid("received_by").references(() => users.id),
+    // Where the material physically landed — required to post a
+    // stock_levels update; a delivery with no inventory-linked lines can
+    // still omit it.
+    locationId: uuid("location_id").references(() => inventoryLocations.id),
     notes: text("notes"),
   },
   (table) => [index("ix_deliveries_purchase_order").on(table.purchaseOrderId)],

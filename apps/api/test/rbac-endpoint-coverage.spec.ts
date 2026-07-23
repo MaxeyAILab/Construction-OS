@@ -18,6 +18,9 @@ import { OpportunitiesController } from "../src/modules/crm/api/opportunities.co
 import { PipelineStagesController } from "../src/modules/crm/api/pipeline-stages.controller";
 import { FinanceAlertsController } from "../src/modules/finance-alerts/api/finance-alerts.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
+import { InventoryItemsController } from "../src/modules/inventory/api/inventory-items.controller";
+import { InventoryLocationsController } from "../src/modules/inventory/api/inventory-locations.controller";
+import { StockController } from "../src/modules/inventory/api/stock.controller";
 import { SyncController } from "../src/modules/sync/api/sync.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
@@ -82,6 +85,9 @@ const controllers = [
   SuppliersController,
   PurchaseOrdersController,
   RfqsController,
+  InventoryItemsController,
+  InventoryLocationsController,
+  StockController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

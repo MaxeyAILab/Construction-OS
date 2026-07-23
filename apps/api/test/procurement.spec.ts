@@ -5,6 +5,7 @@ import { commitments, outbox } from "../src/infrastructure/db/schema";
 import { buildTestAuthService } from "./setup/auth";
 import { buildTestBudgetServices } from "./setup/budgets";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
+import { buildTestInventoryServices } from "./setup/inventory";
 import { buildTestProcurementServices } from "./setup/procurement";
 import { buildTestProjectServices } from "./setup/projects";
 
@@ -14,8 +15,9 @@ describe("Procurement & Purchasing", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
+  const { stockService } = buildTestInventoryServices(db);
   const { suppliersService, purchaseOrdersService, lifecycleService, rfqsService, deliveriesService } =
-    buildTestProcurementServices(db);
+    buildTestProcurementServices(db, stockService);
 
   beforeAll(async () => {
     await bootstrapTestRole();

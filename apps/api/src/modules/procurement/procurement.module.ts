@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { EventsModule } from "../events";
+import { InventoryModule } from "../inventory";
 import { PurchaseOrdersController } from "./api/purchase-orders.controller";
 import { RfqsController } from "./api/rfqs.controller";
 import { SuppliersController } from "./api/suppliers.controller";
@@ -14,7 +15,7 @@ import { SuppliersService } from "./application/suppliers.service";
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule],
+  imports: [EventsModule, InventoryModule],
   controllers: [SuppliersController, PurchaseOrdersController, RfqsController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

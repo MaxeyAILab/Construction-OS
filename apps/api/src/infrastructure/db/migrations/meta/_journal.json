@@ -540,6 +540,27 @@
       "when": 1784807966031,
       "tag": "0076_procurement_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1784829081905,
+      "tag": "0077_inventory_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1784829091348,
+      "tag": "0078_inventory_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1784829109059,
+      "tag": "0079_inventory_permissions",
+      "breakpoints": true
     }
   ]
 }
