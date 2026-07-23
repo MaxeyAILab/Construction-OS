@@ -10,10 +10,13 @@ import { getDb } from "./db";
 import { uuidv7 } from "./uuid";
 
 export type SyncOp = "create" | "update" | "delete";
+export type SyncEntity = "tasks" | "daily_reports" | "time_entries";
+
+const ALL_SCOPES: SyncEntity[] = ["tasks", "daily_reports", "time_entries"];
 
 export interface EnqueuedMutation {
   mutationId: string;
-  entity: "tasks";
+  entity: SyncEntity;
   entityId: string;
   op: SyncOp;
   changes?: Record<string, unknown>;
@@ -24,7 +27,7 @@ export interface EnqueuedMutation {
 interface QueuedMutationRow {
   mutation_id: string;
   client_id: string;
-  entity: "tasks";
+  entity: SyncEntity;
   entity_id: string;
   op: SyncOp;
   changes: string | null;
@@ -49,6 +52,35 @@ export interface ServerTask {
   assigneeId: string | null;
   kind: string;
   checklist: unknown;
+  updatedSeq: number;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface ServerDailyReport {
+  id: string;
+  projectId: string;
+  reportDate: string;
+  weather: unknown;
+  narrative: string | null;
+  status: string;
+  submittedAt: string | null;
+  updatedSeq: number;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface ServerTimeEntry {
+  id: string;
+  dailyReportId: string | null;
+  projectId: string;
+  userId: string | null;
+  crewLabel: string | null;
+  costCodeId: string;
+  hours: string;
+  workDate: string;
+  kind: string;
+  approvedAt: string | null;
   updatedSeq: number;
   updatedAt: string;
   deletedAt: string | null;
@@ -125,17 +157,8 @@ async function pushMutations(session: Session): Promise<number> {
   return pending.length;
 }
 
-async function pullDelta(session: Session): Promise<number> {
-  const db = await getDb();
-  const cursorRow = await db.getFirstAsync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'since_seq'");
-  const sinceSeq = cursorRow ? Number(cursorRow.value) : 0;
-
-  const delta = await apiRequest<{ tasks: ServerTask[]; nextSinceSeq: number }>(
-    `/sync/delta?sinceSeq=${sinceSeq}&scopes=tasks`,
-    { token: session.accessToken },
-  );
-
-  for (const task of delta.tasks) {
+async function applyTaskDeltas(db: Awaited<ReturnType<typeof getDb>>, rows: ServerTask[]): Promise<void> {
+  for (const task of rows) {
     if (task.deletedAt) {
       await db.runAsync("DELETE FROM tasks WHERE id = ?", [task.id]);
       continue;
@@ -165,13 +188,92 @@ async function pullDelta(session: Session): Promise<number> {
       ],
     );
   }
+}
+
+async function applyDailyReportDeltas(db: Awaited<ReturnType<typeof getDb>>, rows: ServerDailyReport[]): Promise<void> {
+  for (const report of rows) {
+    if (report.deletedAt) {
+      await db.runAsync("DELETE FROM daily_reports WHERE id = ?", [report.id]);
+      continue;
+    }
+    await db.runAsync(
+      `INSERT INTO daily_reports (id, project_id, report_date, weather, narrative, status, submitted_at, updated_seq, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         project_id = excluded.project_id, report_date = excluded.report_date, weather = excluded.weather,
+         narrative = excluded.narrative, status = excluded.status, submitted_at = excluded.submitted_at,
+         updated_seq = excluded.updated_seq, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at`,
+      [
+        report.id,
+        report.projectId,
+        report.reportDate,
+        report.weather ? JSON.stringify(report.weather) : null,
+        report.narrative,
+        report.status,
+        report.submittedAt,
+        report.updatedSeq,
+        report.updatedAt,
+        report.deletedAt,
+      ],
+    );
+  }
+}
+
+async function applyTimeEntryDeltas(db: Awaited<ReturnType<typeof getDb>>, rows: ServerTimeEntry[]): Promise<void> {
+  for (const entry of rows) {
+    if (entry.deletedAt) {
+      await db.runAsync("DELETE FROM time_entries WHERE id = ?", [entry.id]);
+      continue;
+    }
+    await db.runAsync(
+      `INSERT INTO time_entries (id, daily_report_id, project_id, user_id, crew_label, cost_code_id, hours, work_date, kind, approved_at, updated_seq, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         daily_report_id = excluded.daily_report_id, project_id = excluded.project_id, user_id = excluded.user_id,
+         crew_label = excluded.crew_label, cost_code_id = excluded.cost_code_id, hours = excluded.hours,
+         work_date = excluded.work_date, kind = excluded.kind, approved_at = excluded.approved_at,
+         updated_seq = excluded.updated_seq, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at`,
+      [
+        entry.id,
+        entry.dailyReportId,
+        entry.projectId,
+        entry.userId,
+        entry.crewLabel,
+        entry.costCodeId,
+        entry.hours,
+        entry.workDate,
+        entry.kind,
+        entry.approvedAt,
+        entry.updatedSeq,
+        entry.updatedAt,
+        entry.deletedAt,
+      ],
+    );
+  }
+}
+
+async function pullDelta(session: Session, scopes: SyncEntity[] = ALL_SCOPES): Promise<number> {
+  const db = await getDb();
+  const cursorRow = await db.getFirstAsync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'since_seq'");
+  const sinceSeq = cursorRow ? Number(cursorRow.value) : 0;
+
+  const delta = await apiRequest<{
+    tasks: ServerTask[];
+    dailyReports: ServerDailyReport[];
+    timeEntries: ServerTimeEntry[];
+    nextSinceSeq: number;
+  }>(`/sync/delta?sinceSeq=${sinceSeq}&scopes=${scopes.join(",")}`, { token: session.accessToken });
+
+  await applyTaskDeltas(db, delta.tasks);
+  await applyDailyReportDeltas(db, delta.dailyReports);
+  await applyTimeEntryDeltas(db, delta.timeEntries);
 
   await db.runAsync(
     "INSERT INTO sync_state (key, value) VALUES ('since_seq', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     [String(delta.nextSinceSeq)],
   );
 
-  return delta.tasks.length;
+  return delta.tasks.length + delta.dailyReports.length + delta.timeEntries.length;
 }
 
 export async function syncNow(session: Session): Promise<{ pushed: number; pulled: number }> {
