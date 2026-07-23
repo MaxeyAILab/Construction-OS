@@ -1,4 +1,4 @@
-import { integer, numeric, jsonb, pgTable, text, timestamp, uuid, index } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
 import { files } from "./files";
 import { projects } from "./projects";
@@ -32,16 +32,17 @@ export const photos = pgTable(
     geoLng: numeric("geo_lng", { precision: 9, scale: 6 }),
     heading: integer("heading"),
     deviceId: text("device_id"),
-    // Photo AI (FR-FIELD-7, auto-tagging/defect detection) — not built this
-    // pass; column exists now so that follow-up work has somewhere to write.
+    // Photo AI (FR-FIELD-7, ai-spec.md §7.8): auto-tagging (trade/element/
+    // material, auto-applies) and defect flagging (draft, surfaced here
+    // too rather than a separate table — ai-spec §6's "draft ... visible
+    // only to the user" needs no persistence beyond this reversible/
+    // correctable column).
     aiTags: jsonb("ai_tags"),
   },
   (table) => [
     index("ix_photos_tenant_project_taken").on(table.tenantId, table.projectId, table.takenAt),
     index("ix_photos_entity").on(table.entityType, table.entityId),
-    // database.md §15 also calls for a GIN index on ai_tags — deferred
-    // until Photo AI (FR-FIELD-7, not built this pass) actually populates
-    // that column; an index with zero real query patterns yet isn't worth
-    // adding speculatively.
+    // database.md §15: "GIN on ai_tags" — now populated by Photo AI.
+    index("ix_photos_ai_tags").using("gin", table.aiTags),
   ],
 );

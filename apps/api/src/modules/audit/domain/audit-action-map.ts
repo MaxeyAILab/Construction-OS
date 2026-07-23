@@ -4,6 +4,10 @@ export interface AuditEntry {
   action: string;
   entityType: string;
   entityId: string;
+  // ai-spec.md §6: "every execution -> audit_log with ai_run_id" — set
+  // only by mappers for AI-driven mutations (currently just
+  // photo.tagged.v1); every human-driven mapper below leaves this unset.
+  aiRunId?: string;
 }
 
 type AuditMapper = (payload: Record<string, unknown>) => AuditEntry;
@@ -303,6 +307,12 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     action: "field.photo.create",
     entityType: "photo",
     entityId: payload.photoId as string,
+  }),
+  "photo.tagged.v1": (payload) => ({
+    action: "field.photo.tag",
+    entityType: "photo",
+    entityId: payload.photoId as string,
+    aiRunId: payload.aiRunId as string,
   }),
   // Only entity_type='task' has a real comment endpoint today (Tasks &
   // Punch, M6) — a future RFI/PO comment consumer will need this mapper

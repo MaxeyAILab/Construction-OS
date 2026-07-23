@@ -3,6 +3,7 @@ import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createNatsConnection, ensureEventStream, NATS_CONNECTION } from "../../infrastructure/nats/client";
 import { DailyReportsModule } from "../daily-reports";
+import { PhotosModule } from "../photos";
 import { RbacModule } from "../rbac";
 import { RfisModule } from "../rfis";
 import { TasksModule } from "../tasks";
@@ -17,7 +18,7 @@ import { VoyageEmbeddingProvider } from "./infrastructure/voyage-embedding-provi
 const env = loadEnv();
 
 @Module({
-  imports: [RbacModule, TasksModule, RfisModule, DailyReportsModule],
+  imports: [RbacModule, TasksModule, RfisModule, DailyReportsModule, PhotosModule],
   controllers: [RagSearchController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

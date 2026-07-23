@@ -21,6 +21,7 @@ export class AuditWriterService {
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
+        ...(entry.aiRunId && { aiRunId: entry.aiRunId }),
         // No real before/after diffing yet (database.md §6 supports it,
         // nothing computes it) — the event payload is recorded as `after`
         // so the row is still useful, not left empty pending that work.

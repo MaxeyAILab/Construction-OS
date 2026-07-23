@@ -118,6 +118,16 @@ export class PhotosService {
     });
   }
 
+  // M17 Photo AI (ai-spec.md §7.8): file.scan_completed.v1 is file-generic
+  // (fires for every uploaded file, not just photos) — its consumer needs
+  // to ask "is this scanned file actually a photo, and if so which one"
+  // without touching the photos table directly (module boundaries).
+  // Returns null rather than throwing: "not a photo" is the expected,
+  // common case for most scanned files, not an error.
+  async findByFileId(tenantId: string, fileId: string) {
+    return withTenant(this.db, tenantId, (tx) => tx.query.photos.findFirst({ where: eq(photos.fileId, fileId) }));
+  }
+
   async getDownloadUrl(tenantId: string, id: string): Promise<string> {
     const photo = await this.getById(tenantId, id);
     return this.fileUpload.getDownloadUrl(tenantId, photo.fileId);

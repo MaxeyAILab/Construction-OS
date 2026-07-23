@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { embeddings } from "../../../infrastructure/db/schema";
 import { DailyReportsService } from "../../daily-reports/application/daily-reports.service";
+import { PhotosService } from "../../photos/application/photos.service";
 import { RfisService } from "../../rfis/application/rfis.service";
 import { TasksService } from "../../tasks/application/tasks.service";
 import { chunkText, hashContent } from "../domain/chunker";
@@ -34,8 +35,9 @@ export class RagIndexingService {
     tasksService: TasksService,
     rfisService: RfisService,
     dailyReportsService: DailyReportsService,
+    photosService: PhotosService,
   ) {
-    this.renderers = buildEntityRenderers(tasksService, rfisService, dailyReportsService);
+    this.renderers = buildEntityRenderers(tasksService, rfisService, dailyReportsService, photosService);
   }
 
   isIndexed(entityType: string): boolean {

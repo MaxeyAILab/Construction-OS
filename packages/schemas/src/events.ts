@@ -529,6 +529,22 @@ export const photoCapturedV1Schema = z.object({
 });
 export type PhotoCapturedV1 = z.infer<typeof photoCapturedV1Schema>;
 
+// ai-spec.md §7.8 (Photo AI, FR-FIELD-7): fired after PhotoAiService
+// writes photos.ai_tags — the RAG pipeline's reindex trigger for the
+// "search-by-content" capability (photos indexed once they actually have
+// tag/defect text worth searching). Carries aiRunId so the audit_log row
+// this produces can link back to the metered model invocation that
+// produced it (ai-spec §6: "every execution -> audit_log with
+// ai_run_id") — the first real consumer of audit_log.ai_run_id, a column
+// that's existed since the AI Gateway row with nothing populating it yet.
+export const photoTaggedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  photoId: uuidSchema,
+  aiRunId: uuidSchema,
+});
+export type PhotoTaggedV1 = z.infer<typeof photoTaggedV1Schema>;
+
 // database.md §17: "mentions uuid[] (drives notifications)" — the
 // Notifications module fans this out to one draft per mentioned user.
 export const commentCreatedV1Schema = z.object({
@@ -689,6 +705,7 @@ export const eventRegistry = {
   "time_entry.created.v1": timeEntryCreatedV1Schema,
   "time_entry.approved.v1": timeEntryApprovedV1Schema,
   "photo.captured.v1": photoCapturedV1Schema,
+  "photo.tagged.v1": photoTaggedV1Schema,
   "comment.created.v1": commentCreatedV1Schema,
   "schedule.created.v1": scheduleCreatedV1Schema,
   "schedule_baseline.created.v1": scheduleBaselineCreatedV1Schema,

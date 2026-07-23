@@ -39,3 +39,31 @@ export const listPhotosQuerySchema = paginationQuerySchema.extend({
   entityId: uuidSchema.optional(),
 });
 export type ListPhotosQuery = z.infer<typeof listPhotosQuerySchema>;
+
+// ai-spec.md §7.8 (Photo AI, FR-FIELD-7): "auto-tagging (trade, element,
+// material) ... defect/quality flagging." Both land in the same
+// photos.ai_tags jsonb column — tags auto-apply (reversible/correctable),
+// defects stay a draft the caller reviews and, if they agree, turns into
+// a real punch task themselves via the existing tasks endpoint (ai-spec
+// §6: "draft ... visible only to the user", no separate persistence).
+export const photoAiTagSchema = z.object({
+  label: z.string().min(1),
+  category: z.enum(["trade", "element", "material"]),
+  confidence: z.number().min(0).max(1),
+});
+export type PhotoAiTag = z.infer<typeof photoAiTagSchema>;
+
+export const photoAiDefectSchema = z.object({
+  description: z.string().min(1),
+  severity: z.enum(["low", "medium", "high"]),
+  confidence: z.number().min(0).max(1),
+});
+export type PhotoAiDefect = z.infer<typeof photoAiDefectSchema>;
+
+export const photoAiTagsSchema = z.object({
+  tags: z.array(photoAiTagSchema).max(10),
+  defects: z.array(photoAiDefectSchema).max(10),
+  model: z.string(),
+  taggedAt: isoDateTimeSchema,
+});
+export type PhotoAiTags = z.infer<typeof photoAiTagsSchema>;

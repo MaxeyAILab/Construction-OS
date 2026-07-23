@@ -12,6 +12,7 @@ import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
 import { ImportsExportsModule } from "./modules/imports-exports";
 import { NotificationsModule } from "./modules/notifications";
+import { PhotoAiModule } from "./modules/photo-ai";
 import { PhotosModule } from "./modules/photos";
 import { ProjectAssistantModule } from "./modules/project-assistant";
 import { ProjectsModule } from "./modules/projects";
@@ -52,6 +53,7 @@ import { HealthModule } from "./platform/health/health.module";
     AiModule,
     RagModule,
     ProjectAssistantModule,
+    PhotoAiModule,
   ],
 })
 export class AppModule {}

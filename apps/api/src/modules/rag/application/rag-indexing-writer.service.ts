@@ -14,6 +14,7 @@ const REINDEX_EVENTS: Record<string, { entityType: string; idField: string }> = 
   "daily_report.created.v1": { entityType: "daily_report", idField: "dailyReportId" },
   "daily_report.updated.v1": { entityType: "daily_report", idField: "dailyReportId" },
   "daily_report.submitted.v1": { entityType: "daily_report", idField: "dailyReportId" },
+  "photo.tagged.v1": { entityType: "photo", idField: "photoId" },
 };
 
 const REMOVE_EVENTS: Record<string, { entityType: string; idField: string }> = {

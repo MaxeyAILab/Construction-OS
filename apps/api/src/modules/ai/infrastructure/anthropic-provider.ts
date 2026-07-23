@@ -79,7 +79,20 @@ function toAnthropicMessages(request: AiCompletionRequest): MessageParam[] {
   for (const msg of request.messages) {
     if (msg.role === "user") {
       flushToolResults();
-      messages.push({ role: "user", content: msg.content });
+      if (msg.images && msg.images.length > 0) {
+        messages.push({
+          role: "user",
+          content: [
+            ...msg.images.map((img) => ({
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: img.mediaType, data: img.base64Data },
+            })),
+            { type: "text", text: msg.content },
+          ],
+        });
+      } else {
+        messages.push({ role: "user", content: msg.content });
+      }
       continue;
     }
     if (msg.role === "assistant") {

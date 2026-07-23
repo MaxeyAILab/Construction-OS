@@ -20,12 +20,21 @@ export interface AiToolCall {
   input: unknown;
 }
 
+// ai-spec.md §7.8 (Photo AI): Claude models are multimodal — a user turn
+// can carry image bytes alongside (or instead of) text. Provider-agnostic
+// shape (raw bytes + media type), not an Anthropic-specific block;
+// AnthropicProvider translates to the SDK's base64 image content blocks.
+export interface AiImageInput {
+  mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  base64Data: string;
+}
+
 // A single conversation turn from the model's point of view. `tool_result`
 // carries a prior tool call's real output back in — Anthropic's protocol
 // nests these inside a user-role message, but callers of this interface
 // don't need to know that; AnthropicProvider handles the translation.
 export type AiMessage =
-  | { role: "user"; content: string }
+  | { role: "user"; content: string; images?: AiImageInput[] }
   | { role: "assistant"; content: string | null; toolCalls?: AiToolCall[] }
   | { role: "tool_result"; toolCallId: string; content: string; isError?: boolean };
 

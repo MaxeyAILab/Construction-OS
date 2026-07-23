@@ -7,4 +7,5 @@ export const ENTITY_PERMISSIONS: Record<string, string> = {
   task: "tasks.task.read",
   rfi: "docs.rfi.read",
   daily_report: "field.daily_report.read",
+  photo: "field.photo.read",
 };

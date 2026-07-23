@@ -1,0 +1,1 @@
+CREATE INDEX "ix_photos_ai_tags" ON "photos" USING gin ("ai_tags");

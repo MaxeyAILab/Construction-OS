@@ -4,6 +4,7 @@ import type { Database } from "../../src/infrastructure/db/client";
 import { createRedisClient } from "../../src/infrastructure/redis/client";
 import { DailyReportsService } from "../../src/modules/daily-reports/application/daily-reports.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
+import { PhotosService } from "../../src/modules/photos/application/photos.service";
 import { RagIndexingService } from "../../src/modules/rag/application/rag-indexing.service";
 import { RagSearchService } from "../../src/modules/rag/application/rag-search.service";
 import { EMBEDDING_DIMENSIONS, type EmbeddingProvider } from "../../src/modules/rag/domain/embedding-provider";
@@ -11,6 +12,7 @@ import { RfisService } from "../../src/modules/rfis/application/rfis.service";
 import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
 import { TasksService } from "../../src/modules/tasks/application/tasks.service";
+import { buildTestFileServices } from "./files";
 
 // Real, deterministic feature-hashing embedder (bag-of-words -> fixed-dim
 // vector, L2-normalized) — no network call, but textually meaningful:
@@ -42,12 +44,15 @@ export function buildTestRagServices(db: Database): {
   tasksService: TasksService;
   rfisService: RfisService;
   dailyReportsService: DailyReportsService;
+  photosService: PhotosService;
   cacheRedis: Redis;
 } {
   const outbox = new OutboxService();
   const tasksService = new TasksService(db, outbox);
   const rfisService = new RfisService(db, outbox);
   const dailyReportsService = new DailyReportsService(db, outbox);
+  const { fileUploadService } = buildTestFileServices(db);
+  const photosService = new PhotosService(db, outbox, fileUploadService);
 
   const embeddingProvider = new FakeEmbeddingProvider();
   const cacheRedis = createRedisClient({ REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379" });
@@ -55,11 +60,12 @@ export function buildTestRagServices(db: Database): {
   const permissions = new PermissionResolverService(db, cache);
 
   return {
-    ragIndexingService: new RagIndexingService(db, embeddingProvider, tasksService, rfisService, dailyReportsService),
+    ragIndexingService: new RagIndexingService(db, embeddingProvider, tasksService, rfisService, dailyReportsService, photosService),
     ragSearchService: new RagSearchService(db, embeddingProvider, permissions),
     tasksService,
     rfisService,
     dailyReportsService,
+    photosService,
     cacheRedis,
   };
 }

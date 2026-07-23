@@ -7,6 +7,7 @@ import { AiGatewayService } from "../../src/modules/ai/application/ai-gateway.se
 import { ToolRunnerService } from "../../src/modules/ai/application/tool-runner.service";
 import type { AiCompletionRequest, AiCompletionResult, AiProvider, AiToolCall } from "../../src/modules/ai/domain/ai-provider";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
+import { PhotosService } from "../../src/modules/photos/application/photos.service";
 import { ProjectAssistantService } from "../../src/modules/project-assistant/application/project-assistant.service";
 import { RagIndexingService } from "../../src/modules/rag/application/rag-indexing.service";
 import { RagSearchService } from "../../src/modules/rag/application/rag-search.service";
@@ -14,6 +15,7 @@ import { PermissionResolverService } from "../../src/modules/rbac/application/pe
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
 import { RfisService } from "../../src/modules/rfis/application/rfis.service";
 import { TasksService } from "../../src/modules/tasks/application/tasks.service";
+import { buildTestFileServices } from "./files";
 import { FakeEmbeddingProvider } from "./rag";
 
 // Deterministic tool-calling test double — same "real double, not a
@@ -82,9 +84,18 @@ export function buildTestProjectAssistantServices(db: Database): {
   const rfisService = new RfisService(db, outbox);
   const dailyReportsService = new DailyReportsService(db, outbox);
   const dashboardsService = new DashboardsService(db);
+  const { fileUploadService } = buildTestFileServices(db);
+  const photosService = new PhotosService(db, outbox, fileUploadService);
 
   const embeddingProvider = new FakeEmbeddingProvider();
-  const ragIndexingService = new RagIndexingService(db, embeddingProvider, tasksService, rfisService, dailyReportsService);
+  const ragIndexingService = new RagIndexingService(
+    db,
+    embeddingProvider,
+    tasksService,
+    rfisService,
+    dailyReportsService,
+    photosService,
+  );
 
   const cacheRedis = createRedisClient({ REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379" });
   const cache = new PermissionCacheService(cacheRedis);
