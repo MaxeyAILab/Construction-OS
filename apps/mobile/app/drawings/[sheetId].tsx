@@ -5,7 +5,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { LocalDrawingSheet } from "../../src/features/drawings/repository";
 import { downloadDrawingSheet, getDrawingSheet } from "../../src/features/drawings/repository";
 import { createTask } from "../../src/features/tasks/repository";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 interface Pin {
   x: number;
@@ -26,6 +26,7 @@ interface Pin {
 // follow-up, not a stub: the punch item it creates is real).
 export default function DrawingViewerScreen() {
   const { sheetId } = useLocalSearchParams<{ sheetId: string }>();
+  const { theme } = useTheme();
   const router = useRouter();
   const [sheet, setSheet] = useState<LocalDrawingSheet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,7 +92,7 @@ export default function DrawingViewerScreen() {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background, padding: theme.spacing[6] }}>
         <Text style={{ color: theme.colors.textMuted, textAlign: "center" }}>Sheet not cached yet — open it from the Drawings tab.</Text>
-        <Pressable onPress={() => router.back()} style={{ marginTop: theme.spacing[4], minHeight: 52, justifyContent: "center" }}>
+        <Pressable onPress={() => router.back()} style={{ marginTop: theme.spacing[4], minHeight: theme.minTouchTarget, justifyContent: "center" }}>
           <Text style={{ color: theme.colors.brand, fontWeight: "600" }}>Back</Text>
         </Pressable>
       </View>
@@ -107,11 +108,11 @@ export default function DrawingViewerScreen() {
           flexDirection: "row",
           alignItems: "center",
           padding: theme.spacing[4],
-          borderBottomWidth: 1,
+          borderBottomWidth: theme.borderWidth,
           borderBottomColor: theme.colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} style={{ minHeight: 52, minWidth: 52, justifyContent: "center" }}>
+        <Pressable onPress={() => router.back()} style={{ minHeight: theme.minTouchTarget, minWidth: theme.minTouchTarget, justifyContent: "center" }}>
           <Text style={{ color: theme.colors.brand, fontWeight: "600" }}>← Back</Text>
         </Pressable>
         <Text style={{ color: theme.colors.text, fontWeight: "600", marginLeft: theme.spacing[3] }}>{sheet.drawingSetName}</Text>
@@ -145,7 +146,7 @@ export default function DrawingViewerScreen() {
       </Pressable>
 
       {pin ? (
-        <View style={{ padding: theme.spacing[4], borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
+        <View style={{ padding: theme.spacing[4], borderTopWidth: theme.borderWidth, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
           <TextInput
             value={title}
             onChangeText={setTitle}
@@ -155,18 +156,18 @@ export default function DrawingViewerScreen() {
             style={{
               backgroundColor: theme.colors.surfaceRaised,
               borderColor: theme.colors.border,
-              borderWidth: 1,
+              borderWidth: theme.borderWidth,
               borderRadius: theme.radius.md,
               padding: theme.spacing[3],
               color: theme.colors.text,
               marginBottom: theme.spacing[3],
-              minHeight: 52,
+              minHeight: theme.minTouchTarget,
             }}
           />
           <View style={{ flexDirection: "row", gap: theme.spacing[3] }}>
             <Pressable
               onPress={() => setPin(null)}
-              style={{ flex: 1, minHeight: 52, borderColor: theme.colors.border, borderWidth: 1, borderRadius: theme.radius.md, alignItems: "center", justifyContent: "center" }}
+              style={{ flex: 1, minHeight: theme.minTouchTarget, borderColor: theme.colors.border, borderWidth: theme.borderWidth, borderRadius: theme.radius.md, alignItems: "center", justifyContent: "center" }}
             >
               <Text style={{ color: theme.colors.textMuted, fontWeight: "600" }}>Cancel</Text>
             </Pressable>
@@ -175,7 +176,7 @@ export default function DrawingViewerScreen() {
               disabled={!title.trim() || isSaving}
               style={{
                 flex: 1,
-                minHeight: 52,
+                minHeight: theme.minTouchTarget,
                 backgroundColor: theme.colors.brand,
                 borderRadius: theme.radius.md,
                 alignItems: "center",

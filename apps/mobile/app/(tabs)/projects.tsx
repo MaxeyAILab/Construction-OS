@@ -3,7 +3,7 @@ import { FlatList, RefreshControl, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { apiRequest } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 interface WorkingSetProject {
   id: string;
@@ -14,6 +14,7 @@ interface WorkingSetProject {
 
 export default function ProjectsScreen() {
   const { session } = useAuth();
+  const { theme } = useTheme();
   const [projects, setProjects] = useState<WorkingSetProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export default function ProjectsScreen() {
             style={{
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.border,
-              borderWidth: 1,
+              borderWidth: theme.borderWidth,
               borderRadius: theme.radius.md,
               padding: theme.spacing[4],
               marginBottom: theme.spacing[3],

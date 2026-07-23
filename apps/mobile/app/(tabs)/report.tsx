@@ -14,9 +14,11 @@ import {
 } from "../../src/features/field/repository";
 import type { QueuedPhoto } from "../../src/features/photos/repository";
 import { capturePhoto, listQueuedPhotos } from "../../src/features/photos/repository";
+import type { VoiceNote } from "../../src/features/voice-notes/repository";
+import { listVoiceNotes, playVoiceNote, saveVoiceNote, startRecording, stopRecording } from "../../src/features/voice-notes/repository";
 import { apiRequest } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 interface WorkingSetProject {
   id: string;
@@ -40,6 +42,7 @@ function today(): string {
 // fetch, this just goes one step further and picks one automatically).
 export default function ReportScreen() {
   const { session } = useAuth();
+  const { theme } = useTheme();
   const [project, setProject] = useState<WorkingSetProject | null>(null);
   const [report, setReport] = useState<LocalDailyReport | null>(null);
   const [narrative, setNarrative] = useState("");
@@ -49,9 +52,11 @@ export default function ReportScreen() {
   const [hoursInput, setHoursInput] = useState("");
   const [timeEntries, setTimeEntries] = useState<LocalTimeEntry[]>([]);
   const [photos, setPhotos] = useState<QueuedPhoto[]>([]);
+  const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -75,6 +80,9 @@ export default function ReportScreen() {
 
       const queuedPhotos = await listQueuedPhotos("daily_report", existing.id);
       setPhotos(queuedPhotos);
+
+      const notes = await listVoiceNotes("daily_report", existing.id);
+      setVoiceNotes(notes);
 
       const codes = await apiRequest<CostCode[]>(`/projects/${current.id}/cost-codes`, { token: session.accessToken });
       setCostCodes(codes);
@@ -178,6 +186,24 @@ export default function ReportScreen() {
     }
   }
 
+  async function handleToggleRecording() {
+    if (!report) return;
+    if (isRecording) {
+      setIsRecording(false);
+      const { uri, durationMillis } = await stopRecording();
+      const note = await saveVoiceNote("daily_report", report.id, uri, durationMillis);
+      setVoiceNotes((prev) => [note, ...prev]);
+      return;
+    }
+    try {
+      await startRecording();
+      setIsRecording(true);
+    } catch {
+      // Mic permission denied or already recording elsewhere — nothing
+      // actionable to show beyond leaving the button in its idle state.
+    }
+  }
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background }}>
@@ -215,11 +241,12 @@ export default function ReportScreen() {
         style={{
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[3],
           color: theme.colors.text,
           marginBottom: theme.spacing[4],
+          minHeight: theme.minTouchTarget,
         }}
       />
 
@@ -235,7 +262,7 @@ export default function ReportScreen() {
         style={{
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[3],
           color: theme.colors.text,
@@ -252,11 +279,13 @@ export default function ReportScreen() {
             disabled={isSaving}
             style={{
               flex: 1,
+              minHeight: theme.minTouchTarget,
               borderColor: theme.colors.brand,
-              borderWidth: 1,
+              borderWidth: theme.borderWidth,
               borderRadius: theme.radius.md,
               padding: theme.spacing[3],
               alignItems: "center",
+              justifyContent: "center",
               opacity: isSaving ? 0.6 : 1,
             }}
           >
@@ -267,10 +296,12 @@ export default function ReportScreen() {
             disabled={isSaving}
             style={{
               flex: 1,
+              minHeight: theme.minTouchTarget,
               backgroundColor: theme.colors.brand,
               borderRadius: theme.radius.md,
               padding: theme.spacing[3],
               alignItems: "center",
+              justifyContent: "center",
               opacity: isSaving ? 0.6 : 1,
             }}
           >
@@ -290,8 +321,10 @@ export default function ReportScreen() {
                 key={code.id}
                 onPress={() => setSelectedCostCodeId(code.id)}
                 style={{
+                  minHeight: theme.minTouchTarget,
+                  justifyContent: "center",
                   borderColor: isSelected ? theme.colors.brand : theme.colors.border,
-                  borderWidth: 1,
+                  borderWidth: theme.borderWidth,
                   borderRadius: theme.radius.sm,
                   paddingVertical: theme.spacing[2],
                   paddingHorizontal: theme.spacing[3],
@@ -315,9 +348,10 @@ export default function ReportScreen() {
           placeholderTextColor={theme.colors.textMuted}
           style={{
             flex: 1,
+            minHeight: theme.minTouchTarget,
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.border,
-            borderWidth: 1,
+            borderWidth: theme.borderWidth,
             borderRadius: theme.radius.md,
             padding: theme.spacing[3],
             color: theme.colors.text,
@@ -327,8 +361,9 @@ export default function ReportScreen() {
           onPress={handleLogHours}
           disabled={!selectedCostCodeId || !hoursInput}
           style={{
+            minHeight: theme.minTouchTarget,
             borderColor: theme.colors.success,
-            borderWidth: 1,
+            borderWidth: theme.borderWidth,
             borderRadius: theme.radius.md,
             paddingHorizontal: theme.spacing[4],
             alignItems: "center",
@@ -365,8 +400,10 @@ export default function ReportScreen() {
           onPress={handleCapturePhoto}
           disabled={isCapturing}
           style={{
+            minHeight: theme.minTouchTarget,
+            justifyContent: "center",
             borderColor: theme.colors.brand,
-            borderWidth: 1,
+            borderWidth: theme.borderWidth,
             borderRadius: theme.radius.sm,
             paddingVertical: theme.spacing[2],
             paddingHorizontal: theme.spacing[3],
@@ -400,6 +437,48 @@ export default function ReportScreen() {
           </View>
         ))}
       </View>
+
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: theme.spacing[6], marginBottom: theme.spacing[3] }}>
+        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: "600" }}>Voice notes</Text>
+        <Pressable
+          onPress={handleToggleRecording}
+          style={{
+            minHeight: theme.minTouchTarget,
+            justifyContent: "center",
+            borderColor: isRecording ? theme.colors.danger : theme.colors.brand,
+            borderWidth: theme.borderWidth,
+            borderRadius: theme.radius.sm,
+            paddingVertical: theme.spacing[2],
+            paddingHorizontal: theme.spacing[3],
+          }}
+        >
+          <Text style={{ color: isRecording ? theme.colors.danger : theme.colors.brand, fontWeight: "600" }}>
+            {isRecording ? "● Stop recording" : "🎙 Record note"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {voiceNotes.map((note) => (
+        <Pressable
+          key={note.id}
+          onPress={() => playVoiceNote(note.localUri)}
+          style={{
+            minHeight: theme.minTouchTarget,
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+            borderWidth: theme.borderWidth,
+            borderRadius: theme.radius.md,
+            padding: theme.spacing[3],
+            marginBottom: theme.spacing[2],
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text style={{ color: theme.colors.text }}>▶ Voice note</Text>
+          <Text style={{ color: theme.colors.textMuted }}>{Math.round(note.durationMillis / 1000)}s</Text>
+        </Pressable>
+      ))}
     </ScrollView>
   );
 }

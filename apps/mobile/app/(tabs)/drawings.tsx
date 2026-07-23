@@ -5,7 +5,7 @@ import type { LocalDrawingSheet, WorkingSetDrawingSet } from "../../src/features
 import { downloadDrawingSheet, listCachedDrawingProjectIds, listDrawingSheets, upsertDrawingSet } from "../../src/features/drawings/repository";
 import { apiRequest } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 interface WorkingSetProject {
   id: string;
@@ -20,6 +20,7 @@ interface WorkingSetProject {
 // an optimization" split as the rest of the field app (architecture.md §6).
 export default function DrawingsScreen() {
   const { session } = useAuth();
+  const { theme } = useTheme();
   const router = useRouter();
   const [sheets, setSheets] = useState<LocalDrawingSheet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,7 +90,7 @@ export default function DrawingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <View style={{ padding: theme.spacing[4], borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+      <View style={{ padding: theme.spacing[4], borderBottomWidth: theme.borderWidth, borderBottomColor: theme.colors.border }}>
         <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>
           {sheets[0]?.drawingSetName ?? "Drawings"}
         </Text>
@@ -111,11 +112,11 @@ export default function DrawingsScreen() {
             style={{
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.border,
-              borderWidth: 1,
+              borderWidth: theme.borderWidth,
               borderRadius: theme.radius.md,
               padding: theme.spacing[4],
               marginBottom: theme.spacing[3],
-              minHeight: 52,
+              minHeight: theme.minTouchTarget,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",

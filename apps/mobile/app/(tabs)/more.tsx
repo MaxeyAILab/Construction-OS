@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Switch, Text, View } from "react-native";
 import { useAuth } from "../../src/lib/auth";
 import { syncNow } from "../../src/lib/sync";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 export default function MoreScreen() {
   const { session, logout } = useAuth();
+  const { theme, isHighContrast, setHighContrast } = useTheme();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSummary, setSyncSummary] = useState<string | null>(null);
 
@@ -29,7 +30,7 @@ export default function MoreScreen() {
         style={{
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[4],
           marginBottom: theme.spacing[4],
@@ -39,15 +40,40 @@ export default function MoreScreen() {
         <Text style={{ color: theme.colors.text, fontWeight: "600", marginTop: theme.spacing[1] }}>{session?.userId}</Text>
       </View>
 
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          borderWidth: theme.borderWidth,
+          borderRadius: theme.radius.md,
+          padding: theme.spacing[4],
+          marginBottom: theme.spacing[4],
+          minHeight: theme.minTouchTarget,
+        }}
+      >
+        <View style={{ flex: 1, marginRight: theme.spacing[3] }}>
+          <Text style={{ color: theme.colors.text, fontWeight: "600" }}>High-contrast mode</Text>
+          <Text style={{ color: theme.colors.textMuted, marginTop: theme.spacing[1] }}>
+            Bigger contrast for outdoor / bright-sunlight use.
+          </Text>
+        </View>
+        <Switch value={isHighContrast} onValueChange={setHighContrast} trackColor={{ true: theme.colors.brand }} />
+      </View>
+
       <Pressable
         onPress={handleSyncNow}
         disabled={isSyncing}
         style={{
+          minHeight: theme.minTouchTarget,
           borderColor: theme.colors.brand,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[4],
           alignItems: "center",
+          justifyContent: "center",
           marginBottom: theme.spacing[3],
           opacity: isSyncing ? 0.6 : 1,
         }}
@@ -60,11 +86,13 @@ export default function MoreScreen() {
       <Pressable
         onPress={() => logout()}
         style={{
+          minHeight: theme.minTouchTarget,
           borderColor: theme.colors.danger,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[4],
           alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <Text style={{ color: theme.colors.danger, fontWeight: "600" }}>Sign out</Text>

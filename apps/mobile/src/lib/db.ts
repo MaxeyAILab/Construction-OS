@@ -150,5 +150,23 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS ix_drawing_sheets_project ON drawing_sheets (project_id);
+
+    -- roadmap.md's "Field UX hardening: high-contrast, 52 px targets,
+    -- voice notes" row. Local-only for this pass — no fileId/upload
+    -- pipeline yet (flagged follow-up: same files.id FK pattern Photos
+    -- already uses once a server-side voice-note entity is built,
+    -- database.md has no such table today so this isn't invented ahead of
+    -- spec). Recordings and playback both work fully offline; only
+    -- cross-device sync is deferred.
+    CREATE TABLE IF NOT EXISTS voice_notes (
+      id TEXT PRIMARY KEY NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      local_uri TEXT NOT NULL,
+      duration_millis INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS ix_voice_notes_entity ON voice_notes (entity_type, entity_id);
   `);
 }

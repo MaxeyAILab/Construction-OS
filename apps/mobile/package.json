@@ -16,6 +16,7 @@
     "@constructionos/sync": "workspace:*",
     "expo": "~52.0.23",
     "expo-asset": "~11.0.5",
+    "expo-av": "~15.0.2",
     "expo-constants": "~17.0.3",
     "expo-file-system": "~18.0.12",
     "expo-image-picker": "~16.0.6",

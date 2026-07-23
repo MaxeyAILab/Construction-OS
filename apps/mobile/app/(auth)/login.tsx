@@ -3,10 +3,11 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 import { Redirect } from "expo-router";
 import { ApiError } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 export default function LoginScreen() {
   const { session, login } = useAuth();
+  const { theme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,11 +45,12 @@ export default function LoginScreen() {
         style={{
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[4],
           color: theme.colors.text,
           marginBottom: theme.spacing[4],
+          minHeight: theme.minTouchTarget,
         }}
       />
 
@@ -63,11 +65,12 @@ export default function LoginScreen() {
         style={{
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          borderWidth: 1,
+          borderWidth: theme.borderWidth,
           borderRadius: theme.radius.md,
           padding: theme.spacing[4],
           color: theme.colors.text,
           marginBottom: theme.spacing[4],
+          minHeight: theme.minTouchTarget,
         }}
       />
 
@@ -81,6 +84,8 @@ export default function LoginScreen() {
           borderRadius: theme.radius.md,
           padding: theme.spacing[4],
           alignItems: "center",
+          justifyContent: "center",
+          minHeight: theme.minTouchTarget,
           opacity: isSubmitting || !email || !password ? 0.6 : 1,
         }}
       >

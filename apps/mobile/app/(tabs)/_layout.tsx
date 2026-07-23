@@ -1,7 +1,8 @@
 import { Tabs } from "expo-router";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 export default function TabsLayout() {
+  const { theme } = useTheme();
   return (
     <Tabs
       screenOptions={{

@@ -5,10 +5,11 @@ import type { LocalTask } from "../../src/features/tasks/repository";
 import { listTasks, updateTask } from "../../src/features/tasks/repository";
 import { useAuth } from "../../src/lib/auth";
 import { syncNow } from "../../src/lib/sync";
-import { theme } from "../../src/lib/theme";
+import { useTheme } from "../../src/lib/theme";
 
 export default function TodayScreen() {
   const { session } = useAuth();
+  const { theme } = useTheme();
   const [tasks, setTasks] = useState<LocalTask[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -63,7 +64,7 @@ export default function TodayScreen() {
             style={{
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.border,
-              borderWidth: 1,
+              borderWidth: theme.borderWidth,
               borderRadius: theme.radius.md,
               padding: theme.spacing[4],
               marginBottom: theme.spacing[3],
@@ -79,11 +80,14 @@ export default function TodayScreen() {
             <Pressable
               onPress={() => markDone(item)}
               style={{
+                minHeight: theme.minTouchTarget,
+                minWidth: theme.minTouchTarget,
                 borderColor: theme.colors.success,
-                borderWidth: 1,
+                borderWidth: theme.borderWidth,
                 borderRadius: theme.radius.sm,
-                paddingVertical: theme.spacing[2],
                 paddingHorizontal: theme.spacing[3],
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <Text style={{ color: theme.colors.success, fontWeight: "600" }}>Done</Text>
