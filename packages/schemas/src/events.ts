@@ -327,6 +327,13 @@ export const supplierCreatedV1Schema = z.object({
 });
 export type SupplierCreatedV1 = z.infer<typeof supplierCreatedV1Schema>;
 
+// Procurement AI (ai-spec.md §7.4, FR-PROC-5): supplier scoring recompute.
+export const supplierRatedV1Schema = z.object({
+  companyId: uuidSchema,
+  supplierId: uuidSchema,
+});
+export type SupplierRatedV1 = z.infer<typeof supplierRatedV1Schema>;
+
 export const purchaseOrderCreatedV1Schema = z.object({
   companyId: uuidSchema,
   projectId: uuidSchema,
@@ -1161,6 +1168,7 @@ export const eventRegistry = {
   "opportunity.lost.v1": opportunityLostV1Schema,
   "activity.created.v1": activityCreatedV1Schema,
   "supplier.created.v1": supplierCreatedV1Schema,
+  "supplier.rated.v1": supplierRatedV1Schema,
   "purchase_order.created.v1": purchaseOrderCreatedV1Schema,
   "purchase_order.updated.v1": purchaseOrderUpdatedV1Schema,
   "purchase_order.approved.v1": purchaseOrderApprovedV1Schema,

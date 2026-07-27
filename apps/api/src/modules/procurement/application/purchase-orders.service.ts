@@ -101,7 +101,12 @@ export class PurchaseOrdersService {
     });
   }
 
-  async create(tenantId: string, actorId: string, input: CreatePurchaseOrderInput) {
+  // aiRunId: internal-only, not part of the public CreatePurchaseOrderInput
+  // wire schema — set exclusively by ProcurementNeedsService.draftFromNeeds()
+  // (FR-PROC-6 traceability), same "hardcode what the public schema
+  // doesn't expose" precedent as EstimateLinesService hardcoding
+  // source:'manual'/'assembly' per call site.
+  async create(tenantId: string, actorId: string, input: CreatePurchaseOrderInput, aiRunId?: string | null) {
     return withTenant(this.db, tenantId, async (tx) => {
       const project = await tx.query.projects.findFirst({ where: eq(projects.id, input.projectId) });
       if (!project) throw new ProjectNotFoundError();
@@ -130,6 +135,7 @@ export class PurchaseOrdersService {
           requiredByDate: input.requiredByDate,
           shipTo: input.shipTo,
           currency: input.currency ?? "USD",
+          aiRunId: aiRunId ?? null,
           createdBy: actorId,
         })
         .returning();

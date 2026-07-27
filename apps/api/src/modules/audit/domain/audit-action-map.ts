@@ -202,6 +202,12 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "supplier",
     entityId: payload.supplierId as string,
   }),
+  // Procurement AI (FR-PROC-5): supplier scoring recompute.
+  "supplier.rated.v1": (payload) => ({
+    action: "procurement.supplier.update",
+    entityType: "supplier",
+    entityId: payload.supplierId as string,
+  }),
   "purchase_order.created.v1": (payload) => ({
     action: "procurement.po.create",
     entityType: "purchase_order",

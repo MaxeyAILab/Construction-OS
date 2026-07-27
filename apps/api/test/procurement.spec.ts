@@ -8,6 +8,7 @@ import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 import { buildTestInventoryServices } from "./setup/inventory";
 import { buildTestProcurementServices } from "./setup/procurement";
 import { buildTestProjectServices } from "./setup/projects";
+import { buildTestSchedulingServices } from "./setup/scheduling";
 
 // M5 Procurement & Purchasing (FR-PROC-1..4, database.md §12, api.md §11).
 describe("Procurement & Purchasing", () => {
@@ -16,14 +17,18 @@ describe("Procurement & Purchasing", () => {
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
   const { stockService } = buildTestInventoryServices(db);
+  const { schedulesService, activitiesService, recalculateService, queueConnection, cacheRedis } =
+    buildTestSchedulingServices(db);
   const {
     suppliersService,
+    supplierScoringService,
     purchaseOrdersService,
     lifecycleService,
     rfqsService,
     deliveriesService,
+    procurementNeedsService,
     redis: procurementRedis,
-  } = buildTestProcurementServices(db, stockService);
+  } = buildTestProcurementServices(db, stockService, schedulesService, budgetService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -32,6 +37,8 @@ describe("Procurement & Purchasing", () => {
   afterAll(async () => {
     await redis.quit();
     await procurementRedis.quit();
+    await queueConnection.quit();
+    await cacheRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
@@ -248,6 +255,143 @@ describe("Procurement & Purchasing", () => {
 
     const deliveries = await deliveriesService.listForPurchaseOrder(tenantId, po.id);
     expect(deliveries).toHaveLength(2);
+  });
+
+  it("FR-PROC-5: buy-timing feed surfaces an overdue, historically-priced need and skips a cost code already covered by an open PO", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("needs");
+    const budget = await budgetService.create(tenantId, ownerId, project.id, { currency: "USD" });
+    const costCodeA = await costCodesService.create(tenantId, ownerId, project.id, { code: "A", name: "Needs A", kind: "other" });
+    const costCodeB = await costCodesService.create(tenantId, ownerId, project.id, { code: "B", name: "Needs B", kind: "other" });
+    await budgetService.addLine(tenantId, ownerId, budget.id, { costCodeId: costCodeA.id, originalAmount: "5000.00" });
+    await budgetService.addLine(tenantId, ownerId, budget.id, { costCodeId: costCodeB.id, originalAmount: "5000.00" });
+
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Need A work", durationDays: 5, costCodeId: costCodeA.id });
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Need B work", durationDays: 3, costCodeId: costCodeB.id });
+    await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+    // Cost code A: a cancelled PO still leaves a supplier trail to learn from.
+    const supplierA = await suppliersService.create(tenantId, ownerId, { name: "Historical Supplier A", defaultLeadTimeDays: 10 });
+    const poA = await purchaseOrdersService.create(tenantId, ownerId, {
+      projectId: project.id,
+      supplierId: supplierA.id,
+      lines: [{ description: "Prior buy", costCodeId: costCodeA.id, qtyOrdered: "1.000", uom: "LS", unitCostAmount: "100.0000" }],
+    });
+    await lifecycleService.cancel(tenantId, ownerId, poA.id);
+
+    // Cost code B: an open (draft) PO already covers it — must be excluded.
+    const supplierB = await suppliersService.create(tenantId, ownerId, { name: "Supplier B" });
+    await purchaseOrdersService.create(tenantId, ownerId, {
+      projectId: project.id,
+      supplierId: supplierB.id,
+      lines: [{ description: "Already covering B", costCodeId: costCodeB.id, qtyOrdered: "1.000", uom: "LS", unitCostAmount: "50.0000" }],
+    });
+
+    const needs = await procurementNeedsService.computeNeeds(tenantId, ownerId, project.id);
+    expect(needs).toHaveLength(1);
+    const need = needs[0]!;
+    expect(need.costCodeId).toBe(costCodeA.id);
+    expect(need.supplierId).toBe(supplierA.id);
+    expect(need.leadTimeDays).toBe(10);
+    expect(need.remainingBudgetAmount).toBe("5000.00");
+    // needByDate = schedule.dataDate (today, no predecessors) minus a
+    // 10-day lead time and 5-day buffer puts the order-by date well in
+    // the past.
+    expect(need.riskLevel).toBe("overdue");
+    expect(need.daysUntilMustOrder).toBeLessThan(0);
+  });
+
+  it("FR-PROC-6: drafts a real PO for a resolvable need and reports an unresolvable one as skipped", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("draft-needs");
+    const budget = await budgetService.create(tenantId, ownerId, project.id, { currency: "USD" });
+    const costCodeA = await costCodesService.create(tenantId, ownerId, project.id, { code: "A", name: "Resolvable", kind: "other" });
+    const costCodeC = await costCodesService.create(tenantId, ownerId, project.id, { code: "C", name: "Unresolvable", kind: "other" });
+    await budgetService.addLine(tenantId, ownerId, budget.id, { costCodeId: costCodeA.id, originalAmount: "1200.00" });
+    await budgetService.addLine(tenantId, ownerId, budget.id, { costCodeId: costCodeC.id, originalAmount: "800.00" });
+
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "A work", durationDays: 2, costCodeId: costCodeA.id });
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "C work", durationDays: 2, costCodeId: costCodeC.id });
+    await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+    const supplierA = await suppliersService.create(tenantId, ownerId, { name: "Draftable Supplier" });
+    const priorPo = await purchaseOrdersService.create(tenantId, ownerId, {
+      projectId: project.id,
+      supplierId: supplierA.id,
+      lines: [{ description: "Prior buy", costCodeId: costCodeA.id, qtyOrdered: "1.000", uom: "LS", unitCostAmount: "10.0000" }],
+    });
+    await lifecycleService.cancel(tenantId, ownerId, priorPo.id);
+    // costCodeC has no PO history at all — no supplier can be resolved.
+
+    const result = await procurementNeedsService.draftFromNeeds(tenantId, ownerId, project.id);
+    expect(result.draftedPurchaseOrderIds).toHaveLength(1);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0]!.costCodeId).toBe(costCodeC.id);
+    expect(result.skipped[0]!.reason).toMatch(/no historical supplier/);
+    expect(result.aiRunId).toBeTruthy();
+    expect(result.rationale).toBeTruthy();
+
+    const drafted = await purchaseOrdersService.getById(tenantId, ownerId, result.draftedPurchaseOrderIds[0]!);
+    expect(drafted.status).toBe("draft");
+    expect(drafted.supplierId).toBe(supplierA.id);
+    expect(drafted.aiRunId).toBe(result.aiRunId);
+    expect(drafted.lines[0]!.costCodeId).toBe(costCodeA.id);
+    expect(drafted.lines[0]!.unitCostAmount).toBe("1200.0000");
+  });
+
+  it("FR-PROC-5: rescores a supplier's on-time % and price index from its own PO/delivery history", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("scoring");
+    await budgetService.create(tenantId, ownerId, project.id, { currency: "USD" });
+    const costCode = await costCodesService.create(tenantId, ownerId, project.id, { code: "SC", name: "Scoring", kind: "other" });
+
+    const supplier = await suppliersService.create(tenantId, ownerId, { name: "Scored Supplier" });
+
+    async function placeAndDeliver(unitCost: string, promisedDate: string, deliveryDate: string) {
+      const po = await purchaseOrdersService.create(tenantId, ownerId, {
+        projectId: project.id,
+        supplierId: supplier.id,
+        lines: [{ description: "Line", costCodeId: costCode.id, qtyOrdered: "1.000", uom: "EA", unitCostAmount: unitCost }],
+      });
+      await purchaseOrdersService.updateHeader(tenantId, ownerId, po.id, { promisedDate });
+      await lifecycleService.submit(tenantId, ownerId, po.id);
+      await lifecycleService.approve(tenantId, ownerId, po.id);
+      const sent = await lifecycleService.send(tenantId, ownerId, po.id);
+      const lineId = (await purchaseOrdersService.getById(tenantId, ownerId, po.id)).lines[0]!.id;
+      await deliveriesService.create(tenantId, ownerId, sent.id, { deliveryDate, lines: [{ purchaseOrderLineId: lineId, qtyReceived: "1.000" }] });
+      return po;
+    }
+
+    await placeAndDeliver("10.0000", "2026-02-01", "2026-01-30"); // on time
+    await placeAndDeliver("20.0000", "2026-02-01", "2026-02-05"); // late
+
+    // A second supplier's cheaper price on the same cost code pulls the
+    // tenant-wide average below this supplier's own average.
+    const otherSupplier = await suppliersService.create(tenantId, ownerId, { name: "Cheaper Supplier" });
+    await purchaseOrdersService.create(tenantId, ownerId, {
+      projectId: project.id,
+      supplierId: otherSupplier.id,
+      lines: [{ description: "Line", costCodeId: costCode.id, qtyOrdered: "1.000", uom: "EA", unitCostAmount: "10.0000" }],
+    });
+
+    const rescored = await supplierScoringService.rescore(tenantId, ownerId, supplier.id);
+    const rating = rescored.rating as { onTimePct: number; priceIndex: number; disputeCount: null };
+    expect(rating.onTimePct).toBe(50);
+    // tenant avg = (10+20+10)/3 = 13.333..; supplier avg = (10+20)/2 = 15
+    expect(rating.priceIndex).toBeCloseTo(15 / (40 / 3), 3);
+    expect(rating.disputeCount).toBeNull();
+
+    const eventTypes = await outboxEventTypes(tenantId);
+    expect(eventTypes).toContain("supplier.rated.v1");
+  });
+
+  it("rescoring a supplier with no PO/delivery history yields null scores rather than throwing", async () => {
+    const { tenantId, ownerId } = await signUpCompanyWithProject("scoring-empty");
+    const supplier = await suppliersService.create(tenantId, ownerId, { name: "Untested Supplier" });
+
+    const rescored = await supplierScoringService.rescore(tenantId, ownerId, supplier.id);
+    const rating = rescored.rating as { onTimePct: null; priceIndex: null };
+    expect(rating.onTimePct).toBeNull();
+    expect(rating.priceIndex).toBeNull();
   });
 
   it("RLS: a tenant only sees its own suppliers and purchase orders", async () => {

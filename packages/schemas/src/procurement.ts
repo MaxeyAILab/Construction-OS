@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paginationQuerySchema, quantitySchema, unitRateAmountSchema, uuidSchema } from "./common";
+import { isoDateTimeSchema, moneyAmountSchema, paginationQuerySchema, quantitySchema, unitRateAmountSchema, uuidSchema } from "./common";
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected an ISO-8601 date (YYYY-MM-DD)");
 
@@ -157,3 +157,64 @@ export const createDeliverySchema = z.object({
   lines: z.array(createDeliveryLineSchema).min(1),
 });
 export type CreateDeliveryInput = z.infer<typeof createDeliverySchema>;
+
+// --- Procurement AI (ai-spec.md §7.4, FR-PROC-5/FR-PROC-6) ---
+
+// FR-PROC-5: "buy-timing recommendations" — daysUntilMustOrder < 0 means
+// the recommended order-by date has already passed.
+export const procurementNeedRiskLevelSchema = z.enum(["overdue", "urgent", "upcoming", "planned"]);
+export type ProcurementNeedRiskLevel = z.infer<typeof procurementNeedRiskLevelSchema>;
+
+// One row per cost code with upcoming, uncovered schedule work. Purely a
+// computed read model — never persisted — so every field is a plain
+// primitive rather than reusing the exact-decimal wire schemas elsewhere
+// (no downstream financial write depends on this shape).
+export const procurementNeedSchema = z.object({
+  costCodeId: uuidSchema,
+  costCodeCode: z.string(),
+  scheduleActivityId: uuidSchema,
+  activityName: z.string(),
+  needByDate: isoDateSchema,
+  supplierId: uuidSchema.nullable(),
+  supplierName: z.string().nullable(),
+  leadTimeDays: z.number().int(),
+  recommendedOrderByDate: isoDateSchema,
+  daysUntilMustOrder: z.number().int(),
+  riskLevel: procurementNeedRiskLevelSchema,
+  remainingBudgetAmount: moneyAmountSchema.nullable(),
+});
+export type ProcurementNeed = z.infer<typeof procurementNeedSchema>;
+
+export const listProcurementRecommendationsQuerySchema = z.object({
+  projectId: uuidSchema,
+});
+export type ListProcurementRecommendationsQuery = z.infer<typeof listProcurementRecommendationsQuerySchema>;
+
+export const procurementRecommendationsResponseSchema = z.object({
+  needs: z.array(procurementNeedSchema),
+});
+export type ProcurementRecommendationsResponse = z.infer<typeof procurementRecommendationsResponseSchema>;
+
+// FR-PROC-6: "auto-draft POs from budget and schedule needs for user
+// approval" — a need is only draftable when it resolved to a real
+// supplierId (purchase_orders.supplier_id is NOT NULL); anything else is
+// reported back in `skipped` rather than silently dropped.
+export const draftFromNeedsResponseSchema = z.object({
+  draftedPurchaseOrderIds: z.array(uuidSchema),
+  skipped: z.array(procurementNeedSchema.extend({ reason: z.string() })),
+  rationale: z.string().nullable(),
+  aiRunId: uuidSchema.nullable(),
+});
+export type DraftFromNeedsResponse = z.infer<typeof draftFromNeedsResponseSchema>;
+
+// FR-PROC-5: "supplier scoring... on-time %, price index, dispute count
+// (database.md §12)." disputeCount is always null today — see
+// supplier-scoring.service.ts's doc comment for why (a real module-
+// boundary constraint, not an oversight).
+export const supplierRatingSchema = z.object({
+  onTimePct: z.number().min(0).max(100).nullable(),
+  priceIndex: z.number().nullable(),
+  disputeCount: z.number().int().nullable(),
+  scoredAt: isoDateTimeSchema,
+});
+export type SupplierRating = z.infer<typeof supplierRatingSchema>;

@@ -23,7 +23,9 @@ const env = loadEnv();
   // update logic — same precedent as TasksModule exporting TasksService for
   // the sync mutation engine. FinancialSummaryService: Margin Erosion
   // Alerts (FR-FIN-6) reuses the same live-margin computation rather than
-  // duplicating it.
-  exports: [CostTransactionsService, FinancialSummaryService],
+  // duplicating it. BudgetService: Procurement AI (FR-PROC-6) reads
+  // budget_lines' remaining balance via getByProject() rather than
+  // querying the table directly.
+  exports: [BudgetService, CostTransactionsService, FinancialSummaryService],
 })
 export class BudgetsModule {}
