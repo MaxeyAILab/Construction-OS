@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req } from "@nestjs/common";
 import {
   loginSchema,
   magicLinkConsumeSchema,
@@ -6,6 +6,7 @@ import {
   mfaConfirmSchema,
   refreshSchema,
   signUpSchema,
+  updateUserPreferencesSchema,
 } from "@constructionos/schemas";
 import type { z } from "zod";
 import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
@@ -15,11 +16,15 @@ import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 // constructor injection resolves it via emitDecoratorMetadata, which needs
 // the actual class reference at runtime.
 import { AuthService, type DeviceContext } from "../application/auth.service";
+import { UserPreferencesService } from "../application/user-preferences.service";
 import type { AuthenticatedRequest } from "./access-token.guard";
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly preferences: UserPreferencesService,
+  ) {}
 
   // api.md §2: POST /auth/register — "Create company + owner account".
   @Post("register")
@@ -98,6 +103,25 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.auth.consumeMagicLink(body.token, this.deviceContext(req));
+  }
+
+  // api.md §2: "GET/PATCH /auth/me/preferences | Locale, notification
+  // prefs." Just @Authenticated() — a user always may read/update their
+  // own preferences, no RBAC permission gate involved.
+  @Get("me/preferences")
+  @Authenticated()
+  getPreferences(@Req() req: AuthenticatedRequest) {
+    return this.preferences.get(req.auth!.sub);
+  }
+
+  @Patch("me/preferences")
+  @Authenticated()
+  updatePreferences(
+    @Body(new ZodValidationPipe(updateUserPreferencesSchema))
+    body: z.infer<typeof updateUserPreferencesSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.preferences.update(req.auth!.tenantId, req.auth!.sub, body);
   }
 
   private deviceContext(req: AuthenticatedRequest): DeviceContext {

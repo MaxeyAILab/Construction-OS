@@ -715,6 +715,13 @@
       "when": 1785142100438,
       "tag": "0101_resource_assignments_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1785151641175,
+      "tag": "0102_admin_company_permission",
+      "breakpoints": true
     }
   ]
 }

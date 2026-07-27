@@ -1,7 +1,8 @@
+import { eq } from "drizzle-orm";
 import { authenticator } from "otplib";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenant } from "../src/infrastructure/db/client";
-import { companies, companyUsers, roles, userRoles } from "../src/infrastructure/db/schema";
+import { companies, companyUsers, outbox, roles, userRoles } from "../src/infrastructure/db/schema";
 import {
   AmbiguousCompanyError,
   InvalidCredentialsError,
@@ -14,7 +15,15 @@ import { buildTestAuthService } from "./setup/auth";
 
 describe("auth flows", () => {
   const db = getTestDatabase();
-  const { authService, redis, denylist } = buildTestAuthService(db);
+  const { authService, redis, denylist, userPreferencesService, companySettingsService } =
+    buildTestAuthService(db);
+
+  async function outboxEventTypes(tenantId: string): Promise<string[]> {
+    const rows = await withTenant(db, tenantId, (tx) =>
+      tx.query.outbox.findMany({ where: eq(outbox.tenantId, tenantId) }),
+    );
+    return rows.map((r) => r.eventType);
+  }
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -190,5 +199,93 @@ describe("auth flows", () => {
     const consumed = await authService.consumeMagicLink(token);
     expect(consumed.companyId).toBe(signUp.companyId);
     expect(consumed.accessToken).toBeTruthy();
+  });
+
+  it("reads and updates a user's own locale preference (NFR-30 activation)", async () => {
+    const suffix = Date.now();
+    const email = `prefs-${suffix}@example.com`;
+    const signUp = await authService.signUp({
+      email,
+      password: "correct horse battery staple",
+      fullName: "Prefs Case",
+      companyName: `Prefsco ${suffix}`,
+    });
+    const decoded = JSON.parse(
+      Buffer.from(signUp.accessToken.split(".")[1]!, "base64url").toString(),
+    );
+
+    const initial = await userPreferencesService.get(decoded.sub);
+    expect(initial.locale).toBe("en-US");
+
+    const updated = await userPreferencesService.update(signUp.companyId, decoded.sub, {
+      locale: "en-GB",
+    });
+    expect(updated.locale).toBe("en-GB");
+    expect((await userPreferencesService.get(decoded.sub)).locale).toBe("en-GB");
+
+    const eventTypes = await outboxEventTypes(signUp.companyId);
+    expect(eventTypes).toContain("user.preferences_updated.v1");
+  });
+
+  it("a preferences PATCH with no fields is a no-op read, not an update", async () => {
+    const suffix = Date.now();
+    const email = `prefs-noop-${suffix}@example.com`;
+    const signUp = await authService.signUp({
+      email,
+      password: "correct horse battery staple",
+      fullName: "Prefs Noop",
+      companyName: `Prefsnoop ${suffix}`,
+    });
+    const decoded = JSON.parse(
+      Buffer.from(signUp.accessToken.split(".")[1]!, "base64url").toString(),
+    );
+
+    const result = await userPreferencesService.update(signUp.companyId, decoded.sub, {});
+    expect(result.locale).toBe("en-US");
+
+    const eventTypes = await outboxEventTypes(signUp.companyId);
+    expect(eventTypes).not.toContain("user.preferences_updated.v1");
+  });
+
+  it("reads and updates company settings: locale, currency, unit system, branding, fiscal config (NFR-30 activation)", async () => {
+    const suffix = Date.now();
+    const email = `company-${suffix}@example.com`;
+    const signUp = await authService.signUp({
+      email,
+      password: "correct horse battery staple",
+      fullName: "Company Case",
+      companyName: `Companyco ${suffix}`,
+    });
+
+    const initial = await companySettingsService.get(signUp.companyId);
+    expect(initial.locale).toBe("en-US");
+    expect(initial.currencyCode).toBe("USD");
+
+    const decoded = JSON.parse(
+      Buffer.from(signUp.accessToken.split(".")[1]!, "base64url").toString(),
+    );
+    const updated = await companySettingsService.update(signUp.companyId, decoded.sub, {
+      locale: "en-GB",
+      currencyCode: "GBP",
+      settings: { unitSystem: "metric", fiscalYearStartMonth: 4 },
+    });
+    expect(updated.locale).toBe("en-GB");
+    expect(updated.currencyCode).toBe("GBP");
+    expect(updated.settings).toMatchObject({ unitSystem: "metric", fiscalYearStartMonth: 4 });
+
+    // A second PATCH touching only branding must not clobber the
+    // unitSystem/fiscalYearStartMonth set above (top-level settings keys
+    // merge; only keys present in the body are replaced).
+    const branded = await companySettingsService.update(signUp.companyId, decoded.sub, {
+      settings: { branding: { primaryColor: "#336699" } },
+    });
+    expect(branded.settings).toMatchObject({
+      unitSystem: "metric",
+      fiscalYearStartMonth: 4,
+      branding: { primaryColor: "#336699" },
+    });
+
+    const eventTypes = await outboxEventTypes(signUp.companyId);
+    expect(eventTypes.filter((t) => t === "company.updated.v1")).toHaveLength(2);
   });
 });

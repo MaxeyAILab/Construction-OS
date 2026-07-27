@@ -3,6 +3,8 @@ import { JwtService } from "@nestjs/jwt";
 import type { Database } from "../../src/infrastructure/db/client";
 import { createRedisClient, type RedisClient } from "../../src/infrastructure/redis/client";
 import { AuthService } from "../../src/modules/auth/application/auth.service";
+import { CompanySettingsService } from "../../src/modules/auth/application/company-settings.service";
+import { UserPreferencesService } from "../../src/modules/auth/application/user-preferences.service";
 import { EncryptionService } from "../../src/modules/auth/infrastructure/encryption.service";
 import { MagicLinkService } from "../../src/modules/auth/infrastructure/magic-link.service";
 import { PasswordService } from "../../src/modules/auth/infrastructure/password.service";
@@ -19,10 +21,13 @@ export function buildTestAuthService(db: Database): {
   authService: AuthService;
   redis: RedisClient;
   denylist: SessionDenylistService;
+  userPreferencesService: UserPreferencesService;
+  companySettingsService: CompanySettingsService;
 } {
   const jwt = new JwtService({ secret: "test-jwt-access-secret-0123456789012345" });
   const redis = createRedisClient({ REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379" });
   const denylist = new SessionDenylistService(redis);
+  const outbox = new OutboxService();
 
   const authService = new AuthService(
     db,
@@ -33,8 +38,14 @@ export function buildTestAuthService(db: Database): {
     new EncryptionService(randomBytes(32).toString("base64")),
     new MagicLinkService("test-magic-link-secret-01234567890123"),
     denylist,
-    new OutboxService(),
+    outbox,
   );
 
-  return { authService, redis, denylist };
+  return {
+    authService,
+    redis,
+    denylist,
+    userPreferencesService: new UserPreferencesService(db, outbox),
+    companySettingsService: new CompanySettingsService(db, outbox),
+  };
 }

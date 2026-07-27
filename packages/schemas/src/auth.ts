@@ -38,3 +38,14 @@ export const authTokensSchema = z.object({
   refreshToken: z.string(),
   expiresAt: z.string().datetime({ offset: true }),
 });
+
+// api.md §2: "GET/PATCH /auth/me/preferences | Locale, notification
+// prefs." Scoped here to the one field users actually owns directly
+// (users.locale — NFR-30 activation). The detailed per-category ×
+// channel × digest notification matrix already has its own dedicated
+// endpoint (api.md §12: GET/PUT /notification-preferences, FR-PLAT-5) —
+// this endpoint doesn't duplicate that surface.
+export const updateUserPreferencesSchema = z.object({
+  locale: z.string().min(2).max(35).optional(),
+});
+export type UpdateUserPreferencesInput = z.infer<typeof updateUserPreferencesSchema>;

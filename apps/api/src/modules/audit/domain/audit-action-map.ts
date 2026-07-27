@@ -24,6 +24,16 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "company",
     entityId: payload.companyId as string,
   }),
+  // Roadmap Phase 2 "Second locale + metric units (NFR-30 activation)":
+  // PATCH /admin/company. Unlike user.preferences_updated.v1 (self-service,
+  // deliberately unaudited — see that event's doc comment), this is a
+  // privileged admin.company.manage-gated mutation, same audit-worthiness
+  // tier as company.registered.v1 above.
+  "company.updated.v1": (payload) => ({
+    action: "admin.company.manage",
+    entityType: "company",
+    entityId: payload.companyId as string,
+  }),
   "user.invited.v1": (payload) => ({
     action: "platform.company_user.invite",
     entityType: "user",

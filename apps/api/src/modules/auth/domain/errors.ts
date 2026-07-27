@@ -67,3 +67,16 @@ export class EmailAlreadyRegisteredError extends DomainError {
     super("a user with this email already exists");
   }
 }
+
+// Roadmap Phase 2 "Second locale + metric units (NFR-30 activation)":
+// GET/PATCH /admin/company (api.md §15). tenantId always comes from the
+// caller's own access token, so this only fires if the company row was
+// deleted out from under an active session — a defensive guard, not a
+// reachable path in normal use.
+export class CompanyNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("company not found");
+  }
+}

@@ -13,6 +13,28 @@ export const companyRegisteredV1Schema = z.object({
 });
 export type CompanyRegisteredV1 = z.infer<typeof companyRegisteredV1Schema>;
 
+// Roadmap Phase 2 "Second locale + metric units (NFR-30 activation)":
+// PATCH /admin/company (api.md §15, admin.company.manage) — a privileged
+// tenant-settings change, same "generic updated event with changedFields"
+// shape as document.updated.v1/project.updated.v1.
+export const companyUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type CompanyUpdatedV1 = z.infer<typeof companyUpdatedV1Schema>;
+
+// PATCH /auth/me/preferences (api.md §2) — a self-service change to the
+// caller's own row, not a privileged admin action, so (unlike
+// company.updated.v1) this is deliberately NOT wired into the audit
+// action map below — same precedent as PUT /notification-preferences,
+// which is also self-service and also unaudited.
+export const userPreferencesUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  userId: uuidSchema,
+  locale: z.string(),
+});
+export type UserPreferencesUpdatedV1 = z.infer<typeof userPreferencesUpdatedV1Schema>;
+
 export const userInvitedV1Schema = z.object({
   companyId: uuidSchema,
   userId: uuidSchema,
@@ -1133,6 +1155,8 @@ export type ImportJobCommittedV1 = z.infer<typeof importJobCommittedV1Schema>;
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
   "company.registered.v1": companyRegisteredV1Schema,
+  "company.updated.v1": companyUpdatedV1Schema,
+  "user.preferences_updated.v1": userPreferencesUpdatedV1Schema,
   "user.invited.v1": userInvitedV1Schema,
   "role.assigned.v1": roleAssignedV1Schema,
   "role.created.v1": roleCreatedV1Schema,
