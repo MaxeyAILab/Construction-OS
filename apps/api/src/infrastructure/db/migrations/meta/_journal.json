@@ -645,6 +645,34 @@
       "when": 1785124861781,
       "tag": "0091_supplier_portal_finance_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1785127634144,
+      "tag": "0092_payment_applications_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1785127650323,
+      "tag": "0093_payment_applications_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1785127667970,
+      "tag": "0094_payment_applications_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1785127878712,
+      "tag": "0095_payment_applications_document_link",
+      "breakpoints": true
     }
   ]
 }

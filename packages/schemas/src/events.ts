@@ -631,6 +631,37 @@ export const paymentCreatedV1Schema = z.object({
 });
 export type PaymentCreatedV1 = z.infer<typeof paymentCreatedV1Schema>;
 
+// Payment Applications (FR-FIN-4, database.md §11, api.md §10).
+export const paymentApplicationCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  paymentApplicationId: uuidSchema,
+  periodNumber: z.number().int(),
+});
+export type PaymentApplicationCreatedV1 = z.infer<typeof paymentApplicationCreatedV1Schema>;
+
+export const paymentApplicationApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  paymentApplicationId: uuidSchema,
+  invoiceId: uuidSchema,
+  currentPaymentDue: moneyAmountSchema,
+});
+export type PaymentApplicationApprovedV1 = z.infer<typeof paymentApplicationApprovedV1Schema>;
+
+export const paymentApplicationVoidedV1Schema = z.object({
+  companyId: uuidSchema,
+  paymentApplicationId: uuidSchema,
+});
+export type PaymentApplicationVoidedV1 = z.infer<typeof paymentApplicationVoidedV1Schema>;
+
+export const paymentApplicationPdfGeneratedV1Schema = z.object({
+  companyId: uuidSchema,
+  paymentApplicationId: uuidSchema,
+  documentVersionId: uuidSchema,
+});
+export type PaymentApplicationPdfGeneratedV1 = z.infer<typeof paymentApplicationPdfGeneratedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -1121,6 +1152,10 @@ export const eventRegistry = {
   "invoice.voided.v1": invoiceVoidedV1Schema,
   "invoice.paid.v1": invoicePaidV1Schema,
   "payment.created.v1": paymentCreatedV1Schema,
+  "payment_application.created.v1": paymentApplicationCreatedV1Schema,
+  "payment_application.approved.v1": paymentApplicationApprovedV1Schema,
+  "payment_application.voided.v1": paymentApplicationVoidedV1Schema,
+  "payment_application.pdf_generated.v1": paymentApplicationPdfGeneratedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

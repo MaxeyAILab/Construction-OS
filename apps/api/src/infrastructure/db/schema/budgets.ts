@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, date, index, integer, numeric, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
+import { documents, documentVersions } from "./documents";
 import { purchaseOrderLines } from "./procurement";
 import { costCodes, projects } from "./projects";
 
@@ -246,4 +247,74 @@ export const payments = pgTable(
     externalRef: text("external_ref"),
   },
   (table) => [index("ix_payments_invoice").on(table.invoiceId)],
+);
+
+// database.md §11 (FR-FIN-4): "AIA-style progress billing: period,
+// per-cost-code scheduled_value/previous_completed/this_period/
+// stored_materials/retainage_pct/amount, generated G702/G703 PDF ref in
+// documents." period_number is sequential per project (same "max+1 at
+// creation" convention as purchase_orders.number, scoped to the
+// project instead of the tenant). pdf_status mirrors export_jobs.status
+// — the same async-job-then-poll shape (api.md §10: "POST
+// {id}/generate-pdf -> 202"). Approval bills the project's client
+// (counterparty_type='client') via a real Invoice — one line per cost
+// code — same "lifecycle action creates a real financial record"
+// precedent as PurchaseOrderLifecycleService.approve().
+export const paymentApplications = pgTable(
+  "payment_applications",
+  {
+    ...tenantColumns(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id),
+    periodNumber: integer("period_number").notNull(),
+    periodEndDate: date("period_end_date").notNull(),
+    status: text("status").notNull().default("draft"),
+    pdfStatus: text("pdf_status").notNull().default("none"),
+    // Created once (DocumentsService.create, category='report') the first
+    // time a PDF is generated; later regenerations just add a new version
+    // to this same document — same "current is a single FK" pattern as
+    // documents.current_version_id.
+    documentId: uuid("document_id").references(() => documents.id),
+    pdfDocumentVersionId: uuid("pdf_document_version_id").references(() => documentVersions.id),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    totalScheduledValue: numeric("total_scheduled_value", { precision: 14, scale: 2 }).notNull().default("0"),
+    totalCompletedAndStored: numeric("total_completed_and_stored", { precision: 14, scale: 2 }).notNull().default("0"),
+    totalRetainage: numeric("total_retainage", { precision: 14, scale: 2 }).notNull().default("0"),
+    currentPaymentDue: numeric("current_payment_due", { precision: 14, scale: 2 }).notNull().default("0"),
+  },
+  (table) => [
+    check("ck_payment_applications_status", sql`${table.status} in ('draft', 'submitted', 'approved', 'void')`),
+    check("ck_payment_applications_pdf_status", sql`${table.pdfStatus} in ('none', 'generating', 'ready', 'failed')`),
+    uniqueIndex("ux_payment_applications_project_period").on(table.tenantId, table.projectId, table.periodNumber),
+    index("ix_payment_applications_project_status").on(table.projectId, table.status),
+  ],
+);
+
+export const paymentApplicationLines = pgTable(
+  "payment_application_lines",
+  {
+    ...tenantColumns(),
+    paymentApplicationId: uuid("payment_application_id")
+      .notNull()
+      .references(() => paymentApplications.id),
+    costCodeId: uuid("cost_code_id")
+      .notNull()
+      .references(() => costCodes.id),
+    scheduledValue: numeric("scheduled_value", { precision: 14, scale: 2 }).notNull().default("0"),
+    previousCompleted: numeric("previous_completed", { precision: 14, scale: 2 }).notNull().default("0"),
+    thisPeriod: numeric("this_period", { precision: 14, scale: 2 }).notNull().default("0"),
+    materialsStored: numeric("materials_stored", { precision: 14, scale: 2 }).notNull().default("0"),
+    completedToDate: numeric("completed_to_date", { precision: 14, scale: 2 }).generatedAlwaysAs(
+      sql`previous_completed + this_period + materials_stored`,
+    ),
+    retainagePct: numeric("retainage_pct", { precision: 5, scale: 2 }).notNull().default("0"),
+    retainageAmount: numeric("retainage_amount", { precision: 14, scale: 2 }).generatedAlwaysAs(
+      sql`round((previous_completed + this_period + materials_stored) * retainage_pct / 100, 2)`,
+    ),
+  },
+  (table) => [
+    uniqueIndex("ux_payment_application_lines_app_cost_code").on(table.paymentApplicationId, table.costCodeId),
+    index("ix_payment_application_lines_app").on(table.paymentApplicationId),
+  ],
 );

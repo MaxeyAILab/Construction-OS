@@ -64,3 +64,46 @@ export class PaymentExceedsBalanceError extends DomainError {
     super("this payment would exceed the invoice's outstanding balance");
   }
 }
+
+export class PaymentApplicationNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("payment application not found");
+  }
+}
+
+export class PaymentApplicationNotDraftError extends DomainError {
+  readonly code = "illegal_transition";
+  readonly status = 422;
+  constructor() {
+    super("only a draft payment application can be edited or submitted");
+  }
+}
+
+export class PaymentApplicationNotSubmittedError extends DomainError {
+  readonly code = "illegal_transition";
+  readonly status = 422;
+  constructor() {
+    super("only a submitted payment application can be approved");
+  }
+}
+
+export class PaymentApplicationAlreadyApprovedError extends DomainError {
+  readonly code = "illegal_transition";
+  readonly status = 422;
+  constructor() {
+    super("an approved payment application cannot be voided");
+  }
+}
+
+// FR-FIN-4: approval bills the project's client — there's no counterparty
+// to bill if the project was never linked to one (projects.
+// client_contact_company_id is nullable, per database.md §9).
+export class NoClientForProjectError extends DomainError {
+  readonly code = "no_client_for_project";
+  readonly status = 422;
+  constructor() {
+    super("this project has no client contact company — set one before approving a payment application");
+  }
+}

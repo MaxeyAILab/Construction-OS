@@ -83,6 +83,48 @@ export class DocumentVersionsService {
     });
   }
 
+  // Payment Applications' generated G702/G703 PDF (FR-FIN-4, Finance
+  // module, index.ts's public surface — cross-module reuse). The file is
+  // already `clean` (FileUploadService.storeGeneratedFile), so this skips
+  // the completeUpload() presigned-upload handshake completeVersion()
+  // needs for client-driven uploads — everything else is identical.
+  async createVersionFromGeneratedFile(tenantId: string, actorId: string, documentId: string, fileId: string) {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const document = await this.documentsService.requireDocument(tx, documentId);
+
+      const [maxVersionRow] = await tx
+        .select({ maxVersion: sql<number | null>`max(${documentVersions.versionNo})` })
+        .from(documentVersions)
+        .where(eq(documentVersions.documentId, documentId));
+      const versionNo = (maxVersionRow!.maxVersion ?? 0) + 1;
+
+      const [version] = await tx
+        .insert(documentVersions)
+        .values({ tenantId, documentId, versionNo, fileId, createdBy: actorId })
+        .returning();
+      const created = version!;
+
+      await tx.update(documents).set({ currentVersionId: created.id, updatedBy: actorId }).where(eq(documents.id, documentId));
+
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "document_version.created.v1",
+        dedupeKey: `document_version.created.v1:${created.id}`,
+        actorId,
+        payload: { companyId: tenantId, projectId: document.projectId, documentId, documentVersionId: created.id, versionNo },
+      });
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "document.updated.v1",
+        dedupeKey: `document.updated.v1:${documentId}:version-${versionNo}`,
+        actorId,
+        payload: { companyId: tenantId, projectId: document.projectId, documentId, changedFields: ["currentVersionId"] },
+      });
+
+      return created;
+    });
+  }
+
   // M13 Client Portal v1 (FR-CLIENT-1): reuses DocumentsService.
   // authorizeRead (docs.document.read internal, or a project-level
   // client-portal "view" share) rather than duplicating the check.

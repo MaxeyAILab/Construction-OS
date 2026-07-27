@@ -391,6 +391,27 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "payment",
     entityId: payload.paymentId as string,
   }),
+  // Payment Applications (AIA, FR-FIN-4).
+  "payment_application.created.v1": (payload) => ({
+    action: "finance.payapp.create",
+    entityType: "payment_application",
+    entityId: payload.paymentApplicationId as string,
+  }),
+  "payment_application.approved.v1": (payload) => ({
+    action: "finance.payapp.approve",
+    entityType: "payment_application",
+    entityId: payload.paymentApplicationId as string,
+  }),
+  "payment_application.voided.v1": (payload) => ({
+    action: "finance.payapp.approve",
+    entityType: "payment_application",
+    entityId: payload.paymentApplicationId as string,
+  }),
+  "payment_application.pdf_generated.v1": (payload) => ({
+    action: "finance.payapp.create",
+    entityType: "payment_application",
+    entityId: payload.paymentApplicationId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { moneyAmountSchema, paginationQuerySchema, quantitySchema, unitRateAmountSchema, uuidSchema } from "./common";
+import { moneyAmountSchema, paginationQuerySchema, percentageSchema, quantitySchema, unitRateAmountSchema, uuidSchema } from "./common";
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected an ISO-8601 date (YYYY-MM-DD)");
 
@@ -106,3 +106,34 @@ export const createPaymentSchema = z.object({
   externalRef: z.string().optional(),
 });
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
+
+// --- Payment Applications (database.md §11; api.md §10; FR-FIN-4).
+// AIA-style progress billing — period_number/periodEndDate come from the
+// service (period_number auto-assigned per project, same "max+1 at
+// creation" convention as purchase_orders.number). ---
+export const paymentApplicationStatusSchema = z.enum(["draft", "submitted", "approved", "void"]);
+export type PaymentApplicationStatus = z.infer<typeof paymentApplicationStatusSchema>;
+
+export const paymentApplicationPdfStatusSchema = z.enum(["none", "generating", "ready", "failed"]);
+export type PaymentApplicationPdfStatus = z.infer<typeof paymentApplicationPdfStatusSchema>;
+
+export const createPaymentApplicationLineSchema = z.object({
+  costCodeId: uuidSchema,
+  scheduledValue: moneyAmountSchema,
+  previousCompleted: moneyAmountSchema.optional(),
+  thisPeriod: moneyAmountSchema,
+  materialsStored: moneyAmountSchema.optional(),
+  retainagePct: percentageSchema.optional(),
+});
+export type CreatePaymentApplicationLineInput = z.infer<typeof createPaymentApplicationLineSchema>;
+
+export const createPaymentApplicationSchema = z.object({
+  periodEndDate: isoDateSchema,
+  lines: z.array(createPaymentApplicationLineSchema).min(1),
+});
+export type CreatePaymentApplicationInput = z.infer<typeof createPaymentApplicationSchema>;
+
+export const listPaymentApplicationsQuerySchema = paginationQuerySchema.extend({
+  status: paymentApplicationStatusSchema.optional(),
+});
+export type ListPaymentApplicationsQuery = z.infer<typeof listPaymentApplicationsQuerySchema>;
