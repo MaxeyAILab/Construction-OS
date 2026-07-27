@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
-import { check, date, index, numeric, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, date, index, integer, numeric, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
+import { purchaseOrderLines } from "./procurement";
 import { costCodes, projects } from "./projects";
 
 // database.md §11: "budget -> commitment -> actual -> forecast is the
@@ -150,4 +151,99 @@ export const costTransactions = pgTable(
     ),
     index("ix_costtxn_source").on(table.source, table.sourceId),
   ],
+);
+
+// database.md §11 (api.md §10, FR-VEND-2/FR-SUB-3): "unified AP/AR —
+// direction, counterparty_type/id (client company, supplier,
+// subcontractor)... 3-way-match state on payable." One table serves
+// supplier invoices (Supplier Portal, M15), subcontractor invoices
+// (FR-SUB-3 — deferred until now, unblocked by this table existing), and
+// future client billing/AIA pay-apps — not three parallel tables.
+// counterparty_id is polymorphic (no FK), same "type discriminator +
+// bare uuid" precedent as activities.entity_type/entity_id; the actual
+// row lookup happens in InvoicesService against whichever module's
+// service the counterparty_type points to. match_status/status value
+// sets aren't enumerated in database.md — documented assumption, same
+// as incidents.severity.
+export const invoices = pgTable(
+  "invoices",
+  {
+    ...tenantColumns(),
+    direction: text("direction").notNull(),
+    counterpartyType: text("counterparty_type").notNull(),
+    counterpartyId: uuid("counterparty_id").notNull(),
+    projectId: uuid("project_id").references(() => projects.id),
+    number: integer("number").notNull(),
+    status: text("status").notNull().default("draft"),
+    // Only meaningful for direction='payable' lines tied to a PO line;
+    // null means "nothing to match against" (subcontractor/client
+    // invoices, or a payable invoice with no PO-linked lines).
+    matchStatus: text("match_status"),
+    issueDate: date("issue_date").notNull(),
+    dueDate: date("due_date"),
+    subtotalAmount: numeric("subtotal_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    taxAmount: numeric("tax_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    totalAmount: numeric("total_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    // Maintained aggregate (sum of payments), same pattern as
+    // budget_lines.committed_amount — drives status flipping to 'paid'.
+    paidAmount: numeric("paid_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    externalRef: text("external_ref"),
+  },
+  (table) => [
+    check("ck_invoices_direction", sql`${table.direction} in ('payable', 'receivable')`),
+    check("ck_invoices_counterparty_type", sql`${table.counterpartyType} in ('client', 'supplier', 'subcontractor')`),
+    check("ck_invoices_status", sql`${table.status} in ('draft', 'approved', 'paid', 'void')`),
+    check(
+      "ck_invoices_match_status",
+      sql`${table.matchStatus} is null or ${table.matchStatus} in ('unmatched', 'two_way_matched', 'three_way_matched', 'mismatched')`,
+    ),
+    uniqueIndex("ux_invoices_tenant_direction_number").on(table.tenantId, table.direction, table.number),
+    index("ix_invoices_tenant_dir_status_due").on(table.tenantId, table.direction, table.status, table.dueDate),
+  ],
+);
+
+export const invoiceLines = pgTable(
+  "invoice_lines",
+  {
+    ...tenantColumns(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    // Only set for payable lines invoicing against a PO — the anchor for
+    // 2-/3-way matching (FR-VEND-2). Null for subcontractor/client lines
+    // and for payable lines with no PO (e.g. overhead invoices).
+    purchaseOrderLineId: uuid("purchase_order_line_id").references(() => purchaseOrderLines.id),
+    costCodeId: uuid("cost_code_id").references(() => costCodes.id),
+    description: text("description").notNull(),
+    qty: numeric("qty", { precision: 14, scale: 3 }),
+    // Scale 4 to match purchase_order_lines.unit_cost_amount exactly (the
+    // 2-way match comparison, FR-VEND-2).
+    unitPriceAmount: numeric("unit_price_amount", { precision: 14, scale: 4 }),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    matchStatus: text("match_status"),
+  },
+  (table) => [
+    check(
+      "ck_invoice_lines_match_status",
+      sql`${table.matchStatus} is null or ${table.matchStatus} in ('unmatched', 'two_way_matched', 'three_way_matched', 'mismatched')`,
+    ),
+    index("ix_invoice_lines_invoice").on(table.invoiceId),
+  ],
+);
+
+// database.md §11: "applied amounts vs invoices (partial payments
+// supported)."
+export const payments = pgTable(
+  "payments",
+  {
+    ...tenantColumns(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    paidAt: date("paid_at").notNull(),
+    method: text("method"),
+    externalRef: text("external_ref"),
+  },
+  (table) => [index("ix_payments_invoice").on(table.invoiceId)],
 );

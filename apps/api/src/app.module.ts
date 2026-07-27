@@ -12,6 +12,7 @@ import { DocumentsModule } from "./modules/documents";
 import { EquipmentModule } from "./modules/equipment";
 import { EstimatingModule } from "./modules/estimating";
 import { FilesModule } from "./modules/files";
+import { FinanceModule } from "./modules/finance";
 import { FinanceAlertsModule } from "./modules/finance-alerts";
 import { ImportsExportsModule } from "./modules/imports-exports";
 import { InventoryModule } from "./modules/inventory";
@@ -58,6 +59,7 @@ import { HealthModule } from "./platform/health/health.module";
     EquipmentModule,
     SafetyModule,
     SubcontractorsModule,
+    FinanceModule,
     RfisModule,
     SchedulingModule,
     TasksModule,

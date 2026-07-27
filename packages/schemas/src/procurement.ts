@@ -86,6 +86,14 @@ export const updatePurchaseOrderSchema = z.object({
 });
 export type UpdatePurchaseOrderInput = z.infer<typeof updatePurchaseOrderSchema>;
 
+// Supplier Portal (M15, FR-VEND-1): the supplier confirming a PO may also
+// record the delivery schedule (promised_date is the PO's own column —
+// no separate "delivery schedule" table exists, per database.md §17).
+export const confirmPurchaseOrderSchema = z.object({
+  promisedDate: isoDateSchema.optional(),
+});
+export type ConfirmPurchaseOrderInput = z.infer<typeof confirmPurchaseOrderSchema>;
+
 export const listPurchaseOrdersQuerySchema = paginationQuerySchema.extend({
   projectId: uuidSchema.optional(),
   supplierId: uuidSchema.optional(),

@@ -36,6 +36,24 @@ export class PurchaseOrderNotFoundError extends DomainError {
 }
 
 // api.md §11: header/line edits are only valid pre-submission.
+// Supplier Portal (M15, FR-VEND-1): dual-path, same shape as
+// ChangeOrderApprovalDeniedError.
+export class PurchaseOrderConfirmDeniedError extends DomainError {
+  readonly code = "permission_denied";
+  readonly status = 403;
+  constructor() {
+    super("missing permission: procurement.po.update (or a valid supplier-portal share)");
+  }
+}
+
+export class PurchaseOrderReadDeniedError extends DomainError {
+  readonly code = "permission_denied";
+  readonly status = 403;
+  constructor() {
+    super("missing permission: procurement.po.read (or a valid supplier-portal share)");
+  }
+}
+
 export class PurchaseOrderNotDraftError extends DomainError {
   readonly code = "illegal_transition";
   readonly status = 422;

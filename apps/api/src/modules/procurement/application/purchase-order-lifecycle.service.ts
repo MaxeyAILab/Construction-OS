@@ -1,10 +1,13 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { ConfirmPurchaseOrderInput } from "@constructionos/schemas";
 import { and, eq, isNull } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { budgetLines, budgets, commitments, purchaseOrderLines, purchaseOrders } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
+import { ExternalSharesService, PermissionResolverService } from "../../rbac";
 import {
   NoActiveBudgetForProjectError,
+  PurchaseOrderConfirmDeniedError,
   PurchaseOrderIllegalTransitionError,
   PurchaseOrderNotCancellableError,
   PurchaseOrderNotPendingApprovalError,
@@ -16,17 +19,20 @@ import { PurchaseOrdersService } from "./purchase-orders.service";
 // gap-fills for the two remaining database.md status values with no
 // documented entry point of their own (same "the enum requires it, so
 // gap-fill it" precedent as ChangeOrderLifecycleService's reject/void) —
-// 'confirmed' is a plausible future Supplier Portal (M15) action and
-// 'closed' a plausible future post-receipt reconciliation action; both
-// are exposed here as plain internal transitions until those modules
-// exist to make a more specific call. 'partially_received'/'received' are
-// set by DeliveriesService from actual receipt quantities, not here.
+// 'closed' stays a plain internal transition (a plausible future
+// post-receipt reconciliation action). 'confirmed' is now the Supplier
+// Portal's (M15, FR-VEND-1) own action — closed below with the same
+// dual-path (internal permission OR external share) pattern as
+// ChangeOrderLifecycleService.approve(). 'partially_received'/'received'
+// are set by DeliveriesService from actual receipt quantities, not here.
 @Injectable()
 export class PurchaseOrderLifecycleService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly outbox: OutboxService,
     private readonly purchaseOrdersService: PurchaseOrdersService,
+    private readonly permissions: PermissionResolverService,
+    private readonly externalShares: ExternalSharesService,
   ) {}
 
   async submit(tenantId: string, actorId: string, id: string) {
@@ -37,8 +43,40 @@ export class PurchaseOrderLifecycleService {
     return this.transition(tenantId, actorId, id, "approved", "sent");
   }
 
-  async confirm(tenantId: string, actorId: string, id: string) {
-    return this.transition(tenantId, actorId, id, "sent", "confirmed");
+  // FR-VEND-1: "share POs with suppliers and capture order confirmations
+  // and delivery schedules" — promisedDate is the PO's own column (no
+  // separate "delivery schedule" table, per database.md §17).
+  async confirm(tenantId: string, actorId: string, id: string, input?: ConfirmPurchaseOrderInput) {
+    const hasInternalPermission = await this.permissions.has(tenantId, actorId, "procurement.po.update");
+    const viaShare = !hasInternalPermission
+      ? await this.externalShares.hasAccess(tenantId, actorId, "purchase_order", id, "approve")
+      : false;
+    if (!hasInternalPermission && !viaShare) throw new PurchaseOrderConfirmDeniedError();
+
+    return withTenant(this.db, tenantId, async (tx) => {
+      const po = await this.purchaseOrdersService.requirePurchaseOrder(tx, id);
+      if (po.status !== "sent") throw new PurchaseOrderIllegalTransitionError("sent");
+
+      const [updated] = await tx
+        .update(purchaseOrders)
+        .set({
+          status: "confirmed",
+          promisedDate: input?.promisedDate ?? po.promisedDate,
+          updatedBy: actorId,
+        })
+        .where(eq(purchaseOrders.id, id))
+        .returning();
+
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "purchase_order.updated.v1",
+        dedupeKey: `purchase_order.updated.v1:${id}:${updated!.updatedSeq}`,
+        actorId,
+        payload: { companyId: tenantId, projectId: po.projectId, purchaseOrderId: id, changedFields: ["status", "promisedDate"] },
+      });
+
+      return updated!;
+    });
   }
 
   async close(tenantId: string, actorId: string, id: string) {

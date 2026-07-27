@@ -28,5 +28,10 @@ const env = loadEnv();
     OpportunityLifecycleService,
     ActivitiesService,
   ],
+  // Finance invoices (Budget module) reuse ContactCompaniesService to
+  // validate counterparty_type='client' invoices (FR-VEND-2/FR-FIN-4
+  // pay-apps) — same "broaden an existing module's public surface"
+  // precedent as every other cross-module reuse this session.
+  exports: [ContactCompaniesService],
 })
 export class CrmModule {}

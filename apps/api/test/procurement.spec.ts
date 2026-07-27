@@ -16,8 +16,14 @@ describe("Procurement & Purchasing", () => {
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
   const { stockService } = buildTestInventoryServices(db);
-  const { suppliersService, purchaseOrdersService, lifecycleService, rfqsService, deliveriesService } =
-    buildTestProcurementServices(db, stockService);
+  const {
+    suppliersService,
+    purchaseOrdersService,
+    lifecycleService,
+    rfqsService,
+    deliveriesService,
+    redis: procurementRedis,
+  } = buildTestProcurementServices(db, stockService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -25,6 +31,7 @@ describe("Procurement & Purchasing", () => {
 
   afterAll(async () => {
     await redis.quit();
+    await procurementRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
@@ -85,11 +92,11 @@ describe("Procurement & Purchasing", () => {
       uom: "ea",
       unitCostAmount: "20.0000",
     });
-    let fetched = await purchaseOrdersService.getById(tenantId, po.id);
+    let fetched = await purchaseOrdersService.getById(tenantId, ownerId, po.id);
     expect(fetched.totalAmount).toBe("750.00");
 
     await purchaseOrdersService.deleteLine(tenantId, ownerId, po.id, line2.id);
-    fetched = await purchaseOrdersService.getById(tenantId, po.id);
+    fetched = await purchaseOrdersService.getById(tenantId, ownerId, po.id);
     expect(fetched.totalAmount).toBe("550.00");
 
     const events = await outboxEventTypes(tenantId);
@@ -205,14 +212,14 @@ describe("Procurement & Purchasing", () => {
     const sent = await lifecycleService.send(tenantId, ownerId, po.id);
     expect(sent.status).toBe("sent");
 
-    const lineId = (await purchaseOrdersService.getById(tenantId, po.id)).lines[0]!.id;
+    const lineId = (await purchaseOrdersService.getById(tenantId, ownerId, po.id)).lines[0]!.id;
 
     const firstDelivery = await deliveriesService.create(tenantId, ownerId, po.id, {
       deliveryDate: "2026-01-15",
       lines: [{ purchaseOrderLineId: lineId, qtyReceived: "40.000" }],
     });
     expect(firstDelivery.purchaseOrderId).toBe(po.id);
-    let poAfter = await purchaseOrdersService.getById(tenantId, po.id);
+    let poAfter = await purchaseOrdersService.getById(tenantId, ownerId, po.id);
     expect(poAfter.status).toBe("partially_received");
     expect(poAfter.lines[0]!.qtyReceived).toBe("40.000");
 
@@ -228,7 +235,7 @@ describe("Procurement & Purchasing", () => {
       deliveryDate: "2026-01-20",
       lines: [{ purchaseOrderLineId: lineId, qtyReceived: "60.000" }],
     });
-    poAfter = await purchaseOrdersService.getById(tenantId, po.id);
+    poAfter = await purchaseOrdersService.getById(tenantId, ownerId, po.id);
     expect(poAfter.status).toBe("received");
 
     // Once fully received, the PO is no longer in a receivable status.

@@ -10,11 +10,13 @@ import { and, desc, eq, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { costCodes, projects, purchaseOrderLines, purchaseOrders } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
+import { ExternalSharesService, PermissionResolverService } from "../../rbac";
 import {
   CostCodeNotOnProjectError,
   ProjectNotFoundError,
   PurchaseOrderNotDraftError,
   PurchaseOrderNotFoundError,
+  PurchaseOrderReadDeniedError,
 } from "../domain/errors";
 import { SuppliersService } from "./suppliers.service";
 
@@ -41,6 +43,8 @@ export class PurchaseOrdersService {
     @Inject(DATABASE) private readonly db: Database,
     private readonly outbox: OutboxService,
     private readonly suppliers: SuppliersService,
+    private readonly permissions: PermissionResolverService,
+    private readonly externalShares: ExternalSharesService,
   ) {}
 
   async list(tenantId: string, query: ListPurchaseOrdersQuery) {
@@ -74,7 +78,20 @@ export class PurchaseOrdersService {
     });
   }
 
-  async getById(tenantId: string, id: string) {
+  // Supplier Portal (M15): a supplier reads their own shared PO the same
+  // way an internal procurement.po.read grant does — same dual-path
+  // pattern as SchedulesService.getActiveSchedule(), and the controller
+  // drops to @Authenticated() for the same reason. The share is scoped to
+  // this specific PO id (entity_type='purchase_order') — there's no "list
+  // POs shared with me" surface, same limitation as change orders/
+  // documents' share-based access.
+  async getById(tenantId: string, actorId: string, id: string) {
+    const hasInternalPermission = await this.permissions.has(tenantId, actorId, "procurement.po.read");
+    const viaShare = !hasInternalPermission
+      ? await this.externalShares.hasAccess(tenantId, actorId, "purchase_order", id, "view")
+      : false;
+    if (!hasInternalPermission && !viaShare) throw new PurchaseOrderReadDeniedError();
+
     return withTenant(this.db, tenantId, async (tx) => {
       const po = await this.requirePurchaseOrder(tx, id);
       const lines = await tx.query.purchaseOrderLines.findMany({
@@ -250,6 +267,21 @@ export class PurchaseOrdersService {
         .where(eq(purchaseOrderLines.id, lineId));
 
       await this.recomputeTotal(tx, id);
+    });
+  }
+
+  // Supplier Portal (M15) + Finance invoices (FR-VEND-2): the 2-/3-way
+  // match anchor. A plain existence lookup by line id, not scoped to a
+  // known purchase_order_id — same "own connection, read-only" cross-
+  // module precedent as ExternalSharesService.hasAccess() — the caller
+  // (InvoicesService) isn't inside this module's transaction.
+  async getLineById(tenantId: string, lineId: string) {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const line = await tx.query.purchaseOrderLines.findFirst({
+        where: and(eq(purchaseOrderLines.id, lineId), isNull(purchaseOrderLines.deletedAt)),
+      });
+      if (!line) throw new PurchaseOrderNotFoundError();
+      return line;
     });
   }
 

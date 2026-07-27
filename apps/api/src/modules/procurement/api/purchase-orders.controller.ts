@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import {
+  confirmPurchaseOrderSchema,
   createDeliverySchema,
   createPurchaseOrderLineSchema,
   createPurchaseOrderSchema,
@@ -10,6 +11,7 @@ import {
 import type { z } from "zod";
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
+import { Authenticated } from "../../../platform/decorators/authenticated.decorator";
 import { RequirePermission } from "../../rbac";
 import { DeliveriesService } from "../application/deliveries.service";
 import { PurchaseOrderLifecycleService } from "../application/purchase-order-lifecycle.service";
@@ -42,10 +44,13 @@ export class PurchaseOrdersController {
     return this.purchaseOrders.create(req.auth!.tenantId, req.auth!.sub, body);
   }
 
+  // Supplier Portal (M15): dual-path (see PurchaseOrdersService.getById's
+  // doc comment) — guard only requires login; the record-level check
+  // happens inside the service.
   @Get(":id")
-  @RequirePermission("procurement.po.read")
+  @Authenticated()
   getById(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    return this.purchaseOrders.getById(req.auth!.tenantId, id);
+    return this.purchaseOrders.getById(req.auth!.tenantId, req.auth!.sub, id);
   }
 
   @Patch(":id")
@@ -106,11 +111,17 @@ export class PurchaseOrdersController {
     return this.lifecycle.send(req.auth!.tenantId, req.auth!.sub, id);
   }
 
-  // Gap-fill (see PurchaseOrderLifecycleService's doc comment).
+  // Supplier Portal (M15, FR-VEND-1): dual-path (see
+  // PurchaseOrderLifecycleService.confirm's doc comment) — guard only
+  // requires login; the record-level check happens inside the service.
   @Post(":id/confirm")
-  @RequirePermission("procurement.po.update")
-  confirm(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    return this.lifecycle.confirm(req.auth!.tenantId, req.auth!.sub, id);
+  @Authenticated()
+  confirm(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(confirmPurchaseOrderSchema)) body: z.infer<typeof confirmPurchaseOrderSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.lifecycle.confirm(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 
   // Gap-fill (see PurchaseOrderLifecycleService's doc comment).

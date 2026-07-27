@@ -186,7 +186,7 @@ describe("Inventory & Materials", () => {
     await lifecycleService.approve(tenantId, ownerId, po.id);
     await lifecycleService.send(tenantId, ownerId, po.id);
 
-    const lineId = (await purchaseOrdersService.getById(tenantId, po.id)).lines[0]!.id;
+    const lineId = (await purchaseOrdersService.getById(tenantId, ownerId, po.id)).lines[0]!.id;
     await deliveriesService.create(tenantId, ownerId, po.id, {
       deliveryDate: "2026-02-01",
       locationId: location.id,

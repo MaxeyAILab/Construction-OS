@@ -365,6 +365,32 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "bid",
     entityId: payload.bidId as string,
   }),
+  // Supplier Portal (M15) + Finance invoices (FR-VEND-2, FR-SUB-3).
+  "invoice.created.v1": (payload) => ({
+    action: "finance.invoice.create",
+    entityType: "invoice",
+    entityId: payload.invoiceId as string,
+  }),
+  "invoice.approved.v1": (payload) => ({
+    action: "finance.invoice.approve",
+    entityType: "invoice",
+    entityId: payload.invoiceId as string,
+  }),
+  "invoice.voided.v1": (payload) => ({
+    action: "finance.invoice.approve",
+    entityType: "invoice",
+    entityId: payload.invoiceId as string,
+  }),
+  "invoice.paid.v1": (payload) => ({
+    action: "finance.payment.create",
+    entityType: "invoice",
+    entityId: payload.invoiceId as string,
+  }),
+  "payment.created.v1": (payload) => ({
+    action: "finance.payment.create",
+    entityType: "payment",
+    entityId: payload.paymentId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

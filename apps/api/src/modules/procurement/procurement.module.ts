@@ -3,6 +3,7 @@ import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { EventsModule } from "../events";
 import { InventoryModule } from "../inventory";
+import { RbacModule } from "../rbac";
 import { PurchaseOrdersController } from "./api/purchase-orders.controller";
 import { RfqsController } from "./api/rfqs.controller";
 import { SuppliersController } from "./api/suppliers.controller";
@@ -15,7 +16,7 @@ import { SuppliersService } from "./application/suppliers.service";
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule, InventoryModule],
+  imports: [EventsModule, InventoryModule, RbacModule],
   controllers: [SuppliersController, PurchaseOrdersController, RfqsController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
@@ -25,5 +26,11 @@ const env = loadEnv();
     RfqsService,
     DeliveriesService,
   ],
+  // Supplier Portal (M15) + Finance invoices (Finance module) reuse
+  // PurchaseOrdersService for PO/line lookups (2-/3-way match, FR-VEND-2)
+  // and SuppliersService for counterparty validation — same "broaden an
+  // existing module's public surface" precedent as every other
+  // cross-module reuse this session.
+  exports: [PurchaseOrdersService, SuppliersService],
 })
 export class ProcurementModule {}

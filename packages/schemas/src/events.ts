@@ -588,6 +588,49 @@ export const bidSubmittedV1Schema = z.object({
 });
 export type BidSubmittedV1 = z.infer<typeof bidSubmittedV1Schema>;
 
+// Supplier Portal (M15) + Finance invoices (database.md §11, api.md §10,
+// FR-VEND-2/FR-SUB-3). direction/counterpartyType travel on the event so
+// consumers (audit, future AP dashboards) don't need a lookup to know
+// which pipeline (AP vs AR, supplier vs subcontractor vs client) fired.
+export const invoiceCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema.nullable(),
+  invoiceId: uuidSchema,
+  direction: z.enum(["payable", "receivable"]),
+  counterpartyType: z.enum(["client", "supplier", "subcontractor"]),
+});
+export type InvoiceCreatedV1 = z.infer<typeof invoiceCreatedV1Schema>;
+
+export const invoiceApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema.nullable(),
+  invoiceId: uuidSchema,
+  totalAmount: moneyAmountSchema,
+  matchStatus: z.string().nullable(),
+});
+export type InvoiceApprovedV1 = z.infer<typeof invoiceApprovedV1Schema>;
+
+export const invoiceVoidedV1Schema = z.object({
+  companyId: uuidSchema,
+  invoiceId: uuidSchema,
+});
+export type InvoiceVoidedV1 = z.infer<typeof invoiceVoidedV1Schema>;
+
+export const invoicePaidV1Schema = z.object({
+  companyId: uuidSchema,
+  invoiceId: uuidSchema,
+  paidAmount: moneyAmountSchema,
+});
+export type InvoicePaidV1 = z.infer<typeof invoicePaidV1Schema>;
+
+export const paymentCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  invoiceId: uuidSchema,
+  paymentId: uuidSchema,
+  amount: moneyAmountSchema,
+});
+export type PaymentCreatedV1 = z.infer<typeof paymentCreatedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -1073,6 +1116,11 @@ export const eventRegistry = {
   "bid_package.created.v1": bidPackageCreatedV1Schema,
   "bid_invitation.created.v1": bidInvitationCreatedV1Schema,
   "bid.submitted.v1": bidSubmittedV1Schema,
+  "invoice.created.v1": invoiceCreatedV1Schema,
+  "invoice.approved.v1": invoiceApprovedV1Schema,
+  "invoice.voided.v1": invoiceVoidedV1Schema,
+  "invoice.paid.v1": invoicePaidV1Schema,
+  "payment.created.v1": paymentCreatedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

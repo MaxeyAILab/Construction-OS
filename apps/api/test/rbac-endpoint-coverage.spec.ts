@@ -18,6 +18,7 @@ import { ContactCompaniesController } from "../src/modules/crm/api/contact-compa
 import { ContactsController } from "../src/modules/crm/api/contacts.controller";
 import { OpportunitiesController } from "../src/modules/crm/api/opportunities.controller";
 import { PipelineStagesController } from "../src/modules/crm/api/pipeline-stages.controller";
+import { InvoicesController } from "../src/modules/finance/api/invoices.controller";
 import { FinanceAlertsController } from "../src/modules/finance-alerts/api/finance-alerts.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
 import { InventoryItemsController } from "../src/modules/inventory/api/inventory-items.controller";
@@ -106,6 +107,7 @@ const controllers = [
   SubcontractorsController,
   SubcontractsController,
   BidPackagesController,
+  InvoicesController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
