@@ -582,6 +582,27 @@
       "when": 1784830677257,
       "tag": "0082_equipment_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1785121417206,
+      "tag": "0083_safety_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1785121443935,
+      "tag": "0084_safety_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1785121467626,
+      "tag": "0085_safety_permissions",
+      "breakpoints": true
     }
   ]
 }

@@ -485,6 +485,53 @@ export const equipmentInspectionCreatedV1Schema = z.object({
 });
 export type EquipmentInspectionCreatedV1 = z.infer<typeof equipmentInspectionCreatedV1Schema>;
 
+// M12 Safety & Compliance (FR-SAFE-1..3). "incident.reported.v1" matches
+// api.md §16's own event-catalog example list verbatim ("incident.reported")
+// rather than the usual "created" verb every other entity uses.
+export const safetyFormTemplateCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  safetyFormTemplateId: uuidSchema,
+});
+export type SafetyFormTemplateCreatedV1 = z.infer<typeof safetyFormTemplateCreatedV1Schema>;
+
+export const safetyFormCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  safetyFormId: uuidSchema,
+  templateId: uuidSchema,
+});
+export type SafetyFormCreatedV1 = z.infer<typeof safetyFormCreatedV1Schema>;
+
+export const incidentReportedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  incidentId: uuidSchema,
+  kind: z.enum(["incident", "near_miss", "observation"]),
+  severity: z.enum(["low", "medium", "high", "critical"]),
+});
+export type IncidentReportedV1 = z.infer<typeof incidentReportedV1Schema>;
+
+export const incidentUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  incidentId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type IncidentUpdatedV1 = z.infer<typeof incidentUpdatedV1Schema>;
+
+export const certificationCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  certificationId: uuidSchema,
+});
+export type CertificationCreatedV1 = z.infer<typeof certificationCreatedV1Schema>;
+
+export const certificationUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  certificationId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type CertificationUpdatedV1 = z.infer<typeof certificationUpdatedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -957,6 +1004,12 @@ export const eventRegistry = {
   "maintenance_work_order.created.v1": maintenanceWorkOrderCreatedV1Schema,
   "maintenance_work_order.updated.v1": maintenanceWorkOrderUpdatedV1Schema,
   "equipment_inspection.created.v1": equipmentInspectionCreatedV1Schema,
+  "safety_form_template.created.v1": safetyFormTemplateCreatedV1Schema,
+  "safety_form.created.v1": safetyFormCreatedV1Schema,
+  "incident.reported.v1": incidentReportedV1Schema,
+  "incident.updated.v1": incidentUpdatedV1Schema,
+  "certification.created.v1": certificationCreatedV1Schema,
+  "certification.updated.v1": certificationUpdatedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

@@ -34,3 +34,4 @@ export * from "./crm";
 export * from "./inventory";
 export * from "./procurement";
 export * from "./equipment";
+export * from "./safety";

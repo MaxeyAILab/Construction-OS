@@ -36,6 +36,10 @@ import { RagSearchController } from "../src/modules/rag/api/rag-search.controlle
 import { ExternalSharesController } from "../src/modules/rbac/api/external-shares.controller";
 import { RbacController } from "../src/modules/rbac/api/rbac.controller";
 import { RfisController } from "../src/modules/rfis/api/rfis.controller";
+import { CertificationsController } from "../src/modules/safety/api/certifications.controller";
+import { IncidentsController } from "../src/modules/safety/api/incidents.controller";
+import { SafetyFormTemplatesController } from "../src/modules/safety/api/safety-form-templates.controller";
+import { SafetyFormsController } from "../src/modules/safety/api/safety-forms.controller";
 import { SchedulingController } from "../src/modules/scheduling/api/scheduling.controller";
 import { TasksController } from "../src/modules/tasks/api/tasks.controller";
 import { HealthController } from "../src/platform/health/health.controller";
@@ -92,6 +96,10 @@ const controllers = [
   StockController,
   EquipmentController,
   MaintenanceController,
+  SafetyFormTemplatesController,
+  SafetyFormsController,
+  IncidentsController,
+  CertificationsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

@@ -24,6 +24,7 @@ import { ProjectsModule } from "./modules/projects";
 import { RagModule } from "./modules/rag";
 import { RbacModule } from "./modules/rbac";
 import { RfisModule } from "./modules/rfis";
+import { SafetyModule } from "./modules/safety";
 import { SchedulingModule } from "./modules/scheduling";
 import { SyncModule } from "./modules/sync";
 import { TasksModule } from "./modules/tasks";
@@ -54,6 +55,7 @@ import { HealthModule } from "./platform/health/health.module";
     InventoryModule,
     ProcurementModule,
     EquipmentModule,
+    SafetyModule,
     RfisModule,
     SchedulingModule,
     TasksModule,

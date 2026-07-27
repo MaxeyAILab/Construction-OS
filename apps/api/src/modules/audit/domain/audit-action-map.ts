@@ -297,6 +297,37 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "equipment_inspection",
     entityId: payload.equipmentInspectionId as string,
   }),
+  // M12 Safety & Compliance (FR-SAFE-1..3).
+  "safety_form_template.created.v1": (payload) => ({
+    action: "safety.form_template.create",
+    entityType: "safety_form_template",
+    entityId: payload.safetyFormTemplateId as string,
+  }),
+  "safety_form.created.v1": (payload) => ({
+    action: "safety.form.create",
+    entityType: "safety_form",
+    entityId: payload.safetyFormId as string,
+  }),
+  "incident.reported.v1": (payload) => ({
+    action: "safety.incident.create",
+    entityType: "incident",
+    entityId: payload.incidentId as string,
+  }),
+  "incident.updated.v1": (payload) => ({
+    action: "safety.incident.update",
+    entityType: "incident",
+    entityId: payload.incidentId as string,
+  }),
+  "certification.created.v1": (payload) => ({
+    action: "safety.certification.create",
+    entityType: "certification",
+    entityId: payload.certificationId as string,
+  }),
+  "certification.updated.v1": (payload) => ({
+    action: "safety.certification.update",
+    entityType: "certification",
+    entityId: payload.certificationId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").
