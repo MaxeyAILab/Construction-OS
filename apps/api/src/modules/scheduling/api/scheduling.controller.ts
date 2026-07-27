@@ -22,6 +22,7 @@ import {
   lookaheadQuerySchema,
   replaceActivityDependenciesSchema,
   resourceConflictsQuerySchema,
+  simulateDelayImpactSchema,
   updateScheduleActivitySchema,
 } from "@constructionos/schemas";
 import type { FastifyReply } from "fastify";
@@ -31,6 +32,7 @@ import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
 import { ActivitiesService } from "../application/activities.service";
+import { DelayImpactService } from "../application/delay-impact.service";
 import { DependenciesService } from "../application/dependencies.service";
 import { LookaheadService } from "../application/lookahead.service";
 import { RecalculateService } from "../application/recalculate.service";
@@ -48,6 +50,7 @@ export class SchedulingController {
     private readonly resourceAssignments: ResourceAssignmentsService,
     private readonly lookahead: LookaheadService,
     private readonly resourceConflicts: ResourceConflictsService,
+    private readonly delayImpact: DelayImpactService,
   ) {}
 
   // M13 Client Portal v1 (FR-CLIENT-1): schedule.read (internal) or a
@@ -209,5 +212,19 @@ export class SchedulingController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.resourceConflicts.listConflicts(req.auth!.tenantId, query);
+  }
+
+  // api.md §6: "+AI" reuses the base schedule.read permission rather than
+  // a separate AI-specific key — same convention as
+  // daily-reports.controller.ts's ai-summary endpoint. A pure simulation:
+  // nothing is written back to schedule_activities.
+  @Post("schedules/:id/ai/impact")
+  @RequirePermission("schedule.read")
+  simulateImpact(
+    @Param("id") scheduleId: string,
+    @Body(new ZodValidationPipe(simulateDelayImpactSchema)) body: z.infer<typeof simulateDelayImpactSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.delayImpact.simulateImpact(req.auth!.tenantId, req.auth!.sub, scheduleId, body);
   }
 }

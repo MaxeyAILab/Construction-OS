@@ -102,3 +102,45 @@ export const resourceConflictsQuerySchema = z.object({
   to: isoDateTimeSchema,
 });
 export type ResourceConflictsQuery = z.infer<typeof resourceConflictsQuerySchema>;
+
+// --- Scheduling AI (ai-spec.md §7.5, FR-SCH-6) ---
+
+// api.md §6: "POST /schedules/{id}/ai/impact | + AI | Delay simulation
+// (FR-SCH-6): {delayed_activity_id, days} -> critical-path impact,
+// affected milestones, options, confidence". `days` can be negative to
+// model pulling an activity in (an acceleration what-if), not just delays.
+export const simulateDelayImpactSchema = z.object({
+  delayedActivityId: uuidSchema,
+  days: z.number().int().refine((v) => v !== 0, "days must be nonzero"),
+});
+export type SimulateDelayImpactInput = z.infer<typeof simulateDelayImpactSchema>;
+
+export const delayImpactAffectedActivitySchema = z.object({
+  id: uuidSchema,
+  name: z.string(),
+  isMilestone: z.boolean(),
+  finishShiftDays: z.number().int(),
+  becameCritical: z.boolean(),
+  noLongerCritical: z.boolean(),
+});
+export type DelayImpactAffectedActivity = z.infer<typeof delayImpactAffectedActivitySchema>;
+
+// The critical-path/milestone impact fields are computed by re-running the
+// same deterministic CPM engine that already governs
+// schedule_activities.is_critical/total_float_days — never a model guess.
+// `options`/`confidence` are the only AI-generated parts (FR-SCH-6's
+// autonomy: "draft + suggest; schedule mutations always confirmed" — this
+// endpoint writes nothing back to schedule_activities regardless).
+export const delayImpactResultSchema = z.object({
+  scheduleId: uuidSchema,
+  delayedActivityId: uuidSchema,
+  delayDays: z.number().int(),
+  projectEndDelayDays: z.number().int(),
+  criticalPathImpacted: z.boolean(),
+  affectedActivities: z.array(delayImpactAffectedActivitySchema),
+  affectedMilestones: z.array(delayImpactAffectedActivitySchema),
+  options: z.array(z.string()),
+  confidence: z.number().min(0).max(1),
+  aiRunId: uuidSchema.nullable(),
+});
+export type DelayImpactResult = z.infer<typeof delayImpactResultSchema>;

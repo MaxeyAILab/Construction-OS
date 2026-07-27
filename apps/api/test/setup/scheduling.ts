@@ -2,11 +2,13 @@ import type Redis from "ioredis";
 import { createQueueConnection } from "../../src/infrastructure/queue/connection";
 import { createRedisClient } from "../../src/infrastructure/redis/client";
 import type { Database } from "../../src/infrastructure/db/client";
+import { AiGatewayService } from "../../src/modules/ai/application/ai-gateway.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
 import { ExternalSharesService } from "../../src/modules/rbac/application/external-shares.service";
 import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
 import { ActivitiesService } from "../../src/modules/scheduling/application/activities.service";
+import { DelayImpactService } from "../../src/modules/scheduling/application/delay-impact.service";
 import { DependenciesService } from "../../src/modules/scheduling/application/dependencies.service";
 import { LookaheadService } from "../../src/modules/scheduling/application/lookahead.service";
 import { ScheduleRecalcQueue } from "../../src/modules/scheduling/application/recalculate.queue";
@@ -14,6 +16,7 @@ import { RecalculateService } from "../../src/modules/scheduling/application/rec
 import { ResourceAssignmentsService } from "../../src/modules/scheduling/application/resource-assignments.service";
 import { ResourceConflictsService } from "../../src/modules/scheduling/application/resource-conflicts.service";
 import { SchedulesService } from "../../src/modules/scheduling/application/schedules.service";
+import { FakeAiProvider } from "./ai";
 
 export function buildTestSchedulingServices(db: Database): {
   schedulesService: SchedulesService;
@@ -23,6 +26,8 @@ export function buildTestSchedulingServices(db: Database): {
   resourceAssignmentsService: ResourceAssignmentsService;
   lookaheadService: LookaheadService;
   resourceConflictsService: ResourceConflictsService;
+  delayImpactService: DelayImpactService;
+  delayImpactAiProvider: FakeAiProvider;
   queueConnection: Redis;
   cacheRedis: Redis;
 } {
@@ -42,6 +47,8 @@ export function buildTestSchedulingServices(db: Database): {
   const resourceAssignmentsService = new ResourceAssignmentsService(db, outbox);
   const lookaheadService = new LookaheadService(schedulesService);
   const resourceConflictsService = new ResourceConflictsService(db);
+  const delayImpactAiProvider = new FakeAiProvider();
+  const delayImpactService = new DelayImpactService(db, schedulesService, new AiGatewayService(db, delayImpactAiProvider));
 
   return {
     schedulesService,
@@ -51,6 +58,8 @@ export function buildTestSchedulingServices(db: Database): {
     resourceAssignmentsService,
     lookaheadService,
     resourceConflictsService,
+    delayImpactService,
+    delayImpactAiProvider,
     queueConnection,
     cacheRedis,
   };

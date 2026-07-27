@@ -21,6 +21,8 @@ describe("Scheduling", () => {
     resourceAssignmentsService,
     lookaheadService,
     resourceConflictsService,
+    delayImpactService,
+    delayImpactAiProvider,
     queueConnection,
     cacheRedis,
   } = buildTestSchedulingServices(db);
@@ -297,6 +299,116 @@ describe("Scheduling", () => {
     // in the first lookahead week too since durations are short.
     const allNames = lookahead.weeks.flatMap((w) => w.activities.map((a) => a.name));
     expect(allNames).toContain("Week 1 work");
+  });
+
+  // FR-SCH-6. A(2) and B(1) both feed C(1) via FS with no lag: baseline CPM
+  // has A critical (float 0) and B with 1 day of float, project end at day 3.
+  it("FR-SCH-6: delaying a non-critical activity past its float shifts the project end and flips criticality", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("delay-impact");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+
+    const a = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "A", durationDays: 2 });
+    const b = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "B", durationDays: 1 });
+    const c = await activitiesService.create(tenantId, ownerId, schedule.id, {
+      name: "C",
+      durationDays: 1,
+      isMilestone: true,
+    });
+    await dependenciesService.replace(tenantId, ownerId, c.id, {
+      dependencies: [
+        { predecessorId: a.id, type: "FS", lagDays: 0 },
+        { predecessorId: b.id, type: "FS", lagDays: 0 },
+      ],
+    });
+
+    delayImpactAiProvider.setResponse({
+      content: null,
+      toolCalls: [
+        { id: "call-1", name: "emit_delay_mitigation_options", input: { options: ["Add a second crew to B", "Pull C's scope forward"] } },
+      ],
+      inputTokens: 120,
+      outputTokens: 40,
+    });
+
+    // B's float is exactly 1 day; delaying it 2 days exceeds that float.
+    const result = await delayImpactService.simulateImpact(tenantId, ownerId, schedule.id, {
+      delayedActivityId: b.id,
+      days: 2,
+    });
+
+    expect(result.projectEndDelayDays).toBe(1);
+    expect(result.criticalPathImpacted).toBe(true);
+
+    const aImpact = result.affectedActivities.find((x) => x.id === a.id)!;
+    expect(aImpact.noLongerCritical).toBe(true);
+    const bImpact = result.affectedActivities.find((x) => x.id === b.id)!;
+    expect(bImpact.becameCritical).toBe(true);
+    expect(bImpact.finishShiftDays).toBe(2);
+
+    expect(result.affectedMilestones).toHaveLength(1);
+    expect(result.affectedMilestones[0]!.id).toBe(c.id);
+
+    expect(result.options).toEqual(["Add a second crew to B", "Pull C's scope forward"]);
+    expect(result.confidence).toBe(0.9);
+    expect(result.aiRunId).toBeTruthy();
+  });
+
+  it("FR-SCH-6: a delay fully absorbed by float still flags the activity as newly critical but doesn't move the project end", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("delay-float");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+
+    const a = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "A", durationDays: 2 });
+    const b = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "B", durationDays: 1 });
+    const c = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "C", durationDays: 1 });
+    await dependenciesService.replace(tenantId, ownerId, c.id, {
+      dependencies: [
+        { predecessorId: a.id, type: "FS", lagDays: 0 },
+        { predecessorId: b.id, type: "FS", lagDays: 0 },
+      ],
+    });
+
+    // B's float is exactly 1 day; delaying it by exactly that consumes the
+    // float without pushing the project end out.
+    const result = await delayImpactService.simulateImpact(tenantId, ownerId, schedule.id, {
+      delayedActivityId: b.id,
+      days: 1,
+    });
+
+    expect(result.projectEndDelayDays).toBe(0);
+    expect(result.criticalPathImpacted).toBe(false);
+    const bImpact = result.affectedActivities.find((x) => x.id === b.id)!;
+    expect(bImpact.becameCritical).toBe(true);
+  });
+
+  it("FR-SCH-6: falls back to deterministic mitigation options with lower confidence when the AI call fails", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("delay-fallback");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    const a = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Solo", durationDays: 3 });
+
+    delayImpactAiProvider.setShouldThrow(true);
+    const result = await delayImpactService.simulateImpact(tenantId, ownerId, schedule.id, {
+      delayedActivityId: a.id,
+      days: 3,
+    });
+    delayImpactAiProvider.setShouldThrow(false);
+
+    expect(result.options.length).toBeGreaterThan(0);
+    expect(result.aiRunId).toBeNull();
+    expect(result.confidence).toBe(0.4);
+    expect(result.projectEndDelayDays).toBe(3);
+  });
+
+  it("FR-SCH-6: 404s for an activity that doesn't belong to the schedule", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("delay-404");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Only", durationDays: 1 });
+
+    await expect(
+      delayImpactService.simulateImpact(tenantId, ownerId, schedule.id, {
+        delayedActivityId: "00000000-0000-0000-0000-000000000000",
+        days: 1,
+      }),
+    ).rejects.toThrow(/not found/);
   });
 
   it("RLS: a tenant only sees its own schedules, activities, and dependencies", async () => {
