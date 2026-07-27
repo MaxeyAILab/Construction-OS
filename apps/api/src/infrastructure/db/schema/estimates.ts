@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -14,6 +15,7 @@ import {
 import { tenantColumns } from "./columns";
 import { opportunities } from "./crm";
 import { projects } from "./projects";
+import { subcontractors } from "./subcontractors";
 
 // database.md §10 (M2): tenant cost book. cost_items declared first since
 // assemblies/estimate_lines reference it.
@@ -170,4 +172,73 @@ export const estimateLines = pgTable(
     ),
     index("ix_estlines_estimate").on(table.estimateId, table.sortOrder),
   ],
+);
+
+// database.md §10: "Bid process to subs (FR-EST-6): package (scope +
+// docs), invitation (sub + due date + status), bid (amount, inclusions/
+// exclusions jsonb, leveled_score)." Deferred when Estimating was first
+// built since subcontractors didn't exist yet to give bid_invitations a
+// real FK target — same "the train was deferred until the track existed"
+// precedent as procurement's inventory_item_id/deliveries.location_id,
+// closed now that Subcontractor mgmt (M14) exists. Owned by Estimating
+// (api.md §5: `estimating.bid.*`), not Subcontractor mgmt, per api.md's
+// own placement of `/bid-packages` under the Estimating API.
+export const bidPackages = pgTable(
+  "bid_packages",
+  {
+    ...tenantColumns(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id),
+    name: text("name").notNull(),
+    scope: text("scope"),
+    status: text("status").notNull().default("draft"),
+    dueDate: date("due_date"),
+  },
+  (table) => [
+    check("ck_bid_packages_status", sql`${table.status} in ('draft', 'open', 'closed')`),
+    index("ix_bid_packages_project").on(table.projectId),
+  ],
+);
+
+export const bidInvitations = pgTable(
+  "bid_invitations",
+  {
+    ...tenantColumns(),
+    bidPackageId: uuid("bid_package_id")
+      .notNull()
+      .references(() => bidPackages.id),
+    subcontractorId: uuid("subcontractor_id")
+      .notNull()
+      .references(() => subcontractors.id),
+    dueDate: date("due_date"),
+    status: text("status").notNull().default("invited"),
+  },
+  (table) => [
+    check("ck_bid_invitations_status", sql`${table.status} in ('invited', 'declined', 'submitted')`),
+    uniqueIndex("ux_bid_invitations_package_subcontractor").on(table.bidPackageId, table.subcontractorId),
+  ],
+);
+
+export const bids = pgTable(
+  "bids",
+  {
+    ...tenantColumns(),
+    bidInvitationId: uuid("bid_invitation_id")
+      .notNull()
+      .references(() => bidInvitations.id),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    // database.md's literal "inclusions/exclusions jsonb" groups both
+    // under one column — a documented assumption on internal shape
+    // ({ inclusions: string[], exclusions: string[] }), same treatment as
+    // daily_reports.weather's shape.
+    inclusionsExclusions: jsonb("inclusions_exclusions"),
+    // FR-EST-6's "POST /bid-packages/{id}/level -> AI bid-leveling table"
+    // — stays null until Estimator AI (ai §7.3, its own later roadmap
+    // row) computes it, same "AI gets its own row" convention as
+    // suppliers.rating/subcontractors.performance.
+    leveledScore: numeric("leveled_score", { precision: 5, scale: 2 }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("ux_bids_invitation").on(table.bidInvitationId)],
 );

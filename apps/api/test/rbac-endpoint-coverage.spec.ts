@@ -24,6 +24,7 @@ import { InventoryItemsController } from "../src/modules/inventory/api/inventory
 import { InventoryLocationsController } from "../src/modules/inventory/api/inventory-locations.controller";
 import { StockController } from "../src/modules/inventory/api/stock.controller";
 import { SyncController } from "../src/modules/sync/api/sync.controller";
+import { BidPackagesController } from "../src/modules/estimating/api/bid-packages.controller";
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { PhotosController } from "../src/modules/photos/api/photos.controller";
@@ -41,6 +42,8 @@ import { IncidentsController } from "../src/modules/safety/api/incidents.control
 import { SafetyFormTemplatesController } from "../src/modules/safety/api/safety-form-templates.controller";
 import { SafetyFormsController } from "../src/modules/safety/api/safety-forms.controller";
 import { SchedulingController } from "../src/modules/scheduling/api/scheduling.controller";
+import { SubcontractorsController } from "../src/modules/subcontractors/api/subcontractors.controller";
+import { SubcontractsController } from "../src/modules/subcontractors/api/subcontracts.controller";
 import { TasksController } from "../src/modules/tasks/api/tasks.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
@@ -100,6 +103,9 @@ const controllers = [
   SafetyFormsController,
   IncidentsController,
   CertificationsController,
+  SubcontractorsController,
+  SubcontractsController,
+  BidPackagesController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

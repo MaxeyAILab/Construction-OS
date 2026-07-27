@@ -40,6 +40,7 @@ export class CertificationsService {
     return withTenant(this.db, tenantId, async (tx) => {
       const conditions: SQL[] = [];
       if (query.holderUserId) conditions.push(eq(certifications.holderUserId, query.holderUserId));
+      if (query.holderSubcontractorId) conditions.push(eq(certifications.holderSubcontractorId, query.holderSubcontractorId));
       if (query.expiringOnly) {
         const threshold = new Date();
         threshold.setDate(threshold.getDate() + EXPIRING_SOON_WINDOW_DAYS);
@@ -77,6 +78,7 @@ export class CertificationsService {
         .values({
           tenantId,
           holderUserId: input.holderUserId,
+          holderSubcontractorId: input.holderSubcontractorId,
           holderName: input.holderName,
           certType: input.certType,
           issuedAt: input.issuedAt,
@@ -116,6 +118,21 @@ export class CertificationsService {
       });
 
       return updated!;
+    });
+  }
+
+  // FR-SUB-2: "eligibility gating" — reused by SubcontractorsService.
+  // requireEligible() (safety/index.ts's public surface — cross-module
+  // reuse, same "broaden an existing module's public surface" precedent
+  // as postFromTimeEntry/postFromInventoryIssue). No compliance docs on
+  // file is treated as eligible (nothing to block on); only an expired
+  // one blocks.
+  async hasExpiredCompliance(tenantId: string, subcontractorId: string): Promise<boolean> {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const rows = await tx.query.certifications.findMany({
+        where: eq(certifications.holderSubcontractorId, subcontractorId),
+      });
+      return rows.some((row) => this.dueState(row.expiresAt) === "expired");
     });
   }
 

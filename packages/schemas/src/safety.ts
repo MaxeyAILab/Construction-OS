@@ -81,9 +81,13 @@ export const listIncidentsQuerySchema = paginationQuerySchema.extend({
 });
 export type ListIncidentsQuery = z.infer<typeof listIncidentsQuerySchema>;
 
-// --- Certifications (database.md §15; FR-SAFE-2) ---
+// --- Certifications (database.md §15; FR-SAFE-2/FR-SUB-2) ---
+// holderSubcontractorId closes the dormant FR-SUB-2 gap now that
+// Subcontractor mgmt (M14) exists — used by SubcontractorsService.
+// requireEligible() for eligibility gating.
 export const createCertificationSchema = z.object({
   holderUserId: uuidSchema.optional(),
+  holderSubcontractorId: uuidSchema.optional(),
   holderName: z.string().min(1),
   certType: z.string().min(1),
   issuedAt: isoDateSchema.optional(),
@@ -101,6 +105,7 @@ export type UpdateCertificationInput = z.infer<typeof updateCertificationSchema>
 
 export const listCertificationsQuerySchema = paginationQuerySchema.extend({
   holderUserId: uuidSchema.optional(),
+  holderSubcontractorId: uuidSchema.optional(),
   // FR-SAFE-2: "expiry alerts" — server computes each row's due-state
   // (valid/expiring_soon/expired) on read, same projection pattern as
   // Equipment's maintenance due-state; this flag filters to the ones

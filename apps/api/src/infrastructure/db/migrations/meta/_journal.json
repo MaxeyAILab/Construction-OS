@@ -603,6 +603,27 @@
       "when": 1785121467626,
       "tag": "0085_safety_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1785122844972,
+      "tag": "0086_subcontractor_and_bidding_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1785122860592,
+      "tag": "0087_subcontractor_and_bidding_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1785123028678,
+      "tag": "0088_subcontractor_and_bidding_permissions",
+      "breakpoints": true
     }
   ]
 }

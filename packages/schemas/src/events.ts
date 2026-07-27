@@ -532,6 +532,62 @@ export const certificationUpdatedV1Schema = z.object({
 });
 export type CertificationUpdatedV1 = z.infer<typeof certificationUpdatedV1Schema>;
 
+// M14 Subcontractor Management (FR-SUB-1..3).
+export const subcontractorCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  subcontractorId: uuidSchema,
+});
+export type SubcontractorCreatedV1 = z.infer<typeof subcontractorCreatedV1Schema>;
+
+export const subcontractorUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  subcontractorId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type SubcontractorUpdatedV1 = z.infer<typeof subcontractorUpdatedV1Schema>;
+
+export const subcontractCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  subcontractId: uuidSchema,
+  subcontractorId: uuidSchema,
+});
+export type SubcontractCreatedV1 = z.infer<typeof subcontractCreatedV1Schema>;
+
+// FR-SUB-3: "approval creates commitments (mirror of PO flow)" — same
+// shape as purchase_order.approved.v1.
+export const subcontractApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  subcontractId: uuidSchema,
+});
+export type SubcontractApprovedV1 = z.infer<typeof subcontractApprovedV1Schema>;
+
+// FR-EST-6 sub bidding (owned by Estimating, api.md §5 `estimating.bid.*`
+// — see estimates.ts schema file's doc comment on bidPackages).
+export const bidPackageCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  bidPackageId: uuidSchema,
+});
+export type BidPackageCreatedV1 = z.infer<typeof bidPackageCreatedV1Schema>;
+
+export const bidInvitationCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  bidPackageId: uuidSchema,
+  bidInvitationId: uuidSchema,
+  subcontractorId: uuidSchema,
+});
+export type BidInvitationCreatedV1 = z.infer<typeof bidInvitationCreatedV1Schema>;
+
+export const bidSubmittedV1Schema = z.object({
+  companyId: uuidSchema,
+  bidInvitationId: uuidSchema,
+  bidId: uuidSchema,
+  amount: moneyAmountSchema,
+});
+export type BidSubmittedV1 = z.infer<typeof bidSubmittedV1Schema>;
+
 // M2 Estimating (FR-EST-1..5). estimate.created.v1 covers both a brand-new
 // estimate and a new version (FR-EST-4 versions are new rows) — same
 // "one create event regardless of how the row came to exist" reasoning as
@@ -1010,6 +1066,13 @@ export const eventRegistry = {
   "incident.updated.v1": incidentUpdatedV1Schema,
   "certification.created.v1": certificationCreatedV1Schema,
   "certification.updated.v1": certificationUpdatedV1Schema,
+  "subcontractor.created.v1": subcontractorCreatedV1Schema,
+  "subcontractor.updated.v1": subcontractorUpdatedV1Schema,
+  "subcontract.created.v1": subcontractCreatedV1Schema,
+  "subcontract.approved.v1": subcontractApprovedV1Schema,
+  "bid_package.created.v1": bidPackageCreatedV1Schema,
+  "bid_invitation.created.v1": bidInvitationCreatedV1Schema,
+  "bid.submitted.v1": bidSubmittedV1Schema,
   "estimate.created.v1": estimateCreatedV1Schema,
   "estimate.updated.v1": estimateUpdatedV1Schema,
   "estimate_line.created.v1": estimateLineCreatedV1Schema,

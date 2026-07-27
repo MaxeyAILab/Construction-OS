@@ -328,6 +328,43 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "certification",
     entityId: payload.certificationId as string,
   }),
+  // M14 Subcontractor Management (FR-SUB-1..3).
+  "subcontractor.created.v1": (payload) => ({
+    action: "subcontractor.subcontractor.create",
+    entityType: "subcontractor",
+    entityId: payload.subcontractorId as string,
+  }),
+  "subcontractor.updated.v1": (payload) => ({
+    action: "subcontractor.subcontractor.update",
+    entityType: "subcontractor",
+    entityId: payload.subcontractorId as string,
+  }),
+  "subcontract.created.v1": (payload) => ({
+    action: "subcontractor.subcontract.create",
+    entityType: "subcontract",
+    entityId: payload.subcontractId as string,
+  }),
+  "subcontract.approved.v1": (payload) => ({
+    action: "subcontractor.subcontract.approve",
+    entityType: "subcontract",
+    entityId: payload.subcontractId as string,
+  }),
+  // FR-EST-6 sub bidding (owned by Estimating).
+  "bid_package.created.v1": (payload) => ({
+    action: "estimating.bid.create",
+    entityType: "bid_package",
+    entityId: payload.bidPackageId as string,
+  }),
+  "bid_invitation.created.v1": (payload) => ({
+    action: "estimating.bid.create",
+    entityType: "bid_invitation",
+    entityId: payload.bidInvitationId as string,
+  }),
+  "bid.submitted.v1": (payload) => ({
+    action: "estimating.bid.create",
+    entityType: "bid",
+    entityId: payload.bidId as string,
+  }),
   // entityType "estimate" (not "project") — unlike Budget's sub-resource
   // events, an estimate's own id is the natural audit query anchor ("show
   // me everything that happened to this estimate version").

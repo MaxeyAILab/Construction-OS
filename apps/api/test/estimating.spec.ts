@@ -6,13 +6,17 @@ import { buildTestAuthService } from "./setup/auth";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 import { buildTestEstimatingServices } from "./setup/estimating";
 import { buildTestProjectServices } from "./setup/projects";
+import { buildTestSubcontractorServices } from "./setup/subcontractors";
 
 describe("Estimating v1", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService } = buildTestProjectServices(db);
-  const { estimateService, estimateLinesService, costBookService, convertToBudgetService } =
-    buildTestEstimatingServices(db);
+  const { subcontractorsService } = buildTestSubcontractorServices(db);
+  const { estimateService, estimateLinesService, costBookService, convertToBudgetService } = buildTestEstimatingServices(
+    db,
+    subcontractorsService,
+  );
 
   beforeAll(async () => {
     await bootstrapTestRole();

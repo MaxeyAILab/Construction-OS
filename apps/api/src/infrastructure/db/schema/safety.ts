@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { boolean, check, date, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
 import { projects } from "./projects";
+import { subcontractors } from "./subcontractors";
 import { tasks } from "./tasks";
 import { users } from "./users";
 
@@ -91,9 +92,11 @@ export const incidents = pgTable(
 // FR-SUB-2)." `holderUserId` stays nullable — a sub's worker frequently
 // has no ConstructionOS login, so `holderName` is the required, always-
 // present display field; `holderUserId` links it to a real account when
-// one exists. The FR-SUB-2 "sub eligibility gating" half is dormant until
-// Subcontractor mgmt (M14) exists — same "build the rails before the
-// first train" precedent as procurement's inventory_item_id column.
+// one exists. `holderSubcontractorId` is a real FK now that Subcontractor
+// mgmt (M14) exists — closes the dormant FR-SUB-2 gap this table's
+// original comment flagged, same "later row closes an earlier dormant
+// gap" precedent as CRM closing projects.clientContactCompanyId — used by
+// SubcontractorsService.requireEligible() for eligibility gating.
 // Expiry due-state (valid/expiring_soon/expired) is computed on read from
 // expires_at, same "no reconciliation job" pattern as Equipment's
 // maintenance due-state projection — not a stored column.
@@ -102,10 +105,14 @@ export const certifications = pgTable(
   {
     ...tenantColumns(),
     holderUserId: uuid("holder_user_id").references(() => users.id),
+    holderSubcontractorId: uuid("holder_subcontractor_id").references(() => subcontractors.id),
     holderName: text("holder_name").notNull(),
     certType: text("cert_type").notNull(),
     issuedAt: date("issued_at"),
     expiresAt: date("expires_at"),
   },
-  (table) => [index("ix_certifications_expires").on(table.expiresAt)],
+  (table) => [
+    index("ix_certifications_expires").on(table.expiresAt),
+    index("ix_certifications_holder_subcontractor").on(table.holderSubcontractorId),
+  ],
 );

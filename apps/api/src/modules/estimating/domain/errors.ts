@@ -81,3 +81,36 @@ export class ActiveBudgetAlreadyExistsError extends DomainError {
     super("this project already has an active budget");
   }
 }
+
+// FR-EST-6 sub bidding (api.md §5 `estimating.bid.*`).
+export class BidPackageNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("bid package not found");
+  }
+}
+
+export class BidInvitationNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("bid invitation not found");
+  }
+}
+
+export class DuplicateBidInvitationError extends DomainError {
+  readonly code = "conflict";
+  readonly status = 409;
+  constructor() {
+    super("this subcontractor has already been invited to this bid package");
+  }
+}
+
+export class BidAlreadySubmittedError extends DomainError {
+  readonly code = "duplicate_bid";
+  readonly status = 409;
+  constructor() {
+    super("a bid has already been submitted for this invitation");
+  }
+}

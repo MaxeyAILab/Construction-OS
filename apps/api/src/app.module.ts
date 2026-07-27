@@ -26,6 +26,7 @@ import { RbacModule } from "./modules/rbac";
 import { RfisModule } from "./modules/rfis";
 import { SafetyModule } from "./modules/safety";
 import { SchedulingModule } from "./modules/scheduling";
+import { SubcontractorsModule } from "./modules/subcontractors";
 import { SyncModule } from "./modules/sync";
 import { TasksModule } from "./modules/tasks";
 import { HealthModule } from "./platform/health/health.module";
@@ -56,6 +57,7 @@ import { HealthModule } from "./platform/health/health.module";
     ProcurementModule,
     EquipmentModule,
     SafetyModule,
+    SubcontractorsModule,
     RfisModule,
     SchedulingModule,
     TasksModule,
