@@ -8,6 +8,10 @@ import { RequirePermission } from "../../rbac";
 import { ProjectAssistantService } from "../application/project-assistant.service";
 
 // api.md §13: POST /ai/conversations, POST /ai/conversations/{id}/messages.
+// Serves both Project Assistant (ai-spec §7.2, entityRef.type='project')
+// and Executive Assistant (ai-spec §7.1, entityRef.type='company') on the
+// same generic contract — ProjectAssistantService branches internally on
+// the conversation's entity type.
 @Controller("ai/conversations")
 export class ProjectAssistantController {
   constructor(private readonly assistant: ProjectAssistantService) {}

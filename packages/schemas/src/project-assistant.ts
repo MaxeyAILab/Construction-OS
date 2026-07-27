@@ -2,14 +2,16 @@ import { z } from "zod";
 import { uuidSchema } from "./common";
 
 // api.md §13: POST /ai/conversations — "surface context {module, entity_ref}".
-// This roadmap row (Project Assistant, ai-spec.md §7.2) only ever opens
-// project-scoped threads — Executive Assistant's company-wide threads
-// (ai-spec §7.1) are a later, unbuilt roadmap row, so entityRef.type is
-// constrained to "project" here rather than left fully open-ended.
-export const entityRefSchema = z.object({
-  type: z.literal("project"),
-  id: uuidSchema,
-});
+// Project Assistant (ai-spec.md §7.2) opens project-scoped threads;
+// Executive Assistant (ai-spec.md §7.1, Phase 3) opens company-wide
+// threads on the same endpoint/service — "company" carries no id since
+// the tenant itself is the implicit scope (ai_conversations.entity_id
+// stays null for these rows, same as its existing nullable-column
+// comment anticipated).
+export const entityRefSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("project"), id: uuidSchema }),
+  z.object({ type: z.literal("company") }),
+]);
 export type EntityRef = z.infer<typeof entityRefSchema>;
 
 export const openConversationSchema = z.object({

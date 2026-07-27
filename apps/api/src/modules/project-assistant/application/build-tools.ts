@@ -3,9 +3,11 @@ import type { DashboardsService } from "../../dashboards";
 import type { RagSearchService } from "../../rag";
 import type { RfisService } from "../../rfis";
 import type { TasksService } from "../../tasks";
+import { buildGetCompanySummaryTool } from "../domain/tools/get-company-summary.tool";
 import { buildGetProjectSummaryTool } from "../domain/tools/get-project-summary.tool";
 import { buildListOpenRfisTool } from "../domain/tools/list-open-rfis.tool";
 import { buildListOverdueTasksTool } from "../domain/tools/list-overdue-tasks.tool";
+import { buildSearchCompanyRecordsTool } from "../domain/tools/search-company-records.tool";
 import { buildSearchProjectRecordsTool } from "../domain/tools/search-project-records.tool";
 import { buildSuggestTasksTool } from "../domain/tools/suggest-tasks.tool";
 
@@ -29,4 +31,13 @@ export function buildProjectAssistantTools(
     buildListOpenRfisTool(deps.rfis, projectId),
     buildSuggestTasksTool(),
   ];
+}
+
+// ai-spec.md §7.1's NL Q&A tool set for one company-wide conversation —
+// scoped only to what's concretely documented (search + portfolio
+// summary); anomaly surfacing/what-if sketches/board-pack drafting have
+// no api.md endpoint of their own and aren't built here (flagged, not
+// invented — see ProjectAssistantService's doc comment).
+export function buildExecutiveAssistantTools(deps: { ragSearch: RagSearchService; dashboards: DashboardsService }): AiTool[] {
+  return [buildSearchCompanyRecordsTool(deps.ragSearch), buildGetCompanySummaryTool(deps.dashboards)];
 }

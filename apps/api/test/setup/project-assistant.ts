@@ -50,6 +50,12 @@ export class ScriptedToolCallingProvider implements AiProvider {
     if (available.has("get_project_summary") && /summary|status|health|margin/i.test(text)) {
       toolCalls.push({ id: "call-summary", name: "get_project_summary", input: {} });
     }
+    if (available.has("search_company_records") && /search|find|about|leak/i.test(text)) {
+      toolCalls.push({ id: "call-company-search", name: "search_company_records", input: { query: text } });
+    }
+    if (available.has("get_company_summary") && /summary|status|health|margin|portfolio/i.test(text)) {
+      toolCalls.push({ id: "call-company-summary", name: "get_company_summary", input: {} });
+    }
     if (available.has("list_overdue_tasks") && /overdue/i.test(text)) {
       toolCalls.push({ id: "call-overdue", name: "list_overdue_tasks", input: {} });
     }

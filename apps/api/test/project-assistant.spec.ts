@@ -222,4 +222,96 @@ describe("Project Assistant v1: conversations, tool-calling, permission-scoped t
     );
     expect(messagesSeenByA.length).toBeGreaterThan(0);
   });
+
+  // Executive Assistant (ai-spec.md §7.1, Phase 3): company-wide threads
+  // on the same POST /ai/conversations contract, entityRef.type='company'.
+  describe("Executive Assistant (company-wide)", () => {
+    it("opens a company-scoped conversation with no entityId", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("exec-open");
+      const conversation = await projectAssistantService.openConversation(tenantId, ownerId, {
+        module: "company",
+        entityRef: { type: "company" },
+      });
+
+      expect(conversation.tenantId).toBe(tenantId);
+      expect(conversation.entityType).toBe("company");
+      expect(conversation.entityId).toBeNull();
+    });
+
+    it("search: a grounded question calls search_company_records across projects and cites real sources", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("exec-search");
+      const task = await tasksService.create(tenantId, ownerId, { projectId: project.id, title: "Inspect roof leak near stairwell" });
+      await ragIndexingService.indexEntity(tenantId, "task", task.id);
+
+      const conversation = await projectAssistantService.openConversation(tenantId, ownerId, {
+        module: "company",
+        entityRef: { type: "company" },
+      });
+
+      const toolCallNames: string[] = [];
+      const reply = await projectAssistantService.postMessage(
+        tenantId,
+        ownerId,
+        conversation.id,
+        "Can you search for anything about the roof leak?",
+        (name) => toolCallNames.push(name),
+      );
+
+      expect(toolCallNames).toContain("search_company_records");
+      expect(reply.sources?.some((s) => s.entityId === task.id)).toBe(true);
+    });
+
+    it("status: a portfolio question calls get_company_summary", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("exec-status");
+      const conversation = await projectAssistantService.openConversation(tenantId, ownerId, {
+        module: "company",
+        entityRef: { type: "company" },
+      });
+
+      const toolCallNames: string[] = [];
+      const reply = await projectAssistantService.postMessage(
+        tenantId,
+        ownerId,
+        conversation.id,
+        "Give me a portfolio-wide status summary.",
+        (name) => toolCallNames.push(name),
+      );
+
+      expect(toolCallNames).toContain("get_company_summary");
+      expect(reply.content.length).toBeGreaterThan(0);
+    });
+
+    it("permission-scoped tools: a caller with no granted permissions is never offered a company tool", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("exec-no-perms");
+      const bystander = await rbacService.inviteUser(tenantId, `exec-bystander-${Date.now()}@example.com`, "Bystander", ownerId);
+
+      const conversation = await projectAssistantService.openConversation(tenantId, bystander.userId, {
+        module: "company",
+        entityRef: { type: "company" },
+      });
+
+      const toolCallNames: string[] = [];
+      await projectAssistantService.postMessage(
+        tenantId,
+        bystander.userId,
+        conversation.id,
+        "Give me a portfolio status summary and search for roof leak.",
+        (name) => toolCallNames.push(name),
+      );
+
+      expect(toolCallNames).toHaveLength(0);
+    });
+
+    it("RLS: a tenant only sees its own company-scoped conversations", async () => {
+      const a = await signUpCompanyWithProject("exec-rls-a");
+      const b = await signUpCompanyWithProject("exec-rls-b");
+      await projectAssistantService.openConversation(a.tenantId, a.ownerId, {
+        module: "company",
+        entityRef: { type: "company" },
+      });
+
+      const conversationsSeenByB = await withTenant(db, b.tenantId, (tx) => tx.query.aiConversations.findMany());
+      expect(conversationsSeenByB).toHaveLength(0);
+    });
+  });
 });
