@@ -113,6 +113,44 @@ export type CreateAssemblyInput = z.infer<typeof createAssemblySchema>;
 // dependency for one type alias).
 export type EstimateMoney = z.infer<typeof moneyAmountSchema>;
 
+// --- Estimator AI (ai-spec.md §7.3, FR-EST-7): "line-item suggestions,
+// historical-cost lookup, and pricing-anomaly flags with confidence."
+// api.md §5's request body is `{scope_text | takeoff_ref}` — takeoff_ref
+// implies a Takeoff entity (spec.md M2's Key Objects list; FR-EST-2's
+// "quantity takeoff (manual MVP; plan-based/AI-assisted roadmap)") that has
+// no backing schema anywhere in database.md, and roadmap.md lists
+// "Estimator takeoff from drawings (vision)" as its own separate, later P1
+// row distinct from this P0 "Estimator AI" row — so only scope_text is
+// accepted here; takeoff_ref is deferred to that row, not silently dropped.
+export const suggestEstimateLinesSchema = z.object({
+  scopeText: z.string().min(1).max(10000),
+});
+export type SuggestEstimateLinesInput = z.infer<typeof suggestEstimateLinesSchema>;
+
+// FR-EST-7 autonomy: "draft only — nothing auto-applies." This is purely a
+// response shape — suggestLines() never inserts an estimate_lines row
+// itself; a user who accepts a suggestion creates it via the existing
+// POST .../lines (or .../lines:batch) endpoint like any other line, at
+// which point they may set source:'ai' with this response's aiRunId for
+// FR-EST-7 traceability (estimate_lines.ai_run_id, database.md §10).
+export const suggestedEstimateLineSchema = z.object({
+  costCodeRef: z.string().nullable(),
+  description: z.string(),
+  qty: quantitySchema,
+  uom: z.string(),
+  unitCostAmount: unitRateAmountSchema.nullable(),
+  confidence: z.number().min(0).max(1),
+  sources: z.array(z.string()),
+  pricingAnomaly: z.boolean(),
+});
+export type SuggestedEstimateLine = z.infer<typeof suggestedEstimateLineSchema>;
+
+export const suggestEstimateLinesResponseSchema = z.object({
+  lines: z.array(suggestedEstimateLineSchema),
+  aiRunId: uuidSchema,
+});
+export type SuggestEstimateLinesResponse = z.infer<typeof suggestEstimateLinesResponseSchema>;
+
 // --- Sub bidding: bid_packages/bid_invitations/bids (database.md §10;
 // api.md §5 `estimating.bid.*`; FR-EST-6). Deferred when Estimating was
 // first built since subcontractors didn't exist yet — see estimates.ts

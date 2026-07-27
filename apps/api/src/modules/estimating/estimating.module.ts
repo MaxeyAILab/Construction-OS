@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
+import { AiModule } from "../ai";
 import { EventsModule } from "../events";
 import { SubcontractorsModule } from "../subcontractors";
 import { BidPackagesController } from "./api/bid-packages.controller";
@@ -12,11 +13,12 @@ import { CostBookService } from "./application/cost-book.service";
 import { ConvertToBudgetService } from "./application/convert-to-budget.service";
 import { EstimateLinesService } from "./application/estimate-lines.service";
 import { EstimateService } from "./application/estimate.service";
+import { EstimatorAiService } from "./application/estimator-ai.service";
 
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule, SubcontractorsModule],
+  imports: [EventsModule, SubcontractorsModule, AiModule],
   controllers: [EstimatingController, BidPackagesController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
@@ -27,6 +29,7 @@ const env = loadEnv();
     BidPackagesService,
     BidInvitationsService,
     BidsService,
+    EstimatorAiService,
   ],
 })
 export class EstimatingModule {}

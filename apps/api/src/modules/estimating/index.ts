@@ -6,3 +6,4 @@ export { ConvertToBudgetService } from "./application/convert-to-budget.service"
 export { BidPackagesService } from "./application/bid-packages.service";
 export { BidInvitationsService } from "./application/bid-invitations.service";
 export { BidsService } from "./application/bids.service";
+export { EstimatorAiService } from "./application/estimator-ai.service";

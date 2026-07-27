@@ -13,10 +13,14 @@ describe("Estimating v1", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService } = buildTestProjectServices(db);
   const { subcontractorsService } = buildTestSubcontractorServices(db);
-  const { estimateService, estimateLinesService, costBookService, convertToBudgetService } = buildTestEstimatingServices(
-    db,
-    subcontractorsService,
-  );
+  const {
+    estimateService,
+    estimateLinesService,
+    costBookService,
+    convertToBudgetService,
+    estimatorAiService,
+    estimatorAiProvider,
+  } = buildTestEstimatingServices(db, subcontractorsService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -283,6 +287,83 @@ describe("Estimating v1", () => {
         currentUnitCostAmount: "2.0000",
       }),
     ).rejects.toThrow(/already exists/);
+  });
+
+  it("FR-EST-7: suggests lines with historical-cost lookup, and never persists them as estimate_lines", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("suggest");
+    const estimate = await estimateService.create(tenantId, ownerId, { projectId: project.id, currency: "USD" });
+    await costBookService.createCostItem(tenantId, ownerId, {
+      code: "DRYWALL",
+      description: "Drywall sheet",
+      uom: "SF",
+      currentUnitCostAmount: "0.8000",
+    });
+
+    estimatorAiProvider.setDraftLines([
+      { costCodeRef: "DRYWALL", description: "Drywall, 2,400 SF per scope text", qty: 2400, uom: "SF" },
+      { description: "Unclassified scope item", qty: 1, uom: "LS" },
+    ]);
+
+    const { lines, aiRunId } = await estimatorAiService.suggestLines(tenantId, ownerId, estimate.id, {
+      scopeText: "Install 2,400 SF of 5/8in drywall throughout.",
+    });
+
+    expect(aiRunId).toBeTruthy();
+    expect(lines).toHaveLength(2);
+
+    const matched = lines.find((l) => l.costCodeRef === "DRYWALL")!;
+    expect(matched.unitCostAmount).toBe("0.8000");
+    expect(matched.qty).toBe("2400.000");
+    expect(matched.sources).toEqual(["cost_item:DRYWALL"]);
+    expect(matched.confidence).toBeGreaterThan(0.5);
+    expect(matched.pricingAnomaly).toBe(false);
+
+    const unmatched = lines.find((l) => l.costCodeRef === null)!;
+    expect(unmatched.unitCostAmount).toBeNull();
+    expect(unmatched.sources).toEqual([]);
+    expect(unmatched.confidence).toBeLessThan(matched.confidence);
+
+    // FR-EST-7 autonomy: "draft only... never auto-applied" — no line was
+    // actually written to the estimate.
+    const withLines = await estimateService.getById(tenantId, estimate.id);
+    expect(withLines.lines).toHaveLength(0);
+  });
+
+  it("FR-EST-7: flags a pricing anomaly when the current cost is a statistical outlier vs its own history", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("anomaly");
+    const estimate = await estimateService.create(tenantId, ownerId, { projectId: project.id, currency: "USD" });
+    const item = await costBookService.createCostItem(tenantId, ownerId, {
+      code: "CONC-3000",
+      description: "3000psi concrete",
+      uom: "CY",
+      currentUnitCostAmount: "150.0000",
+    });
+    // Tight, consistent history around 150 ...
+    for (const price of ["149.0000", "150.0000", "151.0000", "150.0000"]) {
+      await costBookService.recordPriceObservation(tenantId, ownerId, item.id, { unitCostAmount: price });
+    }
+    // ... then a spike sets current far outside that band.
+    await costBookService.recordPriceObservation(tenantId, ownerId, item.id, { unitCostAmount: "400.0000" });
+
+    estimatorAiProvider.setDraftLines([{ costCodeRef: "CONC-3000", description: "Footings concrete", qty: 20, uom: "CY" }]);
+
+    const { lines } = await estimatorAiService.suggestLines(tenantId, ownerId, estimate.id, {
+      scopeText: "Pour 20 CY of concrete footings.",
+    });
+
+    expect(lines[0]!.unitCostAmount).toBe("400.0000");
+    expect(lines[0]!.pricingAnomaly).toBe(true);
+  });
+
+  it("suggest-lines 404s for an estimate that doesn't exist", async () => {
+    const { tenantId, ownerId } = await signUpCompanyWithProject("suggest-404");
+    estimatorAiProvider.setDraftLines([]);
+
+    await expect(
+      estimatorAiService.suggestLines(tenantId, ownerId, "00000000-0000-0000-0000-000000000000", {
+        scopeText: "Anything",
+      }),
+    ).rejects.toThrow(/estimate not found/);
   });
 
   it("RLS: a tenant only sees its own estimates", async () => {

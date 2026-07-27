@@ -8,6 +8,7 @@ import {
   createEstimateSchema,
   listEstimatesQuerySchema,
   recordPriceObservationSchema,
+  suggestEstimateLinesSchema,
   updateEstimateLineSchema,
   updateEstimateSchema,
 } from "@constructionos/schemas";
@@ -19,6 +20,7 @@ import { CostBookService } from "../application/cost-book.service";
 import { ConvertToBudgetService } from "../application/convert-to-budget.service";
 import { EstimateLinesService } from "../application/estimate-lines.service";
 import { EstimateService } from "../application/estimate.service";
+import { EstimatorAiService } from "../application/estimator-ai.service";
 
 @Controller()
 export class EstimatingController {
@@ -27,6 +29,7 @@ export class EstimatingController {
     private readonly lines: EstimateLinesService,
     private readonly costBook: CostBookService,
     private readonly convertToBudget: ConvertToBudgetService,
+    private readonly estimatorAi: EstimatorAiService,
   ) {}
 
   @Get("estimates")
@@ -139,6 +142,19 @@ export class EstimatingController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteLine(@Param("id") id: string, @Param("lineId") lineId: string, @Req() req: AuthenticatedRequest) {
     return this.lines.deleteLine(req.auth!.tenantId, req.auth!.sub, id, lineId);
+  }
+
+  // api.md §5: "+ AI" reuses the base resource's own permission rather
+  // than a separate AI-specific key — same convention documented at
+  // daily-reports.controller.ts's ai-summary endpoint.
+  @Post("estimates/:id/ai/suggest-lines")
+  @RequirePermission("estimating.estimate.update")
+  suggestLines(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(suggestEstimateLinesSchema)) body: z.infer<typeof suggestEstimateLinesSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.estimatorAi.suggestLines(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 
   @Get("cost-items")
