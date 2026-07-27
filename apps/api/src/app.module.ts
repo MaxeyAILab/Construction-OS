@@ -28,6 +28,7 @@ import { RfisModule } from "./modules/rfis";
 import { SafetyModule } from "./modules/safety";
 import { SchedulingModule } from "./modules/scheduling";
 import { SubcontractorsModule } from "./modules/subcontractors";
+import { SubmittalsModule } from "./modules/submittals";
 import { SyncModule } from "./modules/sync";
 import { TasksModule } from "./modules/tasks";
 import { HealthModule } from "./platform/health/health.module";
@@ -61,6 +62,7 @@ import { HealthModule } from "./platform/health/health.module";
     SubcontractorsModule,
     FinanceModule,
     RfisModule,
+    SubmittalsModule,
     SchedulingModule,
     TasksModule,
     ImportsExportsModule,

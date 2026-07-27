@@ -36,3 +36,5 @@ export * from "./procurement";
 export * from "./equipment";
 export * from "./safety";
 export * from "./subcontractors";
+export * from "./submittals";
+export * from "./annotations";

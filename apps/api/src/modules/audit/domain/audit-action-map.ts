@@ -531,6 +531,21 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "rfi",
     entityId: payload.rfiId as string,
   }),
+  "submittal.created.v1": (payload) => ({
+    action: "docs.submittal.create",
+    entityType: "submittal",
+    entityId: payload.submittalId as string,
+  }),
+  "submittal.updated.v1": (payload) => ({
+    action: "docs.submittal.update",
+    entityType: "submittal",
+    entityId: payload.submittalId as string,
+  }),
+  "annotation.created.v1": (payload) => ({
+    action: "docs.document.comment",
+    entityType: "annotation",
+    entityId: payload.annotationId as string,
+  }),
   "task.created.v1": (payload) => ({
     action: "tasks.task.create",
     entityType: "task",

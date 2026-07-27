@@ -864,6 +864,33 @@ export const rfiUpdatedV1Schema = z.object({
 });
 export type RfiUpdatedV1 = z.infer<typeof rfiUpdatedV1Schema>;
 
+// M3 Submittals (FR-DOC-4), roadmap.md "Submittals + annotations + drawing
+// compare". submittal.updated.v1 is the generic "header or status changed"
+// event — same "one generic updated event" reasoning as rfi.updated.v1.
+export const submittalCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  submittalId: uuidSchema,
+  number: z.number().int(),
+});
+export type SubmittalCreatedV1 = z.infer<typeof submittalCreatedV1Schema>;
+
+export const submittalUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  submittalId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type SubmittalUpdatedV1 = z.infer<typeof submittalUpdatedV1Schema>;
+
+// M3 Annotations (FR-DOC-3): markups on document_versions.
+export const annotationCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  documentVersionId: uuidSchema,
+  annotationId: uuidSchema,
+});
+export type AnnotationCreatedV1 = z.infer<typeof annotationCreatedV1Schema>;
+
 // M6 Tasks & Punch (FR-TASK-1..3). task.updated.v1 is the generic "header
 // or status changed" event — same "one generic updated event" reasoning as
 // project.updated.v1. Punch items are kind='punch' on the same table
@@ -1178,6 +1205,9 @@ export const eventRegistry = {
   "drawing_set.published.v1": drawingSetPublishedV1Schema,
   "rfi.created.v1": rfiCreatedV1Schema,
   "rfi.updated.v1": rfiUpdatedV1Schema,
+  "submittal.created.v1": submittalCreatedV1Schema,
+  "submittal.updated.v1": submittalUpdatedV1Schema,
+  "annotation.created.v1": annotationCreatedV1Schema,
   "task.created.v1": taskCreatedV1Schema,
   "task.updated.v1": taskUpdatedV1Schema,
   "task.deleted.v1": taskDeletedV1Schema,

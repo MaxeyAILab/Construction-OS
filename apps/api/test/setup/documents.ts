@@ -1,6 +1,7 @@
 import type Redis from "ioredis";
 import { createRedisClient } from "../../src/infrastructure/redis/client";
 import type { Database } from "../../src/infrastructure/db/client";
+import { AnnotationsService } from "../../src/modules/documents/application/annotations.service";
 import { DocumentVersionsService } from "../../src/modules/documents/application/document-versions.service";
 import { DocumentsService } from "../../src/modules/documents/application/documents.service";
 import { DrawingSetsService } from "../../src/modules/documents/application/drawing-sets.service";
@@ -19,6 +20,7 @@ export function buildTestDocumentServices(
   documentsService: DocumentsService;
   versionsService: DocumentVersionsService;
   drawingSetsService: DrawingSetsService;
+  annotationsService: AnnotationsService;
   cacheRedis: Redis;
 } {
   const outbox = new OutboxService();
@@ -32,6 +34,7 @@ export function buildTestDocumentServices(
     documentsService,
     versionsService: new DocumentVersionsService(db, outbox, fileUploadService, documentsService),
     drawingSetsService: new DrawingSetsService(db, outbox),
+    annotationsService: new AnnotationsService(db, outbox),
     cacheRedis,
   };
 }

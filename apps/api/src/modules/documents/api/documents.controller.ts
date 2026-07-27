@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import {
   completeDocumentVersionSchema,
+  createAnnotationSchema,
   createDocumentSchema,
   createDrawingSetSchema,
   createFolderSchema,
@@ -26,6 +27,7 @@ import { Authenticated } from "../../../platform/decorators/authenticated.decora
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
+import { AnnotationsService } from "../application/annotations.service";
 import { DocumentVersionsService } from "../application/document-versions.service";
 import { DocumentsService } from "../application/documents.service";
 import { DrawingSetsService } from "../application/drawing-sets.service";
@@ -38,6 +40,7 @@ export class DocumentsController {
     private readonly documents: DocumentsService,
     private readonly versions: DocumentVersionsService,
     private readonly drawingSets: DrawingSetsService,
+    private readonly annotations: AnnotationsService,
   ) {}
 
   @Get("projects/:id/folders")
@@ -171,5 +174,22 @@ export class DocumentsController {
   @RequirePermission("docs.drawings.manage")
   publish(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.drawingSets.publish(req.auth!.tenantId, req.auth!.sub, id);
+  }
+
+  @Get("document-versions/:id/annotations")
+  @RequirePermission("docs.document.read")
+  listAnnotations(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.annotations.list(req.auth!.tenantId, id);
+  }
+
+  @Post("document-versions/:id/annotations")
+  @RequirePermission("docs.document.comment")
+  @HttpCode(HttpStatus.CREATED)
+  addAnnotation(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(createAnnotationSchema)) body: z.infer<typeof createAnnotationSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.annotations.create(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 }

@@ -5,6 +5,7 @@ import { EventsModule } from "../events";
 import { FilesModule } from "../files";
 import { RbacModule } from "../rbac";
 import { DocumentsController } from "./api/documents.controller";
+import { AnnotationsService } from "./application/annotations.service";
 import { DocumentVersionsService } from "./application/document-versions.service";
 import { DocumentsService } from "./application/documents.service";
 import { DrawingSetsService } from "./application/drawing-sets.service";
@@ -21,6 +22,7 @@ const env = loadEnv();
     DocumentsService,
     DocumentVersionsService,
     DrawingSetsService,
+    AnnotationsService,
   ],
   // M6 Mobile Sync (roadmap.md "Field tasks/punch + drawing viewer
   // offline") reuses these for the working-set manifest's drawing set —

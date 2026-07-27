@@ -673,6 +673,27 @@
       "when": 1785127878712,
       "tag": "0095_payment_applications_document_link",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1785129644833,
+      "tag": "0096_submittals_annotations_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1785129663328,
+      "tag": "0097_submittals_annotations_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1785129688839,
+      "tag": "0098_submittals_annotations_permissions",
+      "breakpoints": true
     }
   ]
 }
