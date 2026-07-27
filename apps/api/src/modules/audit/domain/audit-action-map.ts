@@ -721,6 +721,25 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "import_job",
     entityId: payload.importJobId as string,
   }),
+  // M16 Reports (FR-EXEC-2, api.md §14).
+  "report_definition.created.v1": (payload) => ({
+    action: "reports.definition.create",
+    entityType: "report_definition",
+    entityId: payload.reportDefinitionId as string,
+  }),
+  "report_definition.updated.v1": (payload) => ({
+    action: "reports.definition.update",
+    entityType: "report_definition",
+    entityId: payload.reportDefinitionId as string,
+  }),
+  // Reuses the "create" verb like payment_application.pdf_generated.v1 —
+  // materializing a run's artifact is itself the audited creation, even
+  // though the controller endpoint that triggers it only requires read.
+  "report_run.completed.v1": (payload) => ({
+    action: "reports.definition.create",
+    entityType: "report_run",
+    entityId: payload.reportRunId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

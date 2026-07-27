@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
-import { integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { tenantColumns } from "./columns";
 import { companies } from "./companies";
+import { documents, documentVersions } from "./documents";
+import { files } from "./files";
 import { projects } from "./projects";
 
 // M16 Executive Dashboard v1 (FR-EXEC-1, database.md §21). These are
@@ -90,4 +93,59 @@ export const projectionCompanyKpis = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("ux_projection_company_kpis_tenant").on(table.tenantId)],
+);
+
+// database.md §21: "Definitions: tenant-saved report configs (kind,
+// params jsonb, schedule cron NULL, recipients)." FR-EXEC-2. v1 supports
+// two kinds, both backed by already-computed DashboardsService
+// aggregates — a report formalizes an existing dashboard view into a
+// durable, downloadable artifact rather than inventing new business-report
+// types nothing else in this codebase defines. schedule/recipients are
+// stored as documented but not yet dispatched automatically — no
+// cron-trigger executor exists this pass (flagged, not built; runs are
+// on-demand via POST .../run only).
+export const reportDefinitions = pgTable(
+  "report_definitions",
+  {
+    ...tenantColumns(),
+    name: text("name").notNull(),
+    kind: text("kind").notNull(),
+    params: jsonb("params"),
+    schedule: text("schedule"),
+    recipients: jsonb("recipients"),
+  },
+  (table) => [
+    check("ck_report_definitions_kind", sql`${table.kind} in ('company_summary', 'project_summary')`),
+    index("ix_report_definitions_tenant_created").on(table.tenantId, table.createdAt.desc()),
+  ],
+);
+
+// database.md §21: "Runs: generated artifacts (object_key of PDF/XLSX,
+// status, duration) via job queue." Company-scoped runs (kind =
+// 'company_summary') have no natural project to file a Documents entry
+// under (documents.project_id is NOT NULL) — those keep only the
+// generated `files` row; project-scoped runs (kind = 'project_summary')
+// additionally get filed as a document version under that project, same
+// "artifact ... in documents" pattern as Payment Applications' PDF
+// pipeline. XLSX is flagged, not built this pass — only PDF rendering
+// exists (pdfkit, already a dependency); nothing here hard-codes a format,
+// so XLSX support is additive later.
+export const reportRuns = pgTable(
+  "report_runs",
+  {
+    ...tenantColumns(),
+    reportDefinitionId: uuid("report_definition_id")
+      .notNull()
+      .references(() => reportDefinitions.id),
+    status: text("status").notNull().default("queued"),
+    fileId: uuid("file_id").references(() => files.id),
+    documentId: uuid("document_id").references(() => documents.id),
+    documentVersionId: uuid("document_version_id").references(() => documentVersions.id),
+    durationMs: integer("duration_ms"),
+    error: text("error"),
+  },
+  (table) => [
+    check("ck_report_runs_status", sql`${table.status} in ('queued', 'running', 'completed', 'failed')`),
+    index("ix_report_runs_tenant_definition_created").on(table.tenantId, table.reportDefinitionId, table.createdAt.desc()),
+  ],
 );

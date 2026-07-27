@@ -722,6 +722,27 @@
       "when": 1785151641175,
       "tag": "0102_admin_company_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1785165392168,
+      "tag": "0103_reports_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1785165392169,
+      "tag": "0104_reports_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1785165392170,
+      "tag": "0105_reports_permissions",
+      "breakpoints": true
     }
   ]
 }

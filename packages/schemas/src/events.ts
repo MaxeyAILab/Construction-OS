@@ -1151,6 +1151,30 @@ export const importJobCommittedV1Schema = z.object({
 });
 export type ImportJobCommittedV1 = z.infer<typeof importJobCommittedV1Schema>;
 
+// M16 Reports (FR-EXEC-2, api.md §14). Only the two privileged actions get
+// an event — creating a saved definition and generating a run's artifact —
+// same "audit privileged actions" framing as export_job.requested.v1.
+export const reportDefinitionCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  reportDefinitionId: uuidSchema,
+  kind: z.string(),
+});
+export type ReportDefinitionCreatedV1 = z.infer<typeof reportDefinitionCreatedV1Schema>;
+
+export const reportDefinitionUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  reportDefinitionId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type ReportDefinitionUpdatedV1 = z.infer<typeof reportDefinitionUpdatedV1Schema>;
+
+export const reportRunCompletedV1Schema = z.object({
+  companyId: uuidSchema,
+  reportDefinitionId: uuidSchema,
+  reportRunId: uuidSchema,
+});
+export type ReportRunCompletedV1 = z.infer<typeof reportRunCompletedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1281,6 +1305,9 @@ export const eventRegistry = {
   "resource_assignment.deleted.v1": resourceAssignmentDeletedV1Schema,
   "export_job.requested.v1": exportJobRequestedV1Schema,
   "import_job.committed.v1": importJobCommittedV1Schema,
+  "report_definition.created.v1": reportDefinitionCreatedV1Schema,
+  "report_definition.updated.v1": reportDefinitionUpdatedV1Schema,
+  "report_run.completed.v1": reportRunCompletedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

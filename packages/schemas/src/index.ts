@@ -31,3 +31,4 @@ export * from "./safety";
 export * from "./subcontractors";
 export * from "./submittals";
 export * from "./annotations";
+export * from "./reports";

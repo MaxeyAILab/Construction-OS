@@ -6,15 +6,25 @@ import {
   ensureEventStream,
   NATS_CONNECTION,
 } from "../../infrastructure/nats/client";
+import { createQueueConnection, QUEUE_CONNECTION } from "../../infrastructure/queue/connection";
+import { DocumentsModule } from "../documents";
+import { EventsModule } from "../events";
+import { FilesModule } from "../files";
 import { DashboardsController } from "./api/dashboards.controller";
+import { ReportsController } from "./api/reports.controller";
 import { DashboardProjectionsWriterService } from "./application/dashboard-projections-writer.service";
 import { DashboardsService } from "./application/dashboards.service";
+import { ReportRunnerService } from "./application/report-runner.service";
+import { ReportsQueue } from "./application/reports.queue";
+import { ReportsService } from "./application/reports.service";
 import { DashboardProjectionsConsumerWorker } from "./infrastructure/dashboard-projections-consumer.worker";
+import { ReportWorker } from "./infrastructure/report.worker";
 
 const env = loadEnv();
 
 @Module({
-  controllers: [DashboardsController],
+  imports: [EventsModule, DocumentsModule, FilesModule],
+  controllers: [DashboardsController, ReportsController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
     {
@@ -25,9 +35,14 @@ const env = loadEnv();
         return nc;
       },
     },
+    { provide: QUEUE_CONNECTION, useFactory: () => createQueueConnection(env) },
     DashboardsService,
     DashboardProjectionsWriterService,
     DashboardProjectionsConsumerWorker,
+    ReportsService,
+    ReportsQueue,
+    ReportRunnerService,
+    ReportWorker,
   ],
   // M17 Project Assistant (ai-spec.md §7.2) reuses DashboardsService's
   // per-project rollup (status/health/margin/risk counts) as its

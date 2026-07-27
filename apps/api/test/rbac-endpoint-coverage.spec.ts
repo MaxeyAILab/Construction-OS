@@ -12,6 +12,7 @@ import { SelectionsController } from "../src/modules/client-portal/api/selection
 import { DailyReportsController } from "../src/modules/daily-reports/api/daily-reports.controller";
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
+import { ReportsController } from "../src/modules/dashboards/api/reports.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
 import { EquipmentInsightsController } from "../src/modules/equipment/api/equipment-insights.controller";
 import { EquipmentController } from "../src/modules/equipment/api/equipment.controller";
@@ -84,6 +85,7 @@ const controllers = [
   DailyReportsController,
   TimeEntriesController,
   DashboardsController,
+  ReportsController,
   DocumentsController,
   PhotosController,
   RfisController,

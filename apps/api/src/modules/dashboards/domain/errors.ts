@@ -10,3 +10,19 @@ export class ProjectNotFoundError extends DomainError {
     super("project not found");
   }
 }
+
+export class ReportDefinitionNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("report definition not found");
+  }
+}
+
+export class ReportRunNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("report run not found");
+  }
+}

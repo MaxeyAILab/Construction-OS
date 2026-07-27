@@ -7,11 +7,13 @@ import { buildTestAuthService } from "./setup/auth";
 import { buildTestBudgetServices } from "./setup/budgets";
 import { buildTestDashboardsServices } from "./setup/dashboards";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
+import { buildTestFileServices } from "./setup/files";
 import { buildTestProjectServices } from "./setup/projects";
+import { buildTestReportsServices } from "./setup/reports";
 import { buildTestRfisServices } from "./setup/rfis";
 import { buildTestSchedulingServices } from "./setup/scheduling";
 import { buildTestTasksServices } from "./setup/tasks";
-import { ProjectNotFoundError } from "../src/modules/dashboards/domain/errors";
+import { ProjectNotFoundError, ReportDefinitionNotFoundError } from "../src/modules/dashboards/domain/errors";
 
 describe("Executive Dashboard v1: projections + aggregate reads", () => {
   const db = getTestDatabase();
@@ -23,6 +25,13 @@ describe("Executive Dashboard v1: projections + aggregate reads", () => {
     buildTestSchedulingServices(db);
   const { tasksService } = buildTestTasksServices(db);
   const { rfisService } = buildTestRfisServices(db);
+  const { fileUploadService } = buildTestFileServices(db);
+  const {
+    reportsService,
+    reportRunnerService,
+    queueConnection: reportsQueueConnection,
+    cacheRedis: reportsCacheRedis,
+  } = buildTestReportsServices(db, dashboardsService, fileUploadService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -32,6 +41,8 @@ describe("Executive Dashboard v1: projections + aggregate reads", () => {
     await redis.quit();
     await queueConnection.quit();
     await cacheRedis.quit();
+    await reportsQueueConnection.quit();
+    await reportsCacheRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
@@ -224,5 +235,89 @@ describe("Executive Dashboard v1: projections + aggregate reads", () => {
     const financialsA = await withTenant(db, a.tenantId, (tx) => tx.query.projectionProjectFinancials.findMany());
     expect(financialsA.length).toBeGreaterThan(0);
     expect(financialsA.every((r) => r.tenantId === a.tenantId)).toBe(true);
+  });
+
+  // Portfolio analytics & custom report builder (FR-EXEC-2, api.md §14,
+  // Phase 3). Formalizes DashboardsService's existing aggregates into a
+  // durable PDF artifact — runner.run() is called directly (bypassing the
+  // BullMQ worker) for deterministic tests, same precedent as
+  // payment-applications.spec.ts's pdfRunnerService.run() calls.
+  describe("Reports (FR-EXEC-2)", () => {
+    it("creates a project_summary definition, runs it, and files the PDF as a document version", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("report-project");
+
+      const definition = await reportsService.create(tenantId, ownerId, {
+        name: "Weekly Project Snapshot",
+        kind: "project_summary",
+        params: { projectId: project.id },
+      });
+      expect(definition.kind).toBe("project_summary");
+
+      const run = await reportsService.requestRun(tenantId, ownerId, definition.id);
+      expect(run.status).toBe("queued");
+
+      await reportRunnerService.run({ tenantId, actorId: ownerId, reportDefinitionId: definition.id, reportRunId: run.id });
+
+      const completed = await reportsService.getRun(tenantId, run.id);
+      expect(completed.status).toBe("completed");
+      expect(completed.fileId).not.toBeNull();
+      expect(completed.documentId).not.toBeNull();
+      expect(completed.documentVersionId).not.toBeNull();
+      expect(completed.downloadUrl).not.toBeNull();
+    });
+
+    it("creates a company_summary definition, runs it, and stores only the generated file (no project to file a document under)", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("report-company");
+
+      const definition = await reportsService.create(tenantId, ownerId, {
+        name: "Portfolio Overview",
+        kind: "company_summary",
+      });
+
+      const run = await reportsService.requestRun(tenantId, ownerId, definition.id);
+      await reportRunnerService.run({ tenantId, actorId: ownerId, reportDefinitionId: definition.id, reportRunId: run.id });
+
+      const completed = await reportsService.getRun(tenantId, run.id);
+      expect(completed.status).toBe("completed");
+      expect(completed.fileId).not.toBeNull();
+      expect(completed.documentId).toBeNull();
+      expect(completed.documentVersionId).toBeNull();
+      expect(completed.downloadUrl).not.toBeNull();
+    });
+
+    it("rejects running a nonexistent report definition", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("report-missing");
+      await expect(
+        reportsService.requestRun(tenantId, ownerId, "00000000-0000-0000-0000-000000000000"),
+      ).rejects.toThrow(ReportDefinitionNotFoundError);
+    });
+
+    it("updates a definition's name/schedule/recipients while kind/params stay fixed", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("report-update");
+      const definition = await reportsService.create(tenantId, ownerId, {
+        name: "Monthly Portfolio",
+        kind: "company_summary",
+      });
+
+      const updated = await reportsService.update(tenantId, ownerId, definition.id, {
+        name: "Monthly Portfolio (renamed)",
+        schedule: "0 0 1 * *",
+        recipients: ["cfo@example.com"],
+      });
+
+      expect(updated.name).toBe("Monthly Portfolio (renamed)");
+      expect(updated.schedule).toBe("0 0 1 * *");
+      expect(updated.recipients).toEqual(["cfo@example.com"]);
+      expect(updated.kind).toBe("company_summary");
+    });
+
+    it("RLS: a tenant only sees its own report definitions", async () => {
+      const a = await signUpCompanyWithProject("report-rls-a");
+      const b = await signUpCompanyWithProject("report-rls-b");
+      await reportsService.create(a.tenantId, a.ownerId, { name: "A's report", kind: "company_summary" });
+
+      const listB = await reportsService.list(b.tenantId, { limit: 20 });
+      expect(listB.data).toHaveLength(0);
+    });
   });
 });
