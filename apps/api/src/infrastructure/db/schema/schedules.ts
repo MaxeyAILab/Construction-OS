@@ -10,10 +10,12 @@ import {
   numeric,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { tenantColumns } from "./columns";
+import { equipment } from "./equipment";
 import { costCodes, projects } from "./projects";
 
 // database.md §14: "One active + baselines per project." No explicit
@@ -126,5 +128,52 @@ export const activityDependencies = pgTable(
     check("ck_activity_dependencies_type", sql`${table.type} in ('FS', 'SS', 'FF', 'SF')`),
     uniqueIndex("ux_activity_dependencies_pair").on(table.predecessorId, table.successorId),
     index("ix_activity_dependencies_successor").on(table.successorId),
+  ],
+);
+
+// database.md §14 (FR-SCH-5): "Crew/equipment <-> activity with tstzrange;
+// overlap queries via gist index (conflict surfacing)." Deliberately no
+// exclusion constraint here — unlike equipment_assignments' hard
+// double-booking block (a physical asset can't literally run two jobs at
+// once), a schedule resource booking is allowed to overlap (a PM may
+// tentatively double-book a crew across two activities before resolving
+// which one wins); the gist index instead powers the read-only
+// GET /resources/conflicts query that surfaces those overlaps. resourceKey
+// is a generated column (not app-computed) so the gist index/overlap
+// query always matches what was actually stored.
+export const resourceAssignments = pgTable(
+  "resource_assignments",
+  {
+    ...tenantColumns(),
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => scheduleActivities.id),
+    resourceType: text("resource_type").notNull(),
+    // Exactly one of these is set, matching resourceType — no formal
+    // `crews` entity exists anywhere in the specs (schedule_activities.crew
+    // is already a free-form jsonb label for the same reason), so a crew
+    // resource is identified by a plain label rather than a FK.
+    equipmentId: uuid("equipment_id").references(() => equipment.id),
+    crewLabel: text("crew_label"),
+    resourceKey: text("resource_key").generatedAlwaysAs(
+      sql`resource_type || ':' || coalesce(equipment_id::text, crew_label)`,
+    ),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("ck_resource_assignments_type", sql`${table.resourceType} in ('crew', 'equipment')`),
+    check(
+      "ck_resource_assignments_target",
+      sql`(${table.resourceType} = 'equipment' and ${table.equipmentId} is not null and ${table.crewLabel} is null)
+        or (${table.resourceType} = 'crew' and ${table.crewLabel} is not null and ${table.equipmentId} is null)`,
+    ),
+    check("ck_resource_assignments_dates", sql`${table.endAt} > ${table.startAt}`),
+    index("ix_resource_assignments_activity").on(table.activityId),
+    // The actual overlap-query index is a GIST index on
+    // (tenant_id, resource_key, tstzrange(start_at, end_at)) — added via a
+    // hand-written migration (drizzle-kit's builder can't express a
+    // multi-column GIST index combining equality columns with a range
+    // expression the way a plain btree composite index is declared here).
   ],
 );

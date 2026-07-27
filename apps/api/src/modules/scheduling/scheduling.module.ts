@@ -7,8 +7,11 @@ import { RbacModule } from "../rbac";
 import { SchedulingController } from "./api/scheduling.controller";
 import { ActivitiesService } from "./application/activities.service";
 import { DependenciesService } from "./application/dependencies.service";
+import { LookaheadService } from "./application/lookahead.service";
 import { RecalculateService } from "./application/recalculate.service";
 import { ScheduleRecalcQueue } from "./application/recalculate.queue";
+import { ResourceAssignmentsService } from "./application/resource-assignments.service";
+import { ResourceConflictsService } from "./application/resource-conflicts.service";
 import { SchedulesService } from "./application/schedules.service";
 import { ScheduleRecalcWorker } from "./infrastructure/schedule-recalc.worker";
 
@@ -26,6 +29,9 @@ const env = loadEnv();
     ScheduleRecalcQueue,
     RecalculateService,
     ScheduleRecalcWorker,
+    ResourceAssignmentsService,
+    LookaheadService,
+    ResourceConflictsService,
   ],
 })
 export class SchedulingModule {}

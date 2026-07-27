@@ -8,8 +8,11 @@ import { PermissionResolverService } from "../../src/modules/rbac/application/pe
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
 import { ActivitiesService } from "../../src/modules/scheduling/application/activities.service";
 import { DependenciesService } from "../../src/modules/scheduling/application/dependencies.service";
+import { LookaheadService } from "../../src/modules/scheduling/application/lookahead.service";
 import { ScheduleRecalcQueue } from "../../src/modules/scheduling/application/recalculate.queue";
 import { RecalculateService } from "../../src/modules/scheduling/application/recalculate.service";
+import { ResourceAssignmentsService } from "../../src/modules/scheduling/application/resource-assignments.service";
+import { ResourceConflictsService } from "../../src/modules/scheduling/application/resource-conflicts.service";
 import { SchedulesService } from "../../src/modules/scheduling/application/schedules.service";
 
 export function buildTestSchedulingServices(db: Database): {
@@ -17,6 +20,9 @@ export function buildTestSchedulingServices(db: Database): {
   activitiesService: ActivitiesService;
   dependenciesService: DependenciesService;
   recalculateService: RecalculateService;
+  resourceAssignmentsService: ResourceAssignmentsService;
+  lookaheadService: LookaheadService;
+  resourceConflictsService: ResourceConflictsService;
   queueConnection: Redis;
   cacheRedis: Redis;
 } {
@@ -33,6 +39,19 @@ export function buildTestSchedulingServices(db: Database): {
   });
   const queue = new ScheduleRecalcQueue(queueConnection);
   const recalculateService = new RecalculateService(db, outbox, schedulesService, queue);
+  const resourceAssignmentsService = new ResourceAssignmentsService(db, outbox);
+  const lookaheadService = new LookaheadService(schedulesService);
+  const resourceConflictsService = new ResourceConflictsService(db);
 
-  return { schedulesService, activitiesService, dependenciesService, recalculateService, queueConnection, cacheRedis };
+  return {
+    schedulesService,
+    activitiesService,
+    dependenciesService,
+    recalculateService,
+    resourceAssignmentsService,
+    lookaheadService,
+    resourceConflictsService,
+    queueConnection,
+    cacheRedis,
+  };
 }

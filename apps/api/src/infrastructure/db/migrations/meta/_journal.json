@@ -694,6 +694,27 @@
       "when": 1785129688839,
       "tag": "0098_submittals_annotations_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1785142086622,
+      "tag": "0099_resource_assignments_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1785142098373,
+      "tag": "0100_resource_assignments_rls_and_conflicts_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1785142100438,
+      "tag": "0101_resource_assignments_permission",
+      "breakpoints": true
     }
   ]
 }

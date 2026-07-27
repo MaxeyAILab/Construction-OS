@@ -657,6 +657,16 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "schedule",
     entityId: payload.scheduleId as string,
   }),
+  "resource_assignment.created.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "resource_assignment",
+    entityId: payload.resourceAssignmentId as string,
+  }),
+  "resource_assignment.deleted.v1": (payload) => ({
+    action: "schedule.update",
+    entityType: "resource_assignment",
+    entityId: payload.resourceAssignmentId as string,
+  }),
   // M13 Client Portal v1 (FR-CLIENT-2/3). client_selection.decided.v1
   // reuses the manage permission as its audit action even though it can
   // be reached via a client-portal share (no external principal has

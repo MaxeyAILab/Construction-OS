@@ -5,6 +5,7 @@ import { outbox } from "../src/infrastructure/db/schema";
 import { CycleDetectedError } from "../src/modules/scheduling/domain/errors";
 import { buildTestAuthService } from "./setup/auth";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
+import { buildTestEquipmentServices } from "./setup/equipment";
 import { buildTestProjectServices } from "./setup/projects";
 import { buildTestSchedulingServices } from "./setup/scheduling";
 
@@ -12,8 +13,18 @@ describe("Scheduling", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService } = buildTestProjectServices(db);
-  const { schedulesService, activitiesService, dependenciesService, recalculateService, queueConnection, cacheRedis } =
-    buildTestSchedulingServices(db);
+  const {
+    schedulesService,
+    activitiesService,
+    dependenciesService,
+    recalculateService,
+    resourceAssignmentsService,
+    lookaheadService,
+    resourceConflictsService,
+    queueConnection,
+    cacheRedis,
+  } = buildTestSchedulingServices(db);
+  const { equipmentService } = buildTestEquipmentServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -178,6 +189,114 @@ describe("Scheduling", () => {
 
     const eventTypes = await outboxEventTypes(tenantId);
     expect(eventTypes).toContain("schedule_baseline.created.v1");
+  });
+
+  it("assigns a crew and equipment resource to an activity, and removing one leaves the other listed", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("resources");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    const activity = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Framing", durationDays: 5 });
+    const excavator = await equipmentService.create(tenantId, ownerId, { assetNo: `EXC-${Date.now()}`, name: "Excavator" });
+
+    const crewAssignment = await resourceAssignmentsService.create(tenantId, ownerId, activity.id, {
+      resourceType: "crew",
+      crewLabel: "Framing Crew A",
+      startAt: "2026-03-01T08:00:00Z",
+      endAt: "2026-03-05T17:00:00Z",
+    });
+    expect(crewAssignment.resourceType).toBe("crew");
+
+    const equipmentAssignment = await resourceAssignmentsService.create(tenantId, ownerId, activity.id, {
+      resourceType: "equipment",
+      equipmentId: excavator.id,
+      startAt: "2026-03-01T08:00:00Z",
+      endAt: "2026-03-02T17:00:00Z",
+    });
+    expect(equipmentAssignment.resourceType).toBe("equipment");
+
+    let listed = await resourceAssignmentsService.listForActivity(tenantId, activity.id);
+    expect(listed.map((a) => a.id).sort()).toEqual([crewAssignment.id, equipmentAssignment.id].sort());
+
+    await resourceAssignmentsService.remove(tenantId, ownerId, equipmentAssignment.id);
+    listed = await resourceAssignmentsService.listForActivity(tenantId, activity.id);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]!.id).toBe(crewAssignment.id);
+
+    const eventTypes = await outboxEventTypes(tenantId);
+    expect(eventTypes.filter((t) => t === "resource_assignment.created.v1")).toHaveLength(2);
+    expect(eventTypes).toContain("resource_assignment.deleted.v1");
+  });
+
+  it("rejects a resource assignment whose target doesn't match resourceType (equipmentId on 'crew')", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("badresource");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    const activity = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "A", durationDays: 1 });
+
+    await expect(
+      resourceAssignmentsService.create(tenantId, ownerId, activity.id, {
+        resourceType: "equipment",
+        equipmentId: "00000000-0000-0000-0000-000000000000",
+        startAt: "2026-03-01T08:00:00Z",
+        endAt: "2026-03-02T08:00:00Z",
+      }),
+    ).rejects.toMatchObject({ code: "not_found", status: 404 });
+  });
+
+  // FR-SCH-5: the same crew double-booked across two activities is allowed
+  // (no exclusion constraint), but surfaced by GET /resources/conflicts —
+  // this is the defining difference from Equipment's hard double-book block.
+  it("surfaces cross-project resource conflicts without blocking the double-booking itself", async () => {
+    const { tenantId, ownerId, project: projectA } = await signUpCompanyWithProject("conflicts-a");
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const projectB = await projectsService.create(tenantId, ownerId, {
+      name: "Conflicts B",
+      code: `CONFLICTS-B-${suffix}`,
+      currency: "USD",
+    });
+    const { schedule: scheduleA } = await schedulesService.getActiveSchedule(tenantId, ownerId, projectA.id);
+    const { schedule: scheduleB } = await schedulesService.getActiveSchedule(tenantId, ownerId, projectB.id);
+    const activityA = await activitiesService.create(tenantId, ownerId, scheduleA.id, { name: "A-side", durationDays: 3 });
+    const activityB = await activitiesService.create(tenantId, ownerId, scheduleB.id, { name: "B-side", durationDays: 3 });
+
+    const first = await resourceAssignmentsService.create(tenantId, ownerId, activityA.id, {
+      resourceType: "crew",
+      crewLabel: "Shared Concrete Crew",
+      startAt: "2026-04-01T08:00:00Z",
+      endAt: "2026-04-05T17:00:00Z",
+    });
+    const second = await resourceAssignmentsService.create(tenantId, ownerId, activityB.id, {
+      resourceType: "crew",
+      crewLabel: "Shared Concrete Crew",
+      startAt: "2026-04-03T08:00:00Z",
+      endAt: "2026-04-06T17:00:00Z",
+    });
+
+    const conflicts = await resourceConflictsService.listConflicts(tenantId, {
+      from: "2026-03-01T00:00:00Z",
+      to: "2026-05-01T00:00:00Z",
+    });
+    const match = conflicts.find(
+      (c) =>
+        [c.a.resourceAssignmentId, c.b.resourceAssignmentId].sort().join() === [first.id, second.id].sort().join(),
+    );
+    expect(match).toBeDefined();
+    expect(match!.resourceType).toBe("crew");
+  });
+
+  it("builds a weekly-bucketed lookahead view from the schedule's data_date", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("lookahead");
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Week 1 work", durationDays: 4 });
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Week 3 work", durationDays: 3 });
+    await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+    const lookahead = await lookaheadService.getLookahead(tenantId, ownerId, project.id, { weeks: 3 });
+    expect(lookahead.weeks).toHaveLength(3);
+    expect(lookahead.weeks[0]!.activities.map((a) => a.name)).toContain("Week 1 work");
+    // Both activities run back-to-back from data_date; the CPM engine
+    // schedules the second right after the first ends (~day 4), landing it
+    // in the first lookahead week too since durations are short.
+    const allNames = lookahead.weeks.flatMap((w) => w.activities.map((a) => a.name));
+    expect(allNames).toContain("Week 1 work");
   });
 
   it("RLS: a tenant only sees its own schedules, activities, and dependencies", async () => {

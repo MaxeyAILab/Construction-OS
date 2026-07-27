@@ -1081,6 +1081,24 @@ export const scheduleRecalculatedV1Schema = z.object({
 });
 export type ScheduleRecalculatedV1 = z.infer<typeof scheduleRecalculatedV1Schema>;
 
+// M7 Lookahead/resource conflicts (FR-SCH-5), roadmap.md "Lookahead/pull
+// planning + resource conflicts" — same created/ended shape as
+// equipment_assignment.*.v1.
+export const resourceAssignmentCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  activityId: uuidSchema,
+  resourceAssignmentId: uuidSchema,
+  resourceType: z.enum(["crew", "equipment"]),
+});
+export type ResourceAssignmentCreatedV1 = z.infer<typeof resourceAssignmentCreatedV1Schema>;
+
+export const resourceAssignmentDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  activityId: uuidSchema,
+  resourceAssignmentId: uuidSchema,
+});
+export type ResourceAssignmentDeletedV1 = z.infer<typeof resourceAssignmentDeletedV1Schema>;
+
 // M18 Platform/Admin (FR-PLAT-7). Only the actually-privileged actions get
 // an event — requesting a full tenant-wide data export, and committing
 // real writes from a guided import. The intermediate map/validate steps
@@ -1227,6 +1245,8 @@ export const eventRegistry = {
   "schedule_activity.deleted.v1": scheduleActivityDeletedV1Schema,
   "activity_dependency.replaced.v1": activityDependencyReplacedV1Schema,
   "schedule.recalculated.v1": scheduleRecalculatedV1Schema,
+  "resource_assignment.created.v1": resourceAssignmentCreatedV1Schema,
+  "resource_assignment.deleted.v1": resourceAssignmentDeletedV1Schema,
   "export_job.requested.v1": exportJobRequestedV1Schema,
   "import_job.committed.v1": importJobCommittedV1Schema,
 } as const;

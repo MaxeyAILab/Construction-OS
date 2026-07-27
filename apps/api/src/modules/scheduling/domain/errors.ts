@@ -57,3 +57,23 @@ export class ScheduleReadDeniedError extends DomainError {
     super("missing permission: schedule.read (or a valid client-portal share)");
   }
 }
+
+// FR-SCH-5 (Lookahead/resource conflicts row).
+export class ResourceAssignmentNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("resource assignment not found");
+  }
+}
+
+// Duplicated rather than imported from ../../equipment/domain/errors — same
+// "modules communicate only via their index.ts public surface" reasoning
+// as this file's own ProjectNotFoundError.
+export class EquipmentNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("equipment not found");
+  }
+}

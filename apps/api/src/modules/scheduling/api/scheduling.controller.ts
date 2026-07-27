@@ -10,14 +10,18 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Req,
   Res,
 } from "@nestjs/common";
 import {
   batchUpdateScheduleActivitiesSchema,
+  createResourceAssignmentSchema,
   createScheduleActivitySchema,
   createScheduleBaselineSchema,
+  lookaheadQuerySchema,
   replaceActivityDependenciesSchema,
+  resourceConflictsQuerySchema,
   updateScheduleActivitySchema,
 } from "@constructionos/schemas";
 import type { FastifyReply } from "fastify";
@@ -28,7 +32,10 @@ import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
 import { ActivitiesService } from "../application/activities.service";
 import { DependenciesService } from "../application/dependencies.service";
+import { LookaheadService } from "../application/lookahead.service";
 import { RecalculateService } from "../application/recalculate.service";
+import { ResourceAssignmentsService } from "../application/resource-assignments.service";
+import { ResourceConflictsService } from "../application/resource-conflicts.service";
 import { SchedulesService } from "../application/schedules.service";
 
 @Controller()
@@ -38,6 +45,9 @@ export class SchedulingController {
     private readonly activities: ActivitiesService,
     private readonly dependencies: DependenciesService,
     private readonly recalculateService: RecalculateService,
+    private readonly resourceAssignments: ResourceAssignmentsService,
+    private readonly lookahead: LookaheadService,
+    private readonly resourceConflicts: ResourceConflictsService,
   ) {}
 
   // M13 Client Portal v1 (FR-CLIENT-1): schedule.read (internal) or a
@@ -152,5 +162,52 @@ export class SchedulingController {
       return { jobId: result.jobId };
     }
     return { schedule: result.schedule, activities: result.activities };
+  }
+
+  // Gap-fill: FR-SCH-5's "assign resources/crews to activities" needs a
+  // create/read/remove route api.md §6's table doesn't itemize (only the
+  // read-side lookahead/conflicts rows) — same precedent as Equipment's own
+  // gap-filled assignment routes.
+  @Get("activities/:id/resources")
+  @RequirePermission("schedule.read")
+  listResourceAssignments(@Param("id") activityId: string, @Req() req: AuthenticatedRequest) {
+    return this.resourceAssignments.listForActivity(req.auth!.tenantId, activityId);
+  }
+
+  @Post("activities/:id/resources")
+  @RequirePermission("schedule.update")
+  @HttpCode(HttpStatus.CREATED)
+  createResourceAssignment(
+    @Param("id") activityId: string,
+    @Body(new ZodValidationPipe(createResourceAssignmentSchema)) body: z.infer<typeof createResourceAssignmentSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.resourceAssignments.create(req.auth!.tenantId, req.auth!.sub, activityId, body);
+  }
+
+  @Delete("resources/:id")
+  @RequirePermission("schedule.update")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeResourceAssignment(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<void> {
+    await this.resourceAssignments.remove(req.auth!.tenantId, req.auth!.sub, id);
+  }
+
+  @Get("projects/:id/lookahead")
+  @Authenticated()
+  getLookahead(
+    @Param("id") projectId: string,
+    @Query(new ZodValidationPipe(lookaheadQuerySchema)) query: z.infer<typeof lookaheadQuerySchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.lookahead.getLookahead(req.auth!.tenantId, req.auth!.sub, projectId, query);
+  }
+
+  @Get("resources/conflicts")
+  @RequirePermission("schedule.resources")
+  getResourceConflicts(
+    @Query(new ZodValidationPipe(resourceConflictsQuerySchema)) query: z.infer<typeof resourceConflictsQuerySchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.resourceConflicts.listConflicts(req.auth!.tenantId, query);
   }
 }

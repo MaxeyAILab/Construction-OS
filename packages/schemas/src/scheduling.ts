@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidSchema } from "./common";
+import { isoDateTimeSchema, uuidSchema } from "./common";
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected an ISO-8601 date (YYYY-MM-DD)");
 
@@ -66,3 +66,39 @@ export const createScheduleBaselineSchema = z.object({
   name: z.string().min(1).optional(),
 });
 export type CreateScheduleBaselineInput = z.infer<typeof createScheduleBaselineSchema>;
+
+// database.md §14 (FR-SCH-5): "Crew/equipment <-> activity with tstzrange."
+// No formal `crews` entity exists anywhere in the specs, so a crew
+// resource is a free-form label rather than a FK (same reasoning as
+// schedule_activities.crew's own jsonb label).
+export const resourceTypeSchema = z.enum(["crew", "equipment"]);
+export type ResourceType = z.infer<typeof resourceTypeSchema>;
+
+export const createResourceAssignmentSchema = z
+  .object({
+    resourceType: resourceTypeSchema,
+    equipmentId: uuidSchema.optional(),
+    crewLabel: z.string().min(1).optional(),
+    startAt: isoDateTimeSchema,
+    endAt: isoDateTimeSchema,
+  })
+  .refine(
+    (v) => (v.resourceType === "equipment" ? !!v.equipmentId && !v.crewLabel : !!v.crewLabel && !v.equipmentId),
+    { message: "equipmentId is required for resourceType 'equipment' (and vice versa for 'crew')" },
+  );
+export type CreateResourceAssignmentInput = z.infer<typeof createResourceAssignmentSchema>;
+
+// api.md §6: "GET /projects/{id}/lookahead?weeks=3 | read | Lookahead view
+// (FR-SCH-3)".
+export const lookaheadQuerySchema = z.object({
+  weeks: z.coerce.number().int().min(1).max(12).default(3),
+});
+export type LookaheadQuery = z.infer<typeof lookaheadQuerySchema>;
+
+// api.md §6: "GET /resources/conflicts?from=&to= | schedule.resources |
+// Cross-project crew/equipment conflicts (FR-SCH-5)".
+export const resourceConflictsQuerySchema = z.object({
+  from: isoDateTimeSchema,
+  to: isoDateTimeSchema,
+});
+export type ResourceConflictsQuery = z.infer<typeof resourceConflictsQuerySchema>;
