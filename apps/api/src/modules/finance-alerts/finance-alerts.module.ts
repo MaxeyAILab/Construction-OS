@@ -6,7 +6,9 @@ import { AiModule } from "../ai";
 import { BudgetsModule } from "../budgets";
 import { EventsModule } from "../events";
 import { ProjectsModule } from "../projects";
+import { CashflowForecastController } from "./api/cashflow-forecast.controller";
 import { FinanceAlertsController } from "./api/finance-alerts.controller";
+import { CashflowForecastService } from "./application/cashflow-forecast.service";
 import { FinanceAlertsQueryService } from "./application/finance-alerts-query.service";
 import { FinanceAlertsWriterService } from "./application/finance-alerts-writer.service";
 import { MarginErosionService } from "./application/margin-erosion.service";
@@ -16,7 +18,7 @@ const env = loadEnv();
 
 @Module({
   imports: [AiModule, EventsModule, BudgetsModule, ProjectsModule],
-  controllers: [FinanceAlertsController],
+  controllers: [FinanceAlertsController, CashflowForecastController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
     // Own NATS connection, same "each event-consumer module owns its own
@@ -34,6 +36,7 @@ const env = loadEnv();
     FinanceAlertsWriterService,
     FinanceAlertsConsumerWorker,
     FinanceAlertsQueryService,
+    CashflowForecastService,
   ],
 })
 export class FinanceAlertsModule {}

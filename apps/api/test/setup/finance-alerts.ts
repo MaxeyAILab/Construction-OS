@@ -2,6 +2,7 @@ import type { Database } from "../../src/infrastructure/db/client";
 import { AiGatewayService } from "../../src/modules/ai/application/ai-gateway.service";
 import { FinancialSummaryService } from "../../src/modules/budgets/application/financial-summary.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
+import { CashflowForecastService } from "../../src/modules/finance-alerts/application/cashflow-forecast.service";
 import { FinanceAlertsQueryService } from "../../src/modules/finance-alerts/application/finance-alerts-query.service";
 import { FinanceAlertsWriterService } from "../../src/modules/finance-alerts/application/finance-alerts-writer.service";
 import { MarginErosionService } from "../../src/modules/finance-alerts/application/margin-erosion.service";
@@ -16,5 +17,14 @@ export function buildTestFinanceAlertsServices(db: Database, projectsService: Pr
   const marginErosionService = new MarginErosionService(db, financialSummaryService, projectsService, aiGatewayService, outbox);
   const financeAlertsWriterService = new FinanceAlertsWriterService(marginErosionService);
   const financeAlertsQueryService = new FinanceAlertsQueryService(db);
-  return { marginErosionService, financeAlertsWriterService, financeAlertsQueryService, provider };
+  const cashflowForecastAiProvider = new FakeAiProvider();
+  const cashflowForecastService = new CashflowForecastService(db, new AiGatewayService(db, cashflowForecastAiProvider));
+  return {
+    marginErosionService,
+    financeAlertsWriterService,
+    financeAlertsQueryService,
+    provider,
+    cashflowForecastService,
+    cashflowForecastAiProvider,
+  };
 }

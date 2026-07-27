@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AiController } from "../src/modules/ai/api/ai.controller";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
+import { CompanySettingsController } from "../src/modules/auth/api/company-settings.controller";
 import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
 import { ChangeOrdersController } from "../src/modules/change-orders/api/change-orders.controller";
 import { PortalMessagesController } from "../src/modules/client-portal/api/portal-messages.controller";
@@ -19,6 +20,7 @@ import { ContactsController } from "../src/modules/crm/api/contacts.controller";
 import { OpportunitiesController } from "../src/modules/crm/api/opportunities.controller";
 import { PipelineStagesController } from "../src/modules/crm/api/pipeline-stages.controller";
 import { InvoicesController } from "../src/modules/finance/api/invoices.controller";
+import { CashflowForecastController } from "../src/modules/finance-alerts/api/cashflow-forecast.controller";
 import { FinanceAlertsController } from "../src/modules/finance-alerts/api/finance-alerts.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
 import { InventoryItemsController } from "../src/modules/inventory/api/inventory-items.controller";
@@ -64,6 +66,7 @@ import { REQUIRED_PERMISSION_KEY } from "../src/modules/rbac/api/require-permiss
 const controllers = [
   HealthController,
   AuthController,
+  CompanySettingsController,
   RbacController,
   ExternalSharesController,
   NotificationsController,
@@ -88,6 +91,7 @@ const controllers = [
   RagSearchController,
   ProjectAssistantController,
   FinanceAlertsController,
+  CashflowForecastController,
   ContactsController,
   ContactCompaniesController,
   PipelineStagesController,

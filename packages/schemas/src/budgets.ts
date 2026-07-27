@@ -137,3 +137,36 @@ export const listPaymentApplicationsQuerySchema = paginationQuerySchema.extend({
   status: paymentApplicationStatusSchema.optional(),
 });
 export type ListPaymentApplicationsQuery = z.infer<typeof listPaymentApplicationsQuerySchema>;
+
+// --- Financial AI: cash-flow forecast (ai-spec.md §7.10, FR-FIN-7).
+// api.md §10: "POST /finance/ai/cashflow-forecast | + AI |
+// {horizon_weeks} -> projected inflows/outflows + confidence bands." ---
+export const cashflowForecastRequestSchema = z.object({
+  horizonWeeks: z.number().int().min(1).max(52),
+});
+export type CashflowForecastRequestInput = z.infer<typeof cashflowForecastRequestSchema>;
+
+export const cashflowForecastWeekSchema = z.object({
+  weekStart: isoDateSchema,
+  weekEnd: isoDateSchema,
+  projectedInflow: moneyAmountSchema,
+  projectedOutflow: moneyAmountSchema,
+  netCashFlow: moneyAmountSchema,
+  cumulativeCashFlow: moneyAmountSchema,
+  // Interval width doubles as the inverse-confidence signal (ai-spec.md
+  // §8: "interval width (forecasts)") — narrower near-term, wider further
+  // out, since more of the horizon's invoices still lack a firm due date.
+  lowerBound: moneyAmountSchema,
+  upperBound: moneyAmountSchema,
+  confidence: z.number().min(0).max(1),
+});
+export type CashflowForecastWeek = z.infer<typeof cashflowForecastWeekSchema>;
+
+export const cashflowForecastResultSchema = z.object({
+  horizonWeeks: z.number().int(),
+  generatedAt: z.string().datetime({ offset: true }),
+  weeks: z.array(cashflowForecastWeekSchema),
+  summary: z.string().nullable(),
+  aiRunId: uuidSchema.nullable(),
+});
+export type CashflowForecastResult = z.infer<typeof cashflowForecastResultSchema>;
