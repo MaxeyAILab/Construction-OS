@@ -11,7 +11,8 @@ describe("Equipment", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
-  const { equipmentService, assignmentsService, usageLogsService, maintenanceService } = buildTestEquipmentServices(db);
+  const { equipmentService, assignmentsService, usageLogsService, maintenanceService, insightsService } =
+    buildTestEquipmentServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -195,5 +196,103 @@ describe("Equipment", () => {
     const equipment = await equipmentService.create(tenantA, ownerA, { assetNo: "ISO-1", name: "Isolated" });
 
     await expect(equipmentService.getById(tenantB, equipment.id)).rejects.toThrow(/not found/);
+  });
+
+  function daysAgo(days: number): string {
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
+
+  // Equipment AI insights (FR-EQ-4, api.md §11 "GET /equipment/ai/insights").
+  describe("Equipment AI insights", () => {
+    it("flags an available asset with no recent usage as idle, suggesting reassignment for owned equipment", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("idle-owned");
+      const dozer = await equipmentService.create(tenantId, ownerId, { assetNo: "IDLE-1", name: "Idle Dozer" });
+      await usageLogsService.create(tenantId, ownerId, dozer.id, { workDate: daysAgo(10), hours: "4.00" });
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      const idle = insights.find((i) => i.kind === "idle_asset" && i.equipmentId === dozer.id);
+      expect(idle).toBeDefined();
+      expect(idle!.idleDays).toBeGreaterThanOrEqual(8);
+      expect(idle!.suggestedAction).toBe("reassign");
+    });
+
+    it("does not flag an asset used within the idle threshold", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("active");
+      const loader = await equipmentService.create(tenantId, ownerId, { assetNo: "ACTIVE-1", name: "Active Loader" });
+      await usageLogsService.create(tenantId, ownerId, loader.id, { workDate: daysAgo(1), hours: "8.00" });
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      expect(insights.some((i) => i.kind === "idle_asset" && i.equipmentId === loader.id)).toBe(false);
+    });
+
+    it("suggests returning an idle rented asset instead of reassigning", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("idle-rented");
+      const rentedGen = await equipmentService.create(tenantId, ownerId, {
+        assetNo: "RENT-IDLE-1",
+        name: "Rented Generator",
+        ownership: "rented",
+      });
+      await usageLogsService.create(tenantId, ownerId, rentedGen.id, { workDate: daysAgo(14), hours: "2.00" });
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      const idle = insights.find((i) => i.kind === "idle_asset" && i.equipmentId === rentedGen.id);
+      expect(idle!.suggestedAction).toBe("return");
+    });
+
+    it("surfaces due-soon/overdue maintenance schedules, reusing FR-EQ-3's due-state projection", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("insights-maintenance");
+      const truck = await equipmentService.create(tenantId, ownerId, { assetNo: "MAINT-1", name: "Service Truck" });
+      await maintenanceService.createSchedule(tenantId, ownerId, truck.id, {
+        name: "Oil change",
+        recurrenceType: "days",
+        recurrenceValue: 30,
+        lastServiceDate: "2026-06-01",
+      });
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      const due = insights.find((i) => i.kind === "maintenance_due" && i.equipmentId === truck.id);
+      expect(due).toBeDefined();
+      expect(due!.dueState).toBe("overdue");
+    });
+
+    it("recommends buying a heavily-utilized rented asset and returning a barely-used leased one", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("rent-vs-buy");
+      const heavilyUsed = await equipmentService.create(tenantId, ownerId, {
+        assetNo: "RVB-HIGH",
+        name: "Compactor",
+        ownership: "rented",
+      });
+      const barelyUsed = await equipmentService.create(tenantId, ownerId, {
+        assetNo: "RVB-LOW",
+        name: "Generator",
+        ownership: "leased",
+      });
+      await usageLogsService.create(tenantId, ownerId, heavilyUsed.id, { workDate: daysAgo(2), hours: "200.00" });
+      await usageLogsService.create(tenantId, ownerId, barelyUsed.id, { workDate: daysAgo(2), hours: "10.00" });
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      const high = insights.find((i) => i.kind === "rent_vs_buy" && i.equipmentId === heavilyUsed.id);
+      const low = insights.find((i) => i.kind === "rent_vs_buy" && i.equipmentId === barelyUsed.id);
+      expect(high!.recommendation).toBe("consider_buying");
+      expect(low!.recommendation).toBe("consider_returning");
+    });
+
+    it("does not produce rent-vs-buy insights for owned equipment", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("owned-no-rvb");
+      const owned = await equipmentService.create(tenantId, ownerId, { assetNo: "OWN-1", name: "Owned Dozer" });
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      expect(insights.some((i) => i.kind === "rent_vs_buy" && i.equipmentId === owned.id)).toBe(false);
+    });
+
+    it("enforces tenant isolation for equipment insights", async () => {
+      const { tenantId: tenantA, ownerId: ownerA } = await signUpCompanyWithProject("insights-iso-a");
+      const { tenantId: tenantB } = await signUpCompanyWithProject("insights-iso-b");
+      const dozer = await equipmentService.create(tenantA, ownerA, { assetNo: "ISO-INSIGHT-1", name: "Isolated Dozer" });
+      await usageLogsService.create(tenantA, ownerA, dozer.id, { workDate: daysAgo(20), hours: "1.00" });
+
+      const { insights } = await insightsService.listInsights(tenantB);
+      expect(insights.some((i) => i.equipmentId === dozer.id)).toBe(false);
+    });
   });
 });

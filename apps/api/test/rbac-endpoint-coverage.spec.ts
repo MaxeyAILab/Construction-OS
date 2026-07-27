@@ -13,6 +13,7 @@ import { DailyReportsController } from "../src/modules/daily-reports/api/daily-r
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
 import { DocumentsController } from "../src/modules/documents/api/documents.controller";
+import { EquipmentInsightsController } from "../src/modules/equipment/api/equipment-insights.controller";
 import { EquipmentController } from "../src/modules/equipment/api/equipment.controller";
 import { MaintenanceController } from "../src/modules/equipment/api/maintenance.controller";
 import { ContactCompaniesController } from "../src/modules/crm/api/contact-companies.controller";
@@ -20,6 +21,7 @@ import { ContactsController } from "../src/modules/crm/api/contacts.controller";
 import { OpportunitiesController } from "../src/modules/crm/api/opportunities.controller";
 import { PipelineStagesController } from "../src/modules/crm/api/pipeline-stages.controller";
 import { InvoicesController } from "../src/modules/finance/api/invoices.controller";
+import { PaymentApplicationsController } from "../src/modules/finance/api/payment-applications.controller";
 import { CashflowForecastController } from "../src/modules/finance-alerts/api/cashflow-forecast.controller";
 import { FinanceAlertsController } from "../src/modules/finance-alerts/api/finance-alerts.controller";
 import { ImportsExportsController } from "../src/modules/imports-exports/api/imports-exports.controller";
@@ -31,6 +33,7 @@ import { BidPackagesController } from "../src/modules/estimating/api/bid-package
 import { EstimatingController } from "../src/modules/estimating/api/estimating.controller";
 import { NotificationsController } from "../src/modules/notifications/api/notifications.controller";
 import { PhotosController } from "../src/modules/photos/api/photos.controller";
+import { ProcurementAiController } from "../src/modules/procurement/api/procurement-ai.controller";
 import { PurchaseOrdersController } from "../src/modules/procurement/api/purchase-orders.controller";
 import { RfqsController } from "../src/modules/procurement/api/rfqs.controller";
 import { SuppliersController } from "../src/modules/procurement/api/suppliers.controller";
@@ -47,6 +50,7 @@ import { SafetyFormsController } from "../src/modules/safety/api/safety-forms.co
 import { SchedulingController } from "../src/modules/scheduling/api/scheduling.controller";
 import { SubcontractorsController } from "../src/modules/subcontractors/api/subcontractors.controller";
 import { SubcontractsController } from "../src/modules/subcontractors/api/subcontracts.controller";
+import { SubmittalsController } from "../src/modules/submittals/api/submittals.controller";
 import { TasksController } from "../src/modules/tasks/api/tasks.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
@@ -85,6 +89,7 @@ const controllers = [
   RfisController,
   SchedulingController,
   TasksController,
+  SubmittalsController,
   ImportsExportsController,
   SyncController,
   AiController,
@@ -99,11 +104,13 @@ const controllers = [
   SuppliersController,
   PurchaseOrdersController,
   RfqsController,
+  ProcurementAiController,
   InventoryItemsController,
   InventoryLocationsController,
   StockController,
   EquipmentController,
   MaintenanceController,
+  EquipmentInsightsController,
   SafetyFormTemplatesController,
   SafetyFormsController,
   IncidentsController,
@@ -112,6 +119,7 @@ const controllers = [
   SubcontractsController,
   BidPackagesController,
   InvoicesController,
+  PaymentApplicationsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

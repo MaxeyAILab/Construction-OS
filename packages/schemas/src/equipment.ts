@@ -117,3 +117,74 @@ export const createEquipmentInspectionSchema = z.object({
   notes: z.string().optional(),
 });
 export type CreateEquipmentInspectionInput = z.infer<typeof createEquipmentInspectionSchema>;
+
+// --- Equipment AI: insights feed (ai-spec.md §7.6, FR-EQ-4). api.md §11:
+// "GET /equipment/ai/insights | Idle assets, predictive maintenance,
+// rent-vs-buy". A pure deterministic feed, no AI Gateway call — same
+// "recommendations list" shape/precedent as
+// procurement's suggest-lines/recommendations and inventory's
+// reorder-suggestions (both zero-AI-call feeds), as opposed to the
+// "diff/forecast" single-object AI-narrated pattern used elsewhere
+// (DrawingDiff, CashflowForecast, MarginErosion). Fault-pattern detection
+// from ai-spec §7.6's predictive-maintenance capability is not built here —
+// that requires historical failure-mode data this system doesn't collect
+// yet (flagged, not invented); "usage-hours vs service intervals" is
+// already fully covered by MaintenanceService's existing due-state
+// projection (FR-EQ-3), reused as-is rather than duplicated.
+export const equipmentInsightSuggestedActionSchema = z.enum(["reassign", "return"]);
+export type EquipmentInsightSuggestedAction = z.infer<typeof equipmentInsightSuggestedActionSchema>;
+
+export const idleAssetInsightSchema = z.object({
+  kind: z.literal("idle_asset"),
+  equipmentId: uuidSchema,
+  assetNo: z.string(),
+  name: z.string(),
+  ownership: equipmentOwnershipSchema,
+  idleDays: z.number().int(),
+  lastProjectId: uuidSchema.nullable(),
+  // ai-spec.md §7.6: "idle-asset detection with reassignment/return
+  // suggestions" — owned idle equipment should be reassigned; rented/
+  // leased idle equipment should be returned to stop paying for it.
+  suggestedAction: equipmentInsightSuggestedActionSchema,
+});
+export type IdleAssetInsight = z.infer<typeof idleAssetInsightSchema>;
+
+export const maintenanceDueInsightSchema = z.object({
+  kind: z.literal("maintenance_due"),
+  equipmentId: uuidSchema,
+  assetNo: z.string(),
+  name: z.string(),
+  maintenanceScheduleId: uuidSchema,
+  scheduleName: z.string(),
+  dueState: z.enum(["due_soon", "overdue"]),
+  recurrenceType: maintenanceRecurrenceTypeSchema,
+  remaining: z.number(),
+});
+export type MaintenanceDueInsight = z.infer<typeof maintenanceDueInsightSchema>;
+
+export const equipmentInsightRecommendationSchema = z.enum(["consider_buying", "consider_returning", "monitor"]);
+export type EquipmentInsightRecommendation = z.infer<typeof equipmentInsightRecommendationSchema>;
+
+export const rentVsBuyInsightSchema = z.object({
+  kind: z.literal("rent_vs_buy"),
+  equipmentId: uuidSchema,
+  assetNo: z.string(),
+  name: z.string(),
+  ownership: z.enum(["rented", "leased"]),
+  utilizationPct: z.number(),
+  windowDays: z.number().int(),
+  recommendation: equipmentInsightRecommendationSchema,
+});
+export type RentVsBuyInsight = z.infer<typeof rentVsBuyInsightSchema>;
+
+export const equipmentInsightSchema = z.discriminatedUnion("kind", [
+  idleAssetInsightSchema,
+  maintenanceDueInsightSchema,
+  rentVsBuyInsightSchema,
+]);
+export type EquipmentInsight = z.infer<typeof equipmentInsightSchema>;
+
+export const equipmentInsightsResponseSchema = z.object({
+  insights: z.array(equipmentInsightSchema),
+});
+export type EquipmentInsightsResponse = z.infer<typeof equipmentInsightsResponseSchema>;

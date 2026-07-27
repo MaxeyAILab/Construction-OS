@@ -5,9 +5,10 @@ import type {
   CreateMaintenanceWorkOrderInput,
   UpdateMaintenanceWorkOrderInput,
 } from "@constructionos/schemas";
-import { and, eq, gte, sum } from "drizzle-orm";
+import { and, eq, gte, isNull, sum } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import {
+  equipment,
   equipmentInspections,
   equipmentUsageLogs,
   maintenanceSchedules,
@@ -256,5 +257,32 @@ export class MaintenanceService {
     if (remaining <= 0) return "overdue";
     if (remaining <= recurrenceValue * DUE_SOON_FRACTION) return "due_soon";
     return "ok";
+  }
+
+  // Broadened for Equipment AI insights (FR-EQ-4) — same "expose a new
+  // public method rather than duplicate the private due-state computation"
+  // precedent as FinancialSummaryService.getCategoryVariance /
+  // DrawingSetsService.getPublished. Company-wide (not per-equipment) so
+  // EquipmentInsightsService can filter to due_soon/overdue in one call.
+  async listAllDueStates(tenantId: string) {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const rows = await tx
+        .select({
+          schedule: maintenanceSchedules,
+          equipmentAssetNo: equipment.assetNo,
+          equipmentName: equipment.name,
+        })
+        .from(maintenanceSchedules)
+        .innerJoin(equipment, eq(equipment.id, maintenanceSchedules.equipmentId))
+        .where(isNull(equipment.deletedAt));
+
+      return Promise.all(
+        rows.map(async (row) => ({
+          ...(await this.withDueState(tx, row.schedule)),
+          equipmentAssetNo: row.equipmentAssetNo,
+          equipmentName: row.equipmentName,
+        })),
+      );
+    });
   }
 }
