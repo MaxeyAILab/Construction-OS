@@ -85,3 +85,44 @@ export const createDrawingSetSchema = z.object({
   sheets: z.array(createDrawingSetSheetSchema).min(1),
 });
 export type CreateDrawingSetInput = z.infer<typeof createDrawingSetSchema>;
+
+// --- Document AI (ai-spec.md §7.7, FR-DOC-6) ---
+
+// api.md §8: "POST /drawing-sets/{id}/ai/diff | + AI | Version diff vs
+// prior set -> changed-region report." No request body is documented;
+// compareToDrawingSetId is an optional escape hatch — when omitted, the
+// service auto-selects the most recently created other drawing set for
+// the same project (the natural reading of "prior set").
+export const drawingSetDiffSchema = z.object({
+  compareToDrawingSetId: uuidSchema.optional(),
+});
+export type DrawingSetDiffInput = z.infer<typeof drawingSetDiffSchema>;
+
+// A sheet's identity across sets is its underlying `documents.id` (stable
+// across revisions) — `document_version_id` differs release to release by
+// design, so it is what "revised" detects, never what "same sheet" keys
+// on.
+export const drawingSetDiffSheetSchema = z.object({
+  documentId: uuidSchema,
+  name: z.string(),
+  documentVersionId: uuidSchema,
+  versionNo: z.number().int(),
+  priorVersionNo: z.number().int().optional(),
+});
+export type DrawingSetDiffSheet = z.infer<typeof drawingSetDiffSheetSchema>;
+
+// "changed-region report": a sheet-level (added/removed/revised) diff, not
+// pixel-level visual region detection — this codebase has no drawing
+// OCR/vision-diffing infrastructure (documented gap, same treatment as
+// RAG's cross-encoder rerank deferral).
+export const drawingSetDiffResultSchema = z.object({
+  drawingSetId: uuidSchema,
+  comparedToDrawingSetId: uuidSchema,
+  added: z.array(drawingSetDiffSheetSchema),
+  removed: z.array(drawingSetDiffSheetSchema),
+  revised: z.array(drawingSetDiffSheetSchema),
+  unchangedCount: z.number().int(),
+  summary: z.string().nullable(),
+  aiRunId: uuidSchema.nullable(),
+});
+export type DrawingSetDiffResult = z.infer<typeof drawingSetDiffResultSchema>;

@@ -17,6 +17,7 @@ import {
   createDocumentSchema,
   createDrawingSetSchema,
   createFolderSchema,
+  drawingSetDiffSchema,
   initiateDocumentVersionSchema,
   listDocumentsQuerySchema,
   updateDocumentSchema,
@@ -30,6 +31,7 @@ import { RequirePermission } from "../../rbac";
 import { AnnotationsService } from "../application/annotations.service";
 import { DocumentVersionsService } from "../application/document-versions.service";
 import { DocumentsService } from "../application/documents.service";
+import { DrawingDiffService } from "../application/drawing-diff.service";
 import { DrawingSetsService } from "../application/drawing-sets.service";
 import { FoldersService } from "../application/folders.service";
 
@@ -41,6 +43,7 @@ export class DocumentsController {
     private readonly versions: DocumentVersionsService,
     private readonly drawingSets: DrawingSetsService,
     private readonly annotations: AnnotationsService,
+    private readonly drawingDiff: DrawingDiffService,
   ) {}
 
   @Get("projects/:id/folders")
@@ -174,6 +177,19 @@ export class DocumentsController {
   @RequirePermission("docs.drawings.manage")
   publish(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.drawingSets.publish(req.auth!.tenantId, req.auth!.sub, id);
+  }
+
+  // api.md §8: "+AI" reuses the base docs.document.read permission rather
+  // than a separate AI-specific key — same convention as
+  // daily-reports.controller.ts's ai-summary endpoint.
+  @Post("drawing-sets/:id/ai/diff")
+  @RequirePermission("docs.document.read")
+  diffDrawingSet(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(drawingSetDiffSchema)) body: z.infer<typeof drawingSetDiffSchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.drawingDiff.diff(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 
   @Get("document-versions/:id/annotations")

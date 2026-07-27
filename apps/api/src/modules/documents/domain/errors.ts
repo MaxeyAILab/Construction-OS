@@ -63,3 +63,14 @@ export class DocumentReadDeniedError extends DomainError {
     super("missing permission: docs.document.read (or a valid client-portal share)");
   }
 }
+
+// Document AI (FR-DOC-6): nothing to diff a set against when it's the
+// project's only drawing set (or the caller explicitly named a set from a
+// different project).
+export class NoPriorDrawingSetError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("no prior drawing set exists to compare against");
+  }
+}

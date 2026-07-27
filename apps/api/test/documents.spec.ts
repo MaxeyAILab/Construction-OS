@@ -13,8 +13,15 @@ describe("Documents v1", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService } = buildTestProjectServices(db);
   const { storage, fileUploadService, fileProcessingService, queueConnection } = buildTestFileServices(db);
-  const { foldersService, documentsService, versionsService, drawingSetsService, cacheRedis } =
-    buildTestDocumentServices(db, fileUploadService);
+  const {
+    foldersService,
+    documentsService,
+    versionsService,
+    drawingSetsService,
+    drawingDiffService,
+    drawingDiffAiProvider,
+    cacheRedis,
+  } = buildTestDocumentServices(db, fileUploadService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -187,6 +194,109 @@ describe("Documents v1", () => {
     const eventTypes = await outboxEventTypes(tenantId);
     expect(eventTypes).toContain("drawing_set.created.v1");
     expect(eventTypes).toContain("drawing_set.published.v1");
+  });
+
+  it("drawing set diff: auto-selects the prior set and classifies added/removed/revised sheets", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("diffauto");
+
+    const docA101 = await documentsService.create(tenantId, ownerId, project.id, { name: "A-101", category: "drawing" });
+    const a101v1 = await uploadVersion(tenantId, ownerId, docA101.id, Buffer.from("a101 v1"), "a101-v1.pdf", true);
+    const docA102 = await documentsService.create(tenantId, ownerId, project.id, { name: "A-102", category: "drawing" });
+    const a102v1 = await uploadVersion(tenantId, ownerId, docA102.id, Buffer.from("a102 v1"), "a102-v1.pdf", true);
+
+    const setA = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "IFC 2026-03-01",
+      sheets: [{ documentVersionId: a101v1.id }, { documentVersionId: a102v1.id }],
+    });
+
+    const a101v2 = await uploadVersion(tenantId, ownerId, docA101.id, Buffer.from("a101 v2"), "a101-v2.pdf", true);
+    const docA103 = await documentsService.create(tenantId, ownerId, project.id, { name: "A-103", category: "drawing" });
+    const a103v1 = await uploadVersion(tenantId, ownerId, docA103.id, Buffer.from("a103 v1"), "a103-v1.pdf", true);
+
+    const setB = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "IFC 2026-04-01",
+      sheets: [{ documentVersionId: a101v2.id }, { documentVersionId: a103v1.id }],
+    });
+
+    const result = await drawingDiffService.diff(tenantId, ownerId, setB.id, {});
+
+    expect(result.comparedToDrawingSetId).toBe(setA.id);
+    expect(result.added.map((s) => s.documentId)).toEqual([docA103.id]);
+    expect(result.removed.map((s) => s.documentId)).toEqual([docA102.id]);
+    expect(result.revised).toHaveLength(1);
+    expect(result.revised[0]!.documentId).toBe(docA101.id);
+    expect(result.revised[0]!.versionNo).toBe(2);
+    expect(result.revised[0]!.priorVersionNo).toBe(1);
+    expect(result.unchangedCount).toBe(0);
+  });
+
+  it("drawing set diff: honors an explicit compareToDrawingSetId", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("diffexplicit");
+
+    const doc = await documentsService.create(tenantId, ownerId, project.id, { name: "S-101", category: "drawing" });
+    const v1 = await uploadVersion(tenantId, ownerId, doc.id, Buffer.from("s101 v1"), "s101-v1.pdf", true);
+    const setA = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "Set A",
+      sheets: [{ documentVersionId: v1.id }],
+    });
+
+    const v2 = await uploadVersion(tenantId, ownerId, doc.id, Buffer.from("s101 v2"), "s101-v2.pdf", true);
+    await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "Set B",
+      sheets: [{ documentVersionId: v2.id }],
+    });
+
+    // A third set identical to B, so the "most recent prior" auto-pick
+    // would land on B rather than A if compareToDrawingSetId weren't honored.
+    const setC = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "Set C",
+      sheets: [{ documentVersionId: v2.id }],
+    });
+
+    const result = await drawingDiffService.diff(tenantId, ownerId, setC.id, { compareToDrawingSetId: setA.id });
+    expect(result.comparedToDrawingSetId).toBe(setA.id);
+    expect(result.revised).toHaveLength(1);
+    expect(result.revised[0]!.priorVersionNo).toBe(1);
+  });
+
+  it("drawing set diff: throws when the project has no prior drawing set to compare against", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("diffnoprior");
+    const doc = await documentsService.create(tenantId, ownerId, project.id, { name: "Lone Sheet", category: "drawing" });
+    const version = await uploadVersion(tenantId, ownerId, doc.id, Buffer.from("bytes"), "lone.pdf", true);
+    const onlySet = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "Only Set",
+      sheets: [{ documentVersionId: version.id }],
+    });
+
+    await expect(drawingDiffService.diff(tenantId, ownerId, onlySet.id, {})).rejects.toThrow(/no prior/);
+  });
+
+  it("drawing set diff: AI summary is populated on success and degrades gracefully on failure", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("diffai");
+
+    const doc = await documentsService.create(tenantId, ownerId, project.id, { name: "M-101", category: "drawing" });
+    const v1 = await uploadVersion(tenantId, ownerId, doc.id, Buffer.from("m101 v1"), "m101-v1.pdf", true);
+    await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "Set A",
+      sheets: [{ documentVersionId: v1.id }],
+    });
+    const v2 = await uploadVersion(tenantId, ownerId, doc.id, Buffer.from("m101 v2"), "m101-v2.pdf", true);
+    const setB = await drawingSetsService.create(tenantId, ownerId, project.id, {
+      name: "Set B",
+      sheets: [{ documentVersionId: v2.id }],
+    });
+
+    drawingDiffAiProvider.setResponse({ content: "M-101 was revised.", inputTokens: 42, outputTokens: 8 });
+    const okResult = await drawingDiffService.diff(tenantId, ownerId, setB.id, {});
+    expect(okResult.summary).toBe("M-101 was revised.");
+    expect(okResult.aiRunId).not.toBeNull();
+
+    drawingDiffAiProvider.setShouldThrow(true);
+    const failedResult = await drawingDiffService.diff(tenantId, ownerId, setB.id, {});
+    expect(failedResult.summary).toBeNull();
+    expect(failedResult.aiRunId).toBeNull();
+    expect(failedResult.added).toEqual(okResult.added);
+    drawingDiffAiProvider.setShouldThrow(false);
   });
 
   it("RLS: a tenant only sees its own documents", async () => {

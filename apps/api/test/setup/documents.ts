@@ -1,9 +1,11 @@
 import type Redis from "ioredis";
 import { createRedisClient } from "../../src/infrastructure/redis/client";
 import type { Database } from "../../src/infrastructure/db/client";
+import { AiGatewayService } from "../../src/modules/ai/application/ai-gateway.service";
 import { AnnotationsService } from "../../src/modules/documents/application/annotations.service";
 import { DocumentVersionsService } from "../../src/modules/documents/application/document-versions.service";
 import { DocumentsService } from "../../src/modules/documents/application/documents.service";
+import { DrawingDiffService } from "../../src/modules/documents/application/drawing-diff.service";
 import { DrawingSetsService } from "../../src/modules/documents/application/drawing-sets.service";
 import { FoldersService } from "../../src/modules/documents/application/folders.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
@@ -11,6 +13,7 @@ import type { FileUploadService } from "../../src/modules/files/application/file
 import { ExternalSharesService } from "../../src/modules/rbac/application/external-shares.service";
 import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
+import { FakeAiProvider } from "./ai";
 
 export function buildTestDocumentServices(
   db: Database,
@@ -21,6 +24,8 @@ export function buildTestDocumentServices(
   versionsService: DocumentVersionsService;
   drawingSetsService: DrawingSetsService;
   annotationsService: AnnotationsService;
+  drawingDiffService: DrawingDiffService;
+  drawingDiffAiProvider: FakeAiProvider;
   cacheRedis: Redis;
 } {
   const outbox = new OutboxService();
@@ -29,12 +34,16 @@ export function buildTestDocumentServices(
   const permissions = new PermissionResolverService(db, cache);
   const externalShares = new ExternalSharesService(db, outbox);
   const documentsService = new DocumentsService(db, outbox, permissions, externalShares);
+  const drawingSetsService = new DrawingSetsService(db, outbox);
+  const drawingDiffAiProvider = new FakeAiProvider();
   return {
     foldersService: new FoldersService(db, outbox),
     documentsService,
     versionsService: new DocumentVersionsService(db, outbox, fileUploadService, documentsService),
-    drawingSetsService: new DrawingSetsService(db, outbox),
+    drawingSetsService,
     annotationsService: new AnnotationsService(db, outbox),
+    drawingDiffService: new DrawingDiffService(db, drawingSetsService, new AiGatewayService(db, drawingDiffAiProvider)),
+    drawingDiffAiProvider,
     cacheRedis,
   };
 }
