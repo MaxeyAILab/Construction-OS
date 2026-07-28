@@ -1352,6 +1352,19 @@ export const agentIdentityDeletedV1Schema = z.object({
 });
 export type AgentIdentityDeletedV1 = z.infer<typeof agentIdentityDeletedV1Schema>;
 
+// api.md §15.4 "Compliance Agent" (FR-SUB-2, FR-SAFE-2): fired after the
+// Compliance Agent's daily tick persists a new compliance_alerts row. No
+// aiRunId — rule-only, no AI enrichment this pass (unlike
+// finance_alert.created.v1's optional causal explanation).
+export const complianceAlertRaisedV1Schema = z.object({
+  companyId: uuidSchema,
+  complianceAlertId: uuidSchema,
+  certificationId: uuidSchema,
+  subcontractorId: uuidSchema,
+  dueState: z.enum(["expiring_soon", "expired"]),
+});
+export type ComplianceAlertRaisedV1 = z.infer<typeof complianceAlertRaisedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1505,6 +1518,7 @@ export const eventRegistry = {
   "agent_identity.paused.v1": agentIdentityPausedV1Schema,
   "agent_identity.resumed.v1": agentIdentityResumedV1Schema,
   "agent_identity.deleted.v1": agentIdentityDeletedV1Schema,
+  "compliance_alert.raised.v1": complianceAlertRaisedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

@@ -1,8 +1,10 @@
 import type { Database } from "../../src/infrastructure/db/client";
 import { AgentIdentitiesService } from "../../src/modules/agents/application/agent-identities.service";
 import { BillingAgentRunnerService } from "../../src/modules/agents/application/billing-agent-runner.service";
+import { ComplianceAgentRunnerService } from "../../src/modules/agents/application/compliance-agent-runner.service";
 import { ProcurementAgentRunnerService } from "../../src/modules/agents/application/procurement-agent-runner.service";
 import type { BudgetService } from "../../src/modules/budgets/application/budget.service";
+import type { ComplianceAlertsService } from "../../src/modules/compliance-alerts/application/compliance-alerts.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
 import type { PaymentApplicationsService } from "../../src/modules/finance/application/payment-applications.service";
 import { createRedisClient, type RedisClient } from "../../src/infrastructure/redis/client";
@@ -10,6 +12,7 @@ import type { ProcurementNeedsService } from "../../src/modules/procurement/appl
 import type { PurchaseOrderLifecycleService } from "../../src/modules/procurement/application/purchase-order-lifecycle.service";
 import { RbacService } from "../../src/modules/rbac/application/rbac.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
+import type { CertificationsService } from "../../src/modules/safety/application/certifications.service";
 import type { SchedulesService } from "../../src/modules/scheduling/application/schedules.service";
 
 export function buildTestAgentIdentitiesService(db: Database): { agents: AgentIdentitiesService; redis: RedisClient } {
@@ -43,4 +46,16 @@ export function buildTestBillingAgentRunner(
   paymentApplications: PaymentApplicationsService,
 ): BillingAgentRunnerService {
   return new BillingAgentRunnerService(db, agents, budgetService, schedulesService, paymentApplications);
+}
+
+// api.md §15.4: wires ComplianceAgentRunnerService directly (bypassing
+// ComplianceAgentWorker's BullMQ scheduling), same "test the runner, not
+// the queue" split as the two runners above.
+export function buildTestComplianceAgentRunner(
+  db: Database,
+  agents: AgentIdentitiesService,
+  certifications: CertificationsService,
+  complianceAlerts: ComplianceAlertsService,
+): ComplianceAgentRunnerService {
+  return new ComplianceAgentRunnerService(db, agents, certifications, complianceAlerts);
 }

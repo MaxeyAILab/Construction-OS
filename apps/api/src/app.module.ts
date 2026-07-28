@@ -7,6 +7,7 @@ import { AuthModule } from "./modules/auth";
 import { BudgetsModule } from "./modules/budgets";
 import { ChangeOrdersModule } from "./modules/change-orders";
 import { ClientPortalModule } from "./modules/client-portal";
+import { ComplianceAlertsModule } from "./modules/compliance-alerts";
 import { CrmModule } from "./modules/crm";
 import { DailyReportsModule } from "./modules/daily-reports";
 import { DashboardsModule } from "./modules/dashboards";
@@ -75,6 +76,7 @@ import { HealthModule } from "./platform/health/health.module";
     ProjectAssistantModule,
     PhotoAiModule,
     FinanceAlertsModule,
+    ComplianceAlertsModule,
     AccountingModule,
     WebhooksModule,
     AgentsModule,

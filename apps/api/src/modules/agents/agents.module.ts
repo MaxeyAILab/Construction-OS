@@ -16,23 +16,38 @@ import { ProcurementModule } from "../procurement";
 // Subcontractors/Crm/Documents/Files only), so this doesn't create a
 // cycle either.
 import { BudgetsModule } from "../budgets";
+// api.md §15.4: the Compliance Agent's daily tick composes
+// CertificationsService.list (Safety) + ComplianceAlertsService.raiseIfNew
+// (ComplianceAlertsModule) — neither imports Agents, so no cycle.
+import { ComplianceAlertsModule } from "../compliance-alerts";
 import { FinanceModule } from "../finance";
 // Deep imports, not the "../rbac" barrel — same cycle-avoidance precedent
 // documented in auth/application/scim-groups.service.ts.
 import { PermissionCacheService } from "../rbac/infrastructure/permission-cache.service";
 import { RbacService } from "../rbac/application/rbac.service";
+import { SafetyModule } from "../safety";
 import { SchedulingModule } from "../scheduling";
 import { AgentIdentitiesController } from "./api/agent-identities.controller";
 import { AgentIdentitiesService } from "./application/agent-identities.service";
 import { BillingAgentRunnerService } from "./application/billing-agent-runner.service";
+import { ComplianceAgentRunnerService } from "./application/compliance-agent-runner.service";
 import { ProcurementAgentRunnerService } from "./application/procurement-agent-runner.service";
 import { BillingAgentWorker } from "./infrastructure/billing-agent.worker";
+import { ComplianceAgentWorker } from "./infrastructure/compliance-agent.worker";
 import { ProcurementAgentWorker } from "./infrastructure/procurement-agent.worker";
 
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule, ProcurementModule, BudgetsModule, SchedulingModule, FinanceModule],
+  imports: [
+    EventsModule,
+    ProcurementModule,
+    BudgetsModule,
+    SchedulingModule,
+    FinanceModule,
+    SafetyModule,
+    ComplianceAlertsModule,
+  ],
   controllers: [AgentIdentitiesController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
@@ -45,6 +60,8 @@ const env = loadEnv();
     ProcurementAgentWorker,
     BillingAgentRunnerService,
     BillingAgentWorker,
+    ComplianceAgentRunnerService,
+    ComplianceAgentWorker,
   ],
   exports: [AgentIdentitiesService],
 })

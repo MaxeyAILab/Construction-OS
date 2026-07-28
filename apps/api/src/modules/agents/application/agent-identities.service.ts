@@ -33,6 +33,9 @@ const KNOWN_TOOL_NAMES = new Set([
   // api.md §15.3 "Billing Agent" — same capability-is-identity precedent,
   // for BillingAgentRunnerService's monthly tick.
   "assemble_and_route_pay_applications",
+  // api.md §15.4 "Compliance Agent" — same capability-is-identity
+  // precedent, for ComplianceAgentRunnerService's daily tick.
+  "chase_expiring_subcontractor_compliance",
 ]);
 
 function agentEmail(): string {

@@ -862,6 +862,27 @@
       "when": 1785255484278,
       "tag": "0122_billing_agent_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1785257091382,
+      "tag": "0123_compliance_alerts_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1785257105241,
+      "tag": "0124_compliance_alerts_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1785257108566,
+      "tag": "0125_compliance_agent_lookup",
+      "breakpoints": true
     }
   ]
 }

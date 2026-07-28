@@ -41,3 +41,4 @@ export * from "./annotations";
 export * from "./accounting";
 export * from "./sso";
 export * from "./agents";
+export * from "./compliance_alerts";

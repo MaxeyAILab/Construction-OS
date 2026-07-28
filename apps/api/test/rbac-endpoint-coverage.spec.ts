@@ -15,6 +15,7 @@ import { SsoLoginController } from "../src/modules/auth/api/sso-login.controller
 import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
 import { ChangeOrdersController } from "../src/modules/change-orders/api/change-orders.controller";
 import { PortalMessagesController } from "../src/modules/client-portal/api/portal-messages.controller";
+import { ComplianceAlertsController } from "../src/modules/compliance-alerts/api/compliance-alerts.controller";
 import { SelectionsController } from "../src/modules/client-portal/api/selections.controller";
 import { DailyReportsController } from "../src/modules/daily-reports/api/daily-reports.controller";
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
@@ -96,6 +97,7 @@ const controllers = [
   ChangeOrdersController,
   SelectionsController,
   PortalMessagesController,
+  ComplianceAlertsController,
   DailyReportsController,
   TimeEntriesController,
   DashboardsController,

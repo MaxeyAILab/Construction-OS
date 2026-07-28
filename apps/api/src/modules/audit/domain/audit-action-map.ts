@@ -848,6 +848,14 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "agent_identity",
     entityId: payload.agentId as string,
   }),
+  // api.md §15.4 "Compliance Agent" — fires after ComplianceAgentRunnerService
+  // persists a new compliance_alerts row, same conditional-alert-row
+  // audit shape as finance_alert.created.v1 above (no aiRunId — rule-only).
+  "compliance_alert.raised.v1": (payload) => ({
+    action: "compliance.alert.create",
+    entityType: "compliance_alert",
+    entityId: payload.complianceAlertId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
