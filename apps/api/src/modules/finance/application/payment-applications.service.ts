@@ -3,6 +3,8 @@ import type { CreatePaymentApplicationInput, CreatePaymentApplicationLineInput, 
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { costCodes, paymentApplicationLines, paymentApplications, projects } from "../../../infrastructure/db/schema";
+import { assertMakerChecker } from "../../../platform/maker-checker";
+import { CompanySettingsService } from "../../auth";
 import { OutboxService } from "../../events";
 import {
   CostCodeNotOnProjectError,
@@ -27,6 +29,7 @@ export class PaymentApplicationsService {
     private readonly outbox: OutboxService,
     private readonly invoicesService: InvoicesService,
     private readonly pdfQueue: PaymentApplicationPdfQueue,
+    private readonly companySettings: CompanySettingsService,
   ) {}
 
   async listForProject(tenantId: string, projectId: string, query: ListPaymentApplicationsQuery) {
@@ -157,9 +160,12 @@ export class PaymentApplicationsService {
   // service, so no cross-module two-phase-write concern), called after
   // this transaction commits.
   async approve(tenantId: string, actorId: string, id: string) {
+    const makerCheckerEnabled = await this.companySettings.isMakerCheckerEnabled(tenantId);
+
     const { app, lines, project } = await withTenant(this.db, tenantId, async (tx) => {
       const app = await this.requirePaymentApplication(tx, id);
       if (app.status !== "submitted") throw new PaymentApplicationNotSubmittedError();
+      assertMakerChecker(makerCheckerEnabled, actorId, app.createdBy);
 
       const project = await tx.query.projects.findFirst({ where: eq(projects.id, app.projectId) });
       if (!project) throw new ProjectNotFoundError();

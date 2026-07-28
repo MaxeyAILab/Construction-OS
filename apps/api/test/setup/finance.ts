@@ -1,4 +1,5 @@
 import type { Database } from "../../src/infrastructure/db/client";
+import { CompanySettingsService } from "../../src/modules/auth/application/company-settings.service";
 import type { CostTransactionsService } from "../../src/modules/budgets/application/cost-transactions.service";
 import type { ContactCompaniesService } from "../../src/modules/crm/application/contact-companies.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
@@ -19,6 +20,7 @@ export function buildTestFinanceServices(
   },
 ) {
   const outbox = new OutboxService();
+  const companySettingsService = new CompanySettingsService(db, outbox);
   const invoicesService = new InvoicesService(
     db,
     outbox,
@@ -27,9 +29,11 @@ export function buildTestFinanceServices(
     deps.subcontractorsService,
     deps.contactCompaniesService,
     deps.costTransactionsService,
+    companySettingsService,
   );
   return {
     invoicesService,
     paymentsService: new PaymentsService(db, outbox, invoicesService),
+    companySettingsService,
   };
 }

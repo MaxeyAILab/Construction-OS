@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { CompanySettingsService } from "../src/modules/auth/application/company-settings.service";
 import { CertificationsService } from "../src/modules/safety";
 import { SubcontractorsService } from "../src/modules/subcontractors/application/subcontractors.service";
 import { ContactCompaniesService } from "../src/modules/crm/application/contact-companies.service";
@@ -43,6 +44,7 @@ describe("Financial AI: cash-flow forecast (FR-FIN-7)", () => {
   const subcontractorsService = new SubcontractorsService(db, outbox, new CertificationsService(db, outbox));
   const contactCompaniesService = new ContactCompaniesService(db, outbox);
   const costTransactionsService = new CostTransactionsService(db, outbox);
+  const companySettingsService = new CompanySettingsService(db, outbox);
   const invoicesService = new InvoicesService(
     db,
     outbox,
@@ -51,6 +53,7 @@ describe("Financial AI: cash-flow forecast (FR-FIN-7)", () => {
     subcontractorsService,
     contactCompaniesService,
     costTransactionsService,
+    companySettingsService,
   );
 
   beforeAll(async () => {

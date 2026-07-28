@@ -9,6 +9,7 @@ import { buildTestInventoryServices } from "./setup/inventory";
 import { buildTestPaymentApplicationServices } from "./setup/payment-applications";
 import { buildTestProcurementServices } from "./setup/procurement";
 import { buildTestProjectServices } from "./setup/projects";
+import { buildTestRbacServices } from "./setup/rbac";
 import { buildTestSubcontractorServices } from "./setup/subcontractors";
 
 // Payment Applications (AIA-style progress billing, FR-FIN-4, database.md
@@ -33,8 +34,9 @@ describe("Payment Applications (AIA)", () => {
     costTransactionsService,
   });
   const { fileUploadService, queueConnection: fileQueueConnection } = buildTestFileServices(db);
-  const { paymentApplicationsService, pdfRunnerService, queueConnection, cacheRedis } =
+  const { paymentApplicationsService, pdfRunnerService, companySettingsService, queueConnection, cacheRedis } =
     buildTestPaymentApplicationServices(db, invoicesService, fileUploadService);
+  const { rbacService, redis: rbacRedis } = buildTestRbacServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -46,6 +48,7 @@ describe("Payment Applications (AIA)", () => {
     await cacheRedis.quit();
     await queueConnection.quit();
     await fileQueueConnection.quit();
+    await rbacRedis.quit();
   });
 
   async function signUpCompanyWithProjectAndBudget(label: string, withClient: boolean) {
@@ -180,6 +183,36 @@ describe("Payment Applications (AIA)", () => {
     expect(invoice.counterpartyType).toBe("client");
     expect(invoice.lines).toHaveLength(1);
     expect(invoice.lines[0]!.amount).toBe("2250.00");
+  });
+
+  // spec.md §10.2 (Segregation of duties): "Financial approvals ... support
+  // maker/checker workflows for enterprise tenants."
+  it("segregation of duties: blocks the creator from approving their own payment application once enabled, but a different approver can", async () => {
+    const { tenantId, ownerId, project, costCode } = await signUpCompanyWithProjectAndBudget("maker-checker", true);
+
+    await companySettingsService.update(tenantId, ownerId, { settings: { enforceMakerChecker: true } });
+
+    const app = await paymentApplicationsService.create(tenantId, ownerId, project.id, {
+      periodEndDate: "2026-01-31",
+      lines: [{ costCodeId: costCode.id, scheduledValue: "10000.00", thisPeriod: "1000.00" }],
+    });
+    await paymentApplicationsService.submit(tenantId, ownerId, app.id);
+
+    await expect(paymentApplicationsService.approve(tenantId, ownerId, app.id)).rejects.toMatchObject({
+      code: "maker_checker_violation",
+      status: 409,
+    });
+
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const { userId: checkerId } = await rbacService.inviteUser(
+      tenantId,
+      `checker-${suffix}@example.com`,
+      "Checker",
+      ownerId,
+      "internal",
+    );
+    const approved = await paymentApplicationsService.approve(tenantId, checkerId, app.id);
+    expect(approved.status).toBe("approved");
   });
 
   it("refuses to approve a payment application for a project with no client set (FR-FIN-4 gap guard)", async () => {

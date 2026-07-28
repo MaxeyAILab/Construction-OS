@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createQueueConnection, QUEUE_CONNECTION } from "../../infrastructure/queue/connection";
+import { CompanySettingsService } from "../auth";
 import { BudgetsModule } from "../budgets";
 import { CrmModule } from "../crm";
 import { DocumentsModule } from "../documents";
@@ -45,6 +46,7 @@ const env = loadEnv();
     PaymentApplicationPdfQueue,
     PaymentApplicationPdfRunnerService,
     PaymentApplicationPdfWorker,
+    CompanySettingsService,
   ],
 })
 export class FinanceModule {}

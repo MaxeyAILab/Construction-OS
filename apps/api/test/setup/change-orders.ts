@@ -1,5 +1,6 @@
 import type { Database } from "../../src/infrastructure/db/client";
 import { createRedisClient, type RedisClient } from "../../src/infrastructure/redis/client";
+import { CompanySettingsService } from "../../src/modules/auth/application/company-settings.service";
 import { ChangeOrderLifecycleService } from "../../src/modules/change-orders/application/change-order-lifecycle.service";
 import { ChangeOrdersService } from "../../src/modules/change-orders/application/change-orders.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
@@ -10,6 +11,7 @@ import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/pe
 export function buildTestChangeOrderServices(db: Database): {
   changeOrdersService: ChangeOrdersService;
   lifecycleService: ChangeOrderLifecycleService;
+  companySettingsService: CompanySettingsService;
   redis: RedisClient;
 } {
   const outbox = new OutboxService();
@@ -18,10 +20,12 @@ export function buildTestChangeOrderServices(db: Database): {
   const cache = new PermissionCacheService(redis);
   const permissions = new PermissionResolverService(db, cache);
   const externalShares = new ExternalSharesService(db, outbox);
+  const companySettingsService = new CompanySettingsService(db, outbox);
 
   return {
     changeOrdersService,
-    lifecycleService: new ChangeOrderLifecycleService(db, outbox, changeOrdersService, permissions, externalShares),
+    lifecycleService: new ChangeOrderLifecycleService(db, outbox, changeOrdersService, permissions, externalShares, companySettingsService),
+    companySettingsService,
     redis,
   };
 }

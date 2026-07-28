@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
+import { CompanySettingsService } from "../auth";
 import { EventsModule } from "../events";
 import { RbacModule } from "../rbac";
 import { ChangeOrdersController } from "./api/change-orders.controller";
@@ -16,6 +17,7 @@ const env = loadEnv();
     { provide: DATABASE, useFactory: () => createDatabase(env) },
     ChangeOrdersService,
     ChangeOrderLifecycleService,
+    CompanySettingsService,
   ],
 })
 export class ChangeOrdersModule {}

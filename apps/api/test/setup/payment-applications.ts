@@ -1,6 +1,7 @@
 import type Redis from "ioredis";
 import { createQueueConnection } from "../../src/infrastructure/queue/connection";
 import type { Database } from "../../src/infrastructure/db/client";
+import { CompanySettingsService } from "../../src/modules/auth/application/company-settings.service";
 import { DocumentsService } from "../../src/modules/documents/application/documents.service";
 import { DocumentVersionsService } from "../../src/modules/documents/application/document-versions.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
@@ -22,6 +23,7 @@ export function buildTestPaymentApplicationServices(
   paymentApplicationsService: PaymentApplicationsService;
   pdfRunnerService: PaymentApplicationPdfRunnerService;
   documentsService: DocumentsService;
+  companySettingsService: CompanySettingsService;
   queueConnection: Redis;
   cacheRedis: Redis;
 } {
@@ -30,7 +32,8 @@ export function buildTestPaymentApplicationServices(
     REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379",
   });
   const pdfQueue = new PaymentApplicationPdfQueue(queueConnection);
-  const paymentApplicationsService = new PaymentApplicationsService(db, outbox, invoicesService, pdfQueue);
+  const companySettingsService = new CompanySettingsService(db, outbox);
+  const paymentApplicationsService = new PaymentApplicationsService(db, outbox, invoicesService, pdfQueue, companySettingsService);
 
   const cacheRedis = createRedisClient({ REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379" });
   const cache = new PermissionCacheService(cacheRedis);
@@ -46,5 +49,5 @@ export function buildTestPaymentApplicationServices(
     outbox,
   );
 
-  return { paymentApplicationsService, pdfRunnerService, documentsService, queueConnection, cacheRedis };
+  return { paymentApplicationsService, pdfRunnerService, documentsService, companySettingsService, queueConnection, cacheRedis };
 }

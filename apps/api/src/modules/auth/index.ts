@@ -1,5 +1,6 @@
 export { AuthModule } from "./auth.module";
 export { AuthService } from "./application/auth.service";
+export { CompanySettingsService } from "./application/company-settings.service";
 export { AccessTokenGuard, type AuthenticatedRequest } from "./api/access-token.guard";
 // Field-level encryption (architecture.md §16) — reused by Accounting (FR-
 // PLAT-8) for accounting_connections' OAuth tokens, same "broaden an

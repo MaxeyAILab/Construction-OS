@@ -2,6 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import { and, eq, isNull } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { budgetLines, budgets, changeOrderLines, changeOrders } from "../../../infrastructure/db/schema";
+import { assertMakerChecker } from "../../../platform/maker-checker";
+import { CompanySettingsService } from "../../auth";
 import { OutboxService } from "../../events";
 import { ExternalSharesService, PermissionResolverService } from "../../rbac";
 import {
@@ -28,6 +30,7 @@ export class ChangeOrderLifecycleService {
     private readonly changeOrdersService: ChangeOrdersService,
     private readonly permissions: PermissionResolverService,
     private readonly externalShares: ExternalSharesService,
+    private readonly companySettings: CompanySettingsService,
   ) {}
 
   // Gap-fill: api.md §9 documents this as "Publishes to portal +
@@ -128,9 +131,12 @@ export class ChangeOrderLifecycleService {
       : false;
     if (!hasInternalPermission && !viaShare) throw new ChangeOrderApprovalDeniedError();
 
+    const makerCheckerEnabled = await this.companySettings.isMakerCheckerEnabled(tenantId);
+
     return withTenant(this.db, tenantId, async (tx) => {
       const co = await this.changeOrdersService.requireChangeOrder(tx, changeOrderId);
       if (co.status !== "pending_client") throw new ChangeOrderNotPendingClientError();
+      assertMakerChecker(makerCheckerEnabled, actorId, co.createdBy);
 
       const budget = await tx.query.budgets.findFirst({
         where: and(eq(budgets.projectId, co.projectId), eq(budgets.status, "active")),

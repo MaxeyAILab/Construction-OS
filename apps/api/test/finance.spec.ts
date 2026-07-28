@@ -28,7 +28,7 @@ describe("Supplier Portal & Finance Invoices", () => {
   } = buildTestProcurementServices(db, stockService);
   const { contactCompaniesService } = buildTestCrmServices(db, projectsService);
   const { subcontractorsService } = buildTestSubcontractorServices(db);
-  const { invoicesService, paymentsService } = buildTestFinanceServices(db, {
+  const { invoicesService, paymentsService, companySettingsService } = buildTestFinanceServices(db, {
     purchaseOrdersService,
     suppliersService,
     subcontractorsService,
@@ -160,6 +160,40 @@ describe("Supplier Portal & Finance Invoices", () => {
       code: "mismatched",
       status: 422,
     });
+  });
+
+  // spec.md §10.2 (Segregation of duties): "Financial approvals ... support
+  // maker/checker workflows for enterprise tenants."
+  it("segregation of duties: blocks the invoice creator from approving it once enabled, but a different approver can", async () => {
+    const { tenantId, ownerId, project, costCode } = await signUpCompanyWithProjectAndBudget("maker-checker");
+    const client = await contactCompaniesService.create(tenantId, ownerId, { name: "Acme Developers" });
+
+    await companySettingsService.update(tenantId, ownerId, { settings: { enforceMakerChecker: true } });
+
+    const invoice = await invoicesService.create(tenantId, ownerId, {
+      direction: "receivable",
+      counterpartyType: "client",
+      counterpartyId: client.id,
+      projectId: project.id,
+      issueDate: "2026-02-01",
+      lines: [{ costCodeId: costCode.id, description: "Progress billing", amount: "1000.00" }],
+    });
+
+    await expect(invoicesService.approve(tenantId, ownerId, invoice.id)).rejects.toMatchObject({
+      code: "maker_checker_violation",
+      status: 409,
+    });
+
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const { userId: checkerId } = await rbacService.inviteUser(
+      tenantId,
+      `checker-${suffix}@example.com`,
+      "Checker",
+      ownerId,
+      "internal",
+    );
+    const approved = await invoicesService.approve(tenantId, checkerId, invoice.id);
+    expect(approved.status).toBe("approved");
   });
 
   it("processes a subcontractor invoice into actual costs without a PO match (FR-SUB-3)", async () => {

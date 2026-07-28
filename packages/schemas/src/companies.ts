@@ -25,6 +25,14 @@ export const companySettingsSchema = z.object({
   unitSystem: z.enum(["imperial", "metric"]).optional(),
   fiscalYearStartMonth: z.number().int().min(1).max(12).optional(),
   branding: companyBrandingSchema.optional(),
+  // spec.md §10.2: "Financial approvals, change-order approvals ... support
+  // maker/checker workflows for enterprise tenants." architecture.md §12:
+  // "modeled as workflow rules on top of permissions, not new permission
+  // types" — hence a plain settings toggle, not a new RBAC concept. When
+  // true, the record's creator (createdBy) is barred from also being the
+  // approver on change-order approve, invoice approve, and payment
+  // application approve.
+  enforceMakerChecker: z.boolean().optional(),
 });
 export type CompanySettings = z.infer<typeof companySettingsSchema>;
 

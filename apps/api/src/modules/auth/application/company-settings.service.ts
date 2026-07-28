@@ -26,6 +26,17 @@ export class CompanySettingsService {
     return company;
   }
 
+  // Reused by Change Orders/Finance approve() call sites (FR-RBAC segregation
+  // of duties, spec.md §10.2) — same "broaden an existing module's public
+  // surface for a legitimate new cross-module need" precedent as
+  // EncryptionService. No CompanyNotFoundError here: a missing company mid-
+  // request is a different failure the caller's own tenant resolution would
+  // already have surfaced.
+  async isMakerCheckerEnabled(tenantId: string): Promise<boolean> {
+    const company = await this.db.query.companies.findFirst({ where: eq(companies.id, tenantId) });
+    return Boolean((company?.settings as CompanySettings | null)?.enforceMakerChecker);
+  }
+
   // PATCH semantics: a top-level settings key present in the body replaces
   // the corresponding stored key (branding replaces as a whole object, not
   // deep-merged field-by-field); omitted keys are left untouched.

@@ -3,6 +3,8 @@ import type { CreateInvoiceInput, CreateInvoiceLineInput, ListInvoicesQuery } fr
 import { and, desc, eq, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { costCodes, invoiceLines, invoices, payments, projects } from "../../../infrastructure/db/schema";
+import { assertMakerChecker } from "../../../platform/maker-checker";
+import { CompanySettingsService } from "../../auth";
 import { CostTransactionsService } from "../../budgets";
 import { ContactCompaniesService } from "../../crm";
 import { OutboxService } from "../../events";
@@ -55,6 +57,7 @@ export class InvoicesService {
     private readonly subcontractors: SubcontractorsService,
     private readonly contactCompanies: ContactCompaniesService,
     private readonly costTransactions: CostTransactionsService,
+    private readonly companySettings: CompanySettingsService,
   ) {}
 
   async list(tenantId: string, query: ListInvoicesQuery) {
@@ -239,9 +242,12 @@ export class InvoicesService {
     const overallMatchStatus = this.aggregateMatchStatus(rematched.map((r) => r.matchStatus));
     if (overallMatchStatus === "mismatched") throw new InvoiceMismatchedError();
 
+    const makerCheckerEnabled = await this.companySettings.isMakerCheckerEnabled(tenantId);
+
     const approved = await withTenant(this.db, tenantId, async (tx) => {
       const invoice = await this.requireInvoice(tx, id);
       if (invoice.status !== "draft") throw new InvoiceNotDraftError();
+      assertMakerChecker(makerCheckerEnabled, actorId, invoice.createdBy);
 
       for (const r of rematched) {
         await tx.update(invoiceLines).set({ matchStatus: r.matchStatus, updatedBy: actorId }).where(eq(invoiceLines.id, r.id));

@@ -7,13 +7,16 @@ import { buildTestBudgetServices } from "./setup/budgets";
 import { buildTestChangeOrderServices } from "./setup/change-orders";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 import { buildTestProjectServices } from "./setup/projects";
+import { buildTestRbacServices } from "./setup/rbac";
 
 describe("Change Orders", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
-  const { changeOrdersService, lifecycleService, redis: sharesRedis } = buildTestChangeOrderServices(db);
+  const { changeOrdersService, lifecycleService, companySettingsService, redis: sharesRedis } =
+    buildTestChangeOrderServices(db);
+  const { rbacService, redis: rbacRedis } = buildTestRbacServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -22,6 +25,7 @@ describe("Change Orders", () => {
   afterAll(async () => {
     await redis.quit();
     await sharesRedis.quit();
+    await rbacRedis.quit();
   });
 
   async function signUpCompanyWithProject(label: string) {
@@ -188,6 +192,50 @@ describe("Change Orders", () => {
     const eventTypes = await outboxEventTypes(tenantId);
     expect(eventTypes).toContain("change_order.approved.v1");
     expect(eventTypes).toContain("budget_line.updated.v1");
+  });
+
+  // spec.md §10.2 (Segregation of duties): "change-order approvals ...
+  // support maker/checker workflows for enterprise tenants" —
+  // companies.settings.enforceMakerChecker gates it (architecture.md §12:
+  // "workflow rules on top of permissions, not new permission types").
+  it("segregation of duties: blocks the drafter from approving their own change order once enabled, but a different approver can", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("maker-checker");
+    await budgetService.create(tenantId, ownerId, project.id, { currency: "USD" });
+    const costCode = await costCodesService.create(tenantId, ownerId, project.id, {
+      code: "01",
+      name: "GC",
+      kind: "other",
+    });
+
+    await companySettingsService.update(tenantId, ownerId, { settings: { enforceMakerChecker: true } });
+
+    const co = await changeOrdersService.create(tenantId, ownerId, project.id, {
+      title: "Segregation test",
+      priceImpactAmount: "500.00",
+      scheduleImpactDays: 0,
+      lines: [{ costCodeId: costCode.id, description: "Work", costImpactAmount: "500.00" }],
+    });
+    await lifecycleService.submitToClient(tenantId, ownerId, co.id);
+
+    await expect(lifecycleService.approve(tenantId, ownerId, co.id)).rejects.toMatchObject({
+      code: "maker_checker_violation",
+      status: 409,
+    });
+
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const { userId: checkerId } = await rbacService.inviteUser(
+      tenantId,
+      `checker-${suffix}@example.com`,
+      "Checker",
+      ownerId,
+      "internal",
+    );
+    const role = await rbacService.createRole(tenantId, "Approver", ownerId);
+    await rbacService.grantPermissionToRole(tenantId, role.id, "finance.co.approve", ownerId);
+    await rbacService.assignRole(tenantId, checkerId, role.id, { scopeType: "company" }, ownerId);
+
+    const approved = await lifecycleService.approve(tenantId, checkerId, co.id);
+    expect(approved.status).toBe("approved");
   });
 
   it("rejects approving a change order that hasn't been submitted", async () => {
