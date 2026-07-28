@@ -23,15 +23,18 @@ import {
   MfaRequiredError,
   NoCompanyMembershipError,
   NotAMemberError,
+  SsoConnectionNotFoundError,
 } from "../domain/errors";
 // Real (non-type-only) imports required: NestJS constructor injection
 // resolves providers via emitDecoratorMetadata, which needs the actual
 // class reference at runtime, not just its type.
 import { OutboxService } from "../../events";
+import type { SsoConnectionForLogin } from "./sso-connections.service";
 import { EncryptionService } from "../infrastructure/encryption.service";
 import { MagicLinkService } from "../infrastructure/magic-link.service";
 import { PasswordService } from "../infrastructure/password.service";
 import { RefreshTokenService } from "../infrastructure/refresh-token.service";
+import { SamlService } from "../infrastructure/saml.service";
 import { SessionDenylistService } from "../infrastructure/session-denylist.service";
 import { TokenService } from "../infrastructure/token.service";
 import { TotpService } from "../infrastructure/totp.service";
@@ -67,6 +70,7 @@ export class AuthService {
     private readonly magicLink: MagicLinkService,
     private readonly denylist: SessionDenylistService,
     private readonly outbox: OutboxService,
+    private readonly saml: SamlService,
   ) {}
 
   async signUp(
@@ -244,6 +248,58 @@ export class AuthService {
       const roleNames = await this.membershipRoleNames(tx, companyId, user.id);
       const session = await this.issueSession(tx, user.id, companyId, roleNames, device);
       return { ...session, companyId };
+    });
+  }
+
+  // api.md §2.1: SP-initiated SAML login. sso_connections carries FORCE ROW
+  // LEVEL SECURITY like every other tenant-owned table, but this lookup
+  // runs before any tenant is known (the caller only has the connection id
+  // from GET /auth/sso/{connectionId}/login) — the exact same bootstrap
+  // shape as resolveSoleCompanyId below, solved the same way: a narrow
+  // SECURITY DEFINER function (get_sso_connection_for_login, migration
+  // 0116) scoped to "the caller-supplied id is the only filter."
+  async loginViaSso(
+    connectionId: string,
+    samlBody: Record<string, string>,
+    device: DeviceContext = {},
+  ): Promise<IssuedSession & { companyId: string }> {
+    const rows = await this.db.execute<SsoConnectionForLogin>(
+      sql`select id, tenant_id as "tenantId", idp_entity_id as "idpEntityId",
+          idp_sso_url as "idpSsoUrl", idp_certificate as "idpCertificate",
+          default_role_id as "defaultRoleId", attribute_mapping as "attributeMapping"
+          from get_sso_connection_for_login(${connectionId})`,
+    );
+    const connection = Array.from(rows)[0];
+    if (!connection) throw new SsoConnectionNotFoundError();
+
+    const assertion = await this.saml.validateAssertion(connection, samlBody);
+    const tenantId = connection.tenantId;
+
+    return withTenant(this.db, tenantId, async (tx) => {
+      let user = await tx.query.users.findFirst({ where: eq(users.email, assertion.email) });
+      if (!user) {
+        [user] = await tx
+          .insert(users)
+          .values({ email: assertion.email, fullName: assertion.fullName, passwordHash: null })
+          .returning();
+      }
+
+      const membership = await tx.query.companyUsers.findFirst({
+        where: and(eq(companyUsers.tenantId, tenantId), eq(companyUsers.userId, user!.id)),
+      });
+      if (!membership) {
+        await tx.insert(companyUsers).values({ tenantId, userId: user!.id });
+        await tx.insert(userRoles).values({
+          tenantId,
+          userId: user!.id,
+          roleId: connection.defaultRoleId,
+          scopeType: "company",
+        });
+      }
+
+      const roleNames = await this.membershipRoleNames(tx, tenantId, user!.id);
+      const session = await this.issueSession(tx, user!.id, tenantId, roleNames, device);
+      return { ...session, companyId: tenantId };
     });
   }
 

@@ -7,6 +7,10 @@ import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { ApiKeysController } from "../src/modules/auth/api/api-keys.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
 import { CompanySettingsController } from "../src/modules/auth/api/company-settings.controller";
+import { ScimGroupsController } from "../src/modules/auth/api/scim-groups.controller";
+import { ScimUsersController } from "../src/modules/auth/api/scim-users.controller";
+import { SsoConnectionsController } from "../src/modules/auth/api/sso-connections.controller";
+import { SsoLoginController } from "../src/modules/auth/api/sso-login.controller";
 import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
 import { ChangeOrdersController } from "../src/modules/change-orders/api/change-orders.controller";
 import { PortalMessagesController } from "../src/modules/client-portal/api/portal-messages.controller";
@@ -76,6 +80,10 @@ const controllers = [
   AuthController,
   CompanySettingsController,
   ApiKeysController,
+  SsoConnectionsController,
+  SsoLoginController,
+  ScimUsersController,
+  ScimGroupsController,
   RbacController,
   ExternalSharesController,
   NotificationsController,

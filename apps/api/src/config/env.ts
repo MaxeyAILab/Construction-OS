@@ -79,6 +79,12 @@ const envSchema = z.object({
     .string()
     .base64()
     .refine((v) => Buffer.from(v, "base64").length === 32, "must decode to 32 bytes"),
+  // api.md §2.1: this API's own externally-reachable origin, needed to
+  // construct SAML SP entity IDs / ACS URLs / metadata (SamlService) —
+  // unlike the provider credentials above, there's no "unconfigured is
+  // fine" state for this one since every SSO connection needs it, so it's
+  // defaulted to local dev rather than optional.
+  API_BASE_URL: z.string().url().default("http://localhost:3001"),
 });
 
 export type Env = z.infer<typeof envSchema>;

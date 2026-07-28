@@ -1,5 +1,6 @@
 import "./infrastructure/observability/tracing";
 import "reflect-metadata";
+import formbody from "@fastify/formbody";
 import helmet from "@fastify/helmet";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
@@ -27,6 +28,10 @@ async function bootstrap() {
   });
 
   await app.register(helmet);
+  // api.md §2.1: the SAML ACS endpoint receives an
+  // application/x-www-form-urlencoded POST (SAMLResponse + RelayState) per
+  // the HTTP-POST binding — Fastify only parses JSON out of the box.
+  await app.register(formbody);
   app.enableCors();
 
   // api.md: Base URL is path-versioned (/v1); every response follows the

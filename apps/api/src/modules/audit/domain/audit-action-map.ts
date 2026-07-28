@@ -804,6 +804,31 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "api_key",
     entityId: payload.apiKeyId as string,
   }),
+  // api.md §2.1: connection admin is admin.sso.manage-gated; SCIM-driven
+  // user lifecycle events aren't gated by a permission at all (the SCIM
+  // token itself is the authorization) but are still fully audited, same
+  // "AI has no side door" precedent (ai-spec.md §1) applied to
+  // integration-attributed actions generally.
+  "sso_connection.created.v1": (payload) => ({
+    action: "admin.sso.manage",
+    entityType: "sso_connection",
+    entityId: payload.ssoConnectionId as string,
+  }),
+  "sso_connection.deleted.v1": (payload) => ({
+    action: "admin.sso.manage",
+    entityType: "sso_connection",
+    entityId: payload.ssoConnectionId as string,
+  }),
+  "scim_user.provisioned.v1": (payload) => ({
+    action: "admin.sso.manage",
+    entityType: "user",
+    entityId: payload.userId as string,
+  }),
+  "scim_user.deprovisioned.v1": (payload) => ({
+    action: "admin.sso.manage",
+    entityType: "user",
+    entityId: payload.userId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

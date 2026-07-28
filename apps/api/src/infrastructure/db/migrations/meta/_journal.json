@@ -792,6 +792,34 @@
       "when": 1785230000000,
       "tag": "0112_api_keys_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1785231233692,
+      "tag": "0113_sso_connections_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1785231233693,
+      "tag": "0114_sso_connections_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1785231233694,
+      "tag": "0115_sso_scim_permission",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1785231233695,
+      "tag": "0116_sso_connection_lookup",
+      "breakpoints": true
     }
   ]
 }

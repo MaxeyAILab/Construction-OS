@@ -1293,6 +1293,65 @@ export const apiKeyRevokedV1Schema = z.object({
 });
 export type ApiKeyRevokedV1 = z.infer<typeof apiKeyRevokedV1Schema>;
 
+// api.md §2.1 (FR-PLAT-2, roadmap "SSO (SAML/OIDC) + SCIM provisioning"):
+// admin.sso.manage-gated connection CRUD, plus the SCIM-provisioned user
+// lifecycle events (attributed to the connection, not a human actor).
+export const ssoConnectionCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  ssoConnectionId: uuidSchema,
+  name: z.string(),
+});
+export type SsoConnectionCreatedV1 = z.infer<typeof ssoConnectionCreatedV1Schema>;
+
+export const ssoConnectionDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  ssoConnectionId: uuidSchema,
+});
+export type SsoConnectionDeletedV1 = z.infer<typeof ssoConnectionDeletedV1Schema>;
+
+export const scimUserProvisionedV1Schema = z.object({
+  companyId: uuidSchema,
+  ssoConnectionId: uuidSchema,
+  userId: uuidSchema,
+});
+export type ScimUserProvisionedV1 = z.infer<typeof scimUserProvisionedV1Schema>;
+
+export const scimUserDeprovisionedV1Schema = z.object({
+  companyId: uuidSchema,
+  ssoConnectionId: uuidSchema,
+  userId: uuidSchema,
+});
+export type ScimUserDeprovisionedV1 = z.infer<typeof scimUserDeprovisionedV1Schema>;
+
+// api.md §15.1 (ai-spec.md §15, roadmap "Agent runtime GA"): agent
+// identities are users rows (kind='agent') carrying their own admin.agent.
+// manage-gated lifecycle events, distinct from ordinary user.invited.v1
+// since an agent is never "invited."
+export const agentIdentityCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  agentId: uuidSchema,
+  name: z.string(),
+});
+export type AgentIdentityCreatedV1 = z.infer<typeof agentIdentityCreatedV1Schema>;
+
+export const agentIdentityPausedV1Schema = z.object({
+  companyId: uuidSchema,
+  agentId: uuidSchema,
+});
+export type AgentIdentityPausedV1 = z.infer<typeof agentIdentityPausedV1Schema>;
+
+export const agentIdentityResumedV1Schema = z.object({
+  companyId: uuidSchema,
+  agentId: uuidSchema,
+});
+export type AgentIdentityResumedV1 = z.infer<typeof agentIdentityResumedV1Schema>;
+
+export const agentIdentityDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  agentId: uuidSchema,
+});
+export type AgentIdentityDeletedV1 = z.infer<typeof agentIdentityDeletedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1438,6 +1497,14 @@ export const eventRegistry = {
   "webhook_delivery.dead_lettered.v1": webhookDeliveryDeadLetteredV1Schema,
   "api_key.created.v1": apiKeyCreatedV1Schema,
   "api_key.revoked.v1": apiKeyRevokedV1Schema,
+  "sso_connection.created.v1": ssoConnectionCreatedV1Schema,
+  "sso_connection.deleted.v1": ssoConnectionDeletedV1Schema,
+  "scim_user.provisioned.v1": scimUserProvisionedV1Schema,
+  "scim_user.deprovisioned.v1": scimUserDeprovisionedV1Schema,
+  "agent_identity.created.v1": agentIdentityCreatedV1Schema,
+  "agent_identity.paused.v1": agentIdentityPausedV1Schema,
+  "agent_identity.resumed.v1": agentIdentityResumedV1Schema,
+  "agent_identity.deleted.v1": agentIdentityDeletedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

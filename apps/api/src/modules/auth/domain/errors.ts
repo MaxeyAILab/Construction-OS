@@ -96,3 +96,43 @@ export class CompanyNotFoundError extends DomainError {
     super("company not found");
   }
 }
+
+export class SsoConnectionNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("SSO connection not found");
+  }
+}
+
+export class InvalidSamlAssertionError extends DomainError {
+  readonly code = "invalid_saml_assertion";
+  readonly status = 401;
+  constructor() {
+    super("SAML assertion failed validation");
+  }
+}
+
+export class ScimAuthenticationError extends DomainError {
+  readonly code = "invalid_credentials";
+  readonly status = 401;
+  constructor() {
+    super("invalid or revoked SCIM token");
+  }
+}
+
+export class ScimUserNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("SCIM user not found");
+  }
+}
+
+export class ScimGroupNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("SCIM group not found");
+  }
+}

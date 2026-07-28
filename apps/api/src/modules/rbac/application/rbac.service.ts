@@ -191,12 +191,18 @@ export class RbacService {
     await this.cache.invalidateUser(tenantId, userId);
   }
 
+  // actorId is nullable so callers with no human actor (api.md §2.1's SCIM
+  // Group membership sync, driven by a connection's bearer token rather
+  // than a logged-in user) can still go through this single source of
+  // truth for role assignment instead of duplicating the insert+event
+  // logic — outbox.actorId already supports null for exactly this case
+  // (actorType='integration'), same as ScimUsersService's own events.
   async assignRole(
     tenantId: string,
     userId: string,
     roleId: string,
     scope: { scopeType: "company" | "project"; projectId?: string | undefined },
-    actorId: string,
+    actorId: string | null,
   ): Promise<void> {
     const targetUser = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
     if (!targetUser) throw new UserNotFoundError();
@@ -226,6 +232,7 @@ export class RbacService {
         },
         dedupeKey: randomUUID(),
         actorId,
+        actorType: actorId ? "user" : "integration",
       });
     });
 
@@ -236,7 +243,7 @@ export class RbacService {
     tenantId: string,
     userId: string,
     roleId: string,
-    actorId: string,
+    actorId: string | null,
   ): Promise<void> {
     await withTenant(this.db, tenantId, async (tx) => {
       const revoked = await tx
@@ -256,6 +263,7 @@ export class RbacService {
           payload: { companyId: tenantId, userId, roleId },
           dedupeKey: randomUUID(),
           actorId,
+          actorType: actorId ? "user" : "integration",
         });
       }
     });
