@@ -764,6 +764,13 @@
       "when": 1785208070216,
       "tag": "0108_accounting_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1785208070217,
+      "tag": "0109_webhooks_permission",
+      "breakpoints": true
     }
   ]
 }

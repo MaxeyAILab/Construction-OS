@@ -71,6 +71,14 @@ const envSchema = z.object({
   XERO_CLIENT_ID: z.string().optional(),
   XERO_CLIENT_SECRET: z.string().optional(),
   XERO_REDIRECT_URI: z.string().url().optional(),
+  // api.md §16.3: field-level encryption for webhook_endpoints.secret (the
+  // HMAC signing key shared with the tenant's receiving system) — same
+  // "deliberately separate key per data class" reasoning as
+  // ACCOUNTING_ENCRYPTION_KEY/MFA_ENCRYPTION_KEY.
+  WEBHOOK_ENCRYPTION_KEY: z
+    .string()
+    .base64()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "must decode to 32 bytes"),
 });
 
 export type Env = z.infer<typeof envSchema>;

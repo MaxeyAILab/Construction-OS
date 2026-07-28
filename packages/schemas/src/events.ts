@@ -1204,6 +1204,41 @@ export const accountingSyncRunCompletedV1Schema = z.object({
 });
 export type AccountingSyncRunCompletedV1 = z.infer<typeof accountingSyncRunCompletedV1Schema>;
 
+// api.md §16.3: outbound webhook endpoint CRUD is a privileged admin
+// action (a registered endpoint receives every subscribed company event),
+// same "audit-worthy" framing as admin.integration.manage mutations.
+export const webhookEndpointCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  webhookEndpointId: uuidSchema,
+  url: z.string(),
+});
+export type WebhookEndpointCreatedV1 = z.infer<typeof webhookEndpointCreatedV1Schema>;
+
+export const webhookEndpointUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  webhookEndpointId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type WebhookEndpointUpdatedV1 = z.infer<typeof webhookEndpointUpdatedV1Schema>;
+
+export const webhookEndpointDeletedV1Schema = z.object({
+  companyId: uuidSchema,
+  webhookEndpointId: uuidSchema,
+});
+export type WebhookEndpointDeletedV1 = z.infer<typeof webhookEndpointDeletedV1Schema>;
+
+// api.md §16.3: "at-least-once, exponential retries 24 h -> dead-letter +
+// notification." createdBy carries the endpoint owner so Notifications'
+// event-notification-map (a single-recipient builder, same shape as
+// user.invited.v1) can target them directly without a cross-module lookup.
+export const webhookDeliveryDeadLetteredV1Schema = z.object({
+  companyId: uuidSchema,
+  webhookEndpointId: uuidSchema,
+  eventType: z.string(),
+  createdBy: uuidSchema.nullable(),
+});
+export type WebhookDeliveryDeadLetteredV1 = z.infer<typeof webhookDeliveryDeadLetteredV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1340,6 +1375,10 @@ export const eventRegistry = {
   "accounting_connection.connected.v1": accountingConnectionConnectedV1Schema,
   "accounting_connection.disconnected.v1": accountingConnectionDisconnectedV1Schema,
   "accounting_sync_run.completed.v1": accountingSyncRunCompletedV1Schema,
+  "webhook_endpoint.created.v1": webhookEndpointCreatedV1Schema,
+  "webhook_endpoint.updated.v1": webhookEndpointUpdatedV1Schema,
+  "webhook_endpoint.deleted.v1": webhookEndpointDeletedV1Schema,
+  "webhook_delivery.dead_lettered.v1": webhookDeliveryDeadLetteredV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

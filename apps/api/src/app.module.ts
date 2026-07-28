@@ -32,6 +32,7 @@ import { SubcontractorsModule } from "./modules/subcontractors";
 import { SubmittalsModule } from "./modules/submittals";
 import { SyncModule } from "./modules/sync";
 import { TasksModule } from "./modules/tasks";
+import { WebhooksModule } from "./modules/webhooks";
 import { HealthModule } from "./platform/health/health.module";
 
 // Global guard order matters: AuthModule registers AccessTokenGuard
@@ -74,6 +75,7 @@ import { HealthModule } from "./platform/health/health.module";
     PhotoAiModule,
     FinanceAlertsModule,
     AccountingModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}

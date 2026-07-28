@@ -756,6 +756,23 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "accounting_sync_run",
     entityId: payload.syncRunId as string,
   }),
+  // api.md §16.3: outbound webhook endpoint CRUD is admin.webhook.manage-
+  // gated (a registered endpoint receives every subscribed company event).
+  "webhook_endpoint.created.v1": (payload) => ({
+    action: "admin.webhook.manage",
+    entityType: "webhook_endpoint",
+    entityId: payload.webhookEndpointId as string,
+  }),
+  "webhook_endpoint.updated.v1": (payload) => ({
+    action: "admin.webhook.manage",
+    entityType: "webhook_endpoint",
+    entityId: payload.webhookEndpointId as string,
+  }),
+  "webhook_endpoint.deleted.v1": (payload) => ({
+    action: "admin.webhook.manage",
+    entityType: "webhook_endpoint",
+    entityId: payload.webhookEndpointId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

@@ -54,6 +54,7 @@ import { SubcontractorsController } from "../src/modules/subcontractors/api/subc
 import { SubcontractsController } from "../src/modules/subcontractors/api/subcontracts.controller";
 import { SubmittalsController } from "../src/modules/submittals/api/submittals.controller";
 import { TasksController } from "../src/modules/tasks/api/tasks.controller";
+import { WebhooksController } from "../src/modules/webhooks/api/webhooks.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
 import { IS_PUBLIC_KEY } from "../src/platform/decorators/public.decorator";
@@ -124,6 +125,7 @@ const controllers = [
   InvoicesController,
   PaymentApplicationsController,
   AccountingController,
+  WebhooksController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

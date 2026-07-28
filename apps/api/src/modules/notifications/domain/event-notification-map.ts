@@ -53,6 +53,26 @@ const builders: Partial<Record<EventType, NotificationBuilder>> = {
       entityId: payload.entityId as string,
     }));
   },
+  // api.md §16.3: "dead-letter + notification". createdBy carries the
+  // endpoint's owner directly (no cross-module lookup needed) — same
+  // single-recipient shape as user.invited.v1/role.assigned.v1 above. A
+  // system-created endpoint (createdBy null) has no one to notify, so it
+  // produces no draft rather than guessing a recipient.
+  "webhook_delivery.dead_lettered.v1": (payload) => {
+    const createdBy = payload.createdBy as string | null;
+    if (!createdBy) return [];
+    return [
+      {
+        recipientUserId: createdBy,
+        category: "webhook.dead_lettered",
+        kind: "webhook_delivery_dead_lettered",
+        title: "Webhook delivery failed",
+        body: `Delivery of ${payload.eventType as string} to your webhook endpoint failed after repeated retries.`,
+        entityType: "webhook_endpoint",
+        entityId: payload.webhookEndpointId as string,
+      },
+    ];
+  },
 };
 
 export function draftNotifications(envelope: OutboxEnvelope): NotificationDraft[] {
