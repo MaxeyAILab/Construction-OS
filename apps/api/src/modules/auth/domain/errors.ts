@@ -52,6 +52,22 @@ export class NotAMemberError extends DomainError {
   }
 }
 
+export class ApiKeyNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("API key not found");
+  }
+}
+
+export class UnknownApiKeyScopeError extends DomainError {
+  readonly code = "unknown_permission";
+  readonly status = 422;
+  constructor(readonly scope: string) {
+    super(`unknown permission key: ${scope}`);
+  }
+}
+
 export class InvalidRefreshTokenError extends DomainError {
   readonly code = "invalid_refresh_token";
   readonly status = 401;

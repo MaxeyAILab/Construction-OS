@@ -6,8 +6,10 @@ import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createRedisClient, REDIS_CLIENT } from "../../infrastructure/redis/client";
 import { EventsModule } from "../events";
 import { AccessTokenGuard } from "./api/access-token.guard";
+import { ApiKeysController } from "./api/api-keys.controller";
 import { AuthController } from "./api/auth.controller";
 import { CompanySettingsController } from "./api/company-settings.controller";
+import { ApiKeysService } from "./application/api-keys.service";
 import { AuthService } from "./application/auth.service";
 import { CompanySettingsService } from "./application/company-settings.service";
 import { UserPreferencesService } from "./application/user-preferences.service";
@@ -23,7 +25,7 @@ const env = loadEnv();
 
 @Module({
   imports: [JwtModule.register({ secret: env.JWT_ACCESS_SECRET }), EventsModule],
-  controllers: [AuthController, CompanySettingsController],
+  controllers: [AuthController, CompanySettingsController, ApiKeysController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
     { provide: REDIS_CLIENT, useFactory: () => createRedisClient(env) },
@@ -39,6 +41,7 @@ const env = loadEnv();
     AuthService,
     UserPreferencesService,
     CompanySettingsService,
+    ApiKeysService,
   ],
   exports: [AuthService],
 })

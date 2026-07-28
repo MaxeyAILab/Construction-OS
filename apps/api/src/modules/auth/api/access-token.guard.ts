@@ -11,10 +11,18 @@ import { IS_PUBLIC_KEY } from "../../../platform/decorators/public.decorator";
 // resolves providers via emitDecoratorMetadata, which needs the actual
 // class reference at runtime.
 import { Reflector } from "@nestjs/core";
+import { ApiKeysService } from "../application/api-keys.service";
 import { SessionDenylistService } from "../infrastructure/session-denylist.service";
 import { type AccessTokenPayload, TokenService } from "../infrastructure/token.service";
 
-export type AuthenticatedRequest = FastifyRequest & { auth?: AccessTokenPayload };
+export type AuthenticatedRequest = FastifyRequest & {
+  auth?: AccessTokenPayload;
+  // api.md §16.4: set only when the request authenticated via X-Api-Key
+  // rather than a Bearer token. PermissionGuard intersects this against
+  // the required permission — a key can never exceed what its creator
+  // (auth.sub) currently holds.
+  apiKeyScopes?: string[];
+};
 
 // Establishes *who* the caller is (architecture.md §12 layer 1, the API
 // guard) — registered globally (APP_GUARD, app.module.ts) so every
@@ -26,6 +34,7 @@ export class AccessTokenGuard implements CanActivate {
     private readonly tokens: TokenService,
     private readonly denylist: SessionDenylistService,
     private readonly reflector: Reflector,
+    private readonly apiKeys: ApiKeysService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -36,6 +45,19 @@ export class AccessTokenGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+    const apiKeyHeader = request.headers["x-api-key"];
+    const rawApiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
+    if (rawApiKey) {
+      const resolved = await this.apiKeys.resolveForAuth(rawApiKey);
+      if (!resolved) throw new UnauthorizedException("invalid or revoked API key");
+
+      request.auth = { sub: resolved.userId, tenantId: resolved.tenantId, roles: [], sessionId: "", jti: "" };
+      request.apiKeyScopes = resolved.scopes;
+      attachAuthContext(resolved.tenantId, resolved.userId);
+      return true;
+    }
+
     const header = request.headers.authorization;
     if (!header?.startsWith("Bearer ")) {
       throw new UnauthorizedException("missing bearer token");

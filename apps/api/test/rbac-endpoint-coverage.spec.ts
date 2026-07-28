@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AccountingController } from "../src/modules/accounting/api/accounting.controller";
 import { AiController } from "../src/modules/ai/api/ai.controller";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
+import { ApiKeysController } from "../src/modules/auth/api/api-keys.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
 import { CompanySettingsController } from "../src/modules/auth/api/company-settings.controller";
 import { BudgetsController } from "../src/modules/budgets/api/budgets.controller";
@@ -74,6 +75,7 @@ const controllers = [
   HealthController,
   AuthController,
   CompanySettingsController,
+  ApiKeysController,
   RbacController,
   ExternalSharesController,
   NotificationsController,

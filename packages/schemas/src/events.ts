@@ -1278,6 +1278,21 @@ export const webhookDeliveryDeadLetteredV1Schema = z.object({
 });
 export type WebhookDeliveryDeadLetteredV1 = z.infer<typeof webhookDeliveryDeadLetteredV1Schema>;
 
+// api.md §16.4 (NFR-23, roadmap "Public API GA"): server-to-server
+// X-Api-Key auth, admin.apikey.manage-gated CRUD.
+export const apiKeyCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  apiKeyId: uuidSchema,
+  name: z.string(),
+});
+export type ApiKeyCreatedV1 = z.infer<typeof apiKeyCreatedV1Schema>;
+
+export const apiKeyRevokedV1Schema = z.object({
+  companyId: uuidSchema,
+  apiKeyId: uuidSchema,
+});
+export type ApiKeyRevokedV1 = z.infer<typeof apiKeyRevokedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1421,6 +1436,8 @@ export const eventRegistry = {
   "webhook_endpoint.updated.v1": webhookEndpointUpdatedV1Schema,
   "webhook_endpoint.deleted.v1": webhookEndpointDeletedV1Schema,
   "webhook_delivery.dead_lettered.v1": webhookDeliveryDeadLetteredV1Schema,
+  "api_key.created.v1": apiKeyCreatedV1Schema,
+  "api_key.revoked.v1": apiKeyRevokedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

@@ -50,6 +50,14 @@ export class PermissionGuard implements CanActivate {
 
     const granted = await this.permissions.has(auth.tenantId, auth.sub, required);
     if (!granted) throw new PermissionDeniedError(required);
+
+    // api.md §16.4: a request authenticated via API key is authorized
+    // against the *intersection* of the key's scopes and its creator's own
+    // permissions (just checked above) — a key can never exceed what its
+    // creator holds, regardless of what scopes it was minted with.
+    if (request.apiKeyScopes && !request.apiKeyScopes.includes(required)) {
+      throw new PermissionDeniedError(required);
+    }
     return true;
   }
 }

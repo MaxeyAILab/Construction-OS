@@ -792,6 +792,18 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "webhook_endpoint",
     entityId: payload.webhookEndpointId as string,
   }),
+  // api.md §16.4: API key create/revoke are admin.apikey.manage-gated
+  // (NFR-23 Public API GA).
+  "api_key.created.v1": (payload) => ({
+    action: "admin.apikey.manage",
+    entityType: "api_key",
+    entityId: payload.apiKeyId as string,
+  }),
+  "api_key.revoked.v1": (payload) => ({
+    action: "admin.apikey.manage",
+    entityType: "api_key",
+    entityId: payload.apiKeyId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
