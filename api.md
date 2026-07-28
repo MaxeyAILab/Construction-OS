@@ -103,6 +103,38 @@ POST /v1/auth/login
                 "tenant": { "id": "…", "name": "BuildCo" } } }
 ```
 
+### 2.1 Enterprise SSO (SAML) + SCIM provisioning (FR-PLAT-2, `architecture.md` §11, roadmap "SSO (SAML/OIDC) + SCIM provisioning")
+
+Connection admin (a tenant configures its own IdP; not a global setting):
+
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| GET/POST | `/sso/connections` | `admin.sso.manage` | List / create `{name, idp_entity_id, idp_sso_url, idp_certificate, default_role_id, attribute_mapping?}` |
+| PATCH/DELETE | `/sso/connections/{id}` | `admin.sso.manage` | Update config / remove — only future logins are affected, existing sessions are untouched |
+| POST | `/sso/connections/{id}/rotate-scim-token` | `admin.sso.manage` | Issue a new SCIM bearer token, invalidating the prior one; shown in the response **once** |
+
+Login flow (public — the caller has no session yet):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/auth/sso/{connectionId}/metadata` | SP metadata XML, pasted into the IdP's admin console |
+| GET | `/auth/sso/{connectionId}/login` | `302` to the IdP's SSO URL with a signed `AuthnRequest` (SP-initiated) |
+| POST | `/auth/sso/{connectionId}/acs` | Assertion Consumer Service: validates the `SAMLResponse`, finds-or-JIT-provisions the user by email, returns the same access/refresh pair as `POST /auth/login` |
+
+SCIM 2.0 (RFC 7643/7644) — bearer-token-authenticated with the connection's own SCIM token, **not** a company session or `X-Api-Key`:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET/POST | `/scim/v2/Users` | List (`filter=userName eq "..."`) / create — creation assigns `default_role_id` from the owning connection |
+| GET/PATCH/PUT/DELETE | `/scim/v2/Users/{id}` | Read; partial update (`{"active": false}` deprovisions); replace; hard deprovision (removes the company membership — never deletes the global `users` row, same identity-is-global model as every other cross-tenant user) |
+| GET | `/scim/v2/Groups` | Read-only: one SCIM Group per tenant role, `members[]` = current assignees |
+| PATCH | `/scim/v2/Groups/{id}` | Replace `members[]` — assigns/revokes the mapped role via `RbacService`'s existing apply methods, so §10.2 maker-checker still applies if the tenant has it enabled |
+
+- **Protocol scope:** SAML 2.0 only for this row. `architecture.md` §11 also names OIDC, but Okta/Entra both support SAML universally, so SAML alone satisfies the enterprise requirement — OIDC is a **flagged follow-up**, not built now, to avoid doubling the identity-federation surface in one pass.
+- **JIT provisioning:** a first-time SSO login creates a `users` row with `password_hash = null` — that account can only ever authenticate through that connection's `/acs` endpoint (password login fails the existing `!user.passwordHash` check) until an admin separately sets a password.
+- **SCIM token format & storage:** mirrors §16.4's API-key design exactly — `scim_<tenant_id>.<32 random bytes, base62>`, SHA-256 hashed, tenant id recoverable from the visible prefix so authentication runs inside that tenant's own RLS scope (`database.md` §2 — no bypass path exists here either). One active token per connection; rotating replaces it, same "a replacement is a new key" posture as §16.4.
+- **Rate limit:** SCIM traffic is bursty at initial directory sync — the existing "API key (integration): 600 req/min" tier (§1.6) applies.
+
 ---
 
 ## 3. Projects API (M4)
@@ -349,6 +381,22 @@ SSE stream → … final:
 | GET/POST | `/admin/external-shares` | `admin.share.manage` | Client/sub/supplier grants (FR-RBAC-3) |
 | GET/POST/PATCH | `/admin/templates` | `admin.template.manage` | Project/estimate/checklist templates (FR-PLAT-6) |
 | GET | `/admin/usage` | `admin.billing.read` | Seats, storage, AI spend |
+
+### 15.1 Agent identities (`ai-spec.md` §15, roadmap "Agent runtime GA: identities, budgets, kill-switch, admin surface")
+
+`ai-spec.md` §15 is explicit that "the tool registry, consequence classes, and audit spine... are already the agent runtime — no re-architecture, only new agent definitions." This row is exactly that remaining scaffolding: declaring an agent as a first-class, admin-visible identity, not a new execution engine. It does **not** ship any of the "planned agents" (Procurement/Billing/Compliance/Closeout) — those are separate, individually-prioritized roadmap rows that would be built *on top of* this once selected.
+
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| GET/POST | `/admin/agents` | `admin.agent.manage` | List (with this-month budget usage) / declare `{name, purpose, role_id, tool_allowlist[], budget_monthly_usd?, escalation_contacts?}` |
+| GET/PATCH | `/admin/agents/{id}` | `admin.agent.manage` | Read; update purpose, tool allowlist, budget, escalation contacts (role/permission changes go through the normal `/admin/users/{id}/roles` path, same as any other identity) |
+| POST | `/admin/agents/{id}/pause` · `/resume` | `admin.agent.manage` | Kill-switch (`ai-spec.md` §15: "human 'pause agent' kill-switch per tenant") — reversible, always audited |
+| DELETE | `/admin/agents/{id}` | `admin.agent.manage` | Decommission: revokes the agent's role assignment and deactivates its identity; the underlying `users`/`ai_runs` history is retained (nothing about an agent's past actions is ever deleted) |
+
+- **An agent is a `users` row, not a new principal type:** created with no `password_hash` (unreachable via `/auth/login`, same shape as an SSO-provisioned account) and `company_users.kind = 'agent'`. Its "permission_set (narrow, explicit)" (`ai-spec.md` §15) is an ordinary role assignment via the existing RBAC tables — reusing every permission-resolution, audit, and maker-checker path a human user already goes through, per architecture.md §12's "not a parallel authorization system" precedent.
+- **Attribution:** every action an agent takes is emitted with `actor_id` = the agent's `users.id` and `actor_type = 'ai'` on the outbox row — a column pair that already exists (`outbox.actor_type` check constraint already includes `'ai'`) and already flows into `audit_log` unmodified.
+- **Tool allowlist:** `tool_allowlist[]` entries are validated against the live tool-runner registry (`ai-spec.md` §6) at declare/update time, the same "validate against the real catalog, don't invent a parallel enum" precedent as API-key `scopes[]` (§16.4).
+- **Budget:** `budget_monthly_usd` is compared against that agent's own `ai_runs.cost_usd` for the current month (same computed-on-demand approach as the tenant-level `ai_budgets` row in `ai-spec.md` §2, just narrower) — informational at this stage (no live agent execution loop exists yet to enforce it against), but the same computation an actual agent implementation calls before acting.
 
 ---
 
