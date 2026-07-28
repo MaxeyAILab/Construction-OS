@@ -743,6 +743,27 @@
       "when": 1785165392170,
       "tag": "0105_reports_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1785208070214,
+      "tag": "0106_accounting_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1785208070215,
+      "tag": "0107_accounting_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1785208070216,
+      "tag": "0108_accounting_permissions",
+      "breakpoints": true
     }
   ]
 }

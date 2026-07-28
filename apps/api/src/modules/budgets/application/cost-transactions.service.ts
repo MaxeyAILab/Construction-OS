@@ -22,6 +22,15 @@ export class CostTransactionsService {
     );
   }
 
+  // FR-PLAT-8: read-only lookup for AccountingSyncService's conflict
+  // resolution — it needs the original transaction's projectId/costCodeId
+  // to post a "keep_remote" adjustment on the same project/cost code, and
+  // a plain read is the appropriate cross-module surface for that (same
+  // "own connection" precedent as PurchaseOrdersService.getLineById()).
+  async getById(tenantId: string, id: string) {
+    return withTenant(this.db, tenantId, (tx) => tx.query.costTransactions.findFirst({ where: eq(costTransactions.id, id) }));
+  }
+
   // database.md §11: "actual_amount [is] maintained by ... use-cases in
   // the same transaction as the source rows ... no reconciliation job."
   // If the project has no active budget yet, or no line for this cost
@@ -159,6 +168,42 @@ export class CostTransactionsService {
     );
   }
 
+  // FR-PLAT-8: pull-side reconciliation. Called from
+  // AccountingSyncRunnerService (accounting/index.ts's public surface —
+  // cross-module reuse, same "broaden an existing module's public surface"
+  // precedent as postFromTimeEntry/postFromInventoryIssue/
+  // postFromEquipmentUsage/postFromInvoiceLine) when a QuickBooks-side edit
+  // to a previously-pushed cost_transaction is accepted (conflict resolved
+  // "keep_remote") — posts the delta as a new ledger row rather than
+  // mutating the original, same "append-only ledger" discipline as every
+  // other cost_transactions writer. amount is the signed delta
+  // (remote - local), not the remote total.
+  async postFromAccountingSync(
+    tenantId: string,
+    actorId: string,
+    projectId: string,
+    input: { costCodeId: string; externalId: string; txnDate: string; amount: string; memo?: string | null },
+  ) {
+    return withTenant(this.db, tenantId, (tx) =>
+      this.post(tx, tenantId, actorId, projectId, {
+        costCodeId: input.costCodeId,
+        source: "accounting_sync",
+        // sourceId is a uuid FK-shaped column with no local row to point
+        // at here — the QuickBooks-side id (an arbitrary string, not a
+        // uuid) belongs in externalRef instead (database.md §11:
+        // "external_ref (accounting id)"), same column invoices/payments
+        // use for the same purpose.
+        sourceId: null,
+        externalRef: input.externalId,
+        txnDate: input.txnDate,
+        amount: input.amount,
+        qty: null,
+        uom: null,
+        memo: input.memo ?? "QuickBooks reconciliation adjustment",
+      }),
+    );
+  }
+
   private async post(
     tx: Database,
     tenantId: string,
@@ -166,8 +211,16 @@ export class CostTransactionsService {
     projectId: string,
     input: {
       costCodeId: string;
-      source: "manual" | "time_entry" | "inventory_issue" | "equipment_usage" | "supplier_invoice" | "sub_invoice";
+      source:
+        | "manual"
+        | "time_entry"
+        | "inventory_issue"
+        | "equipment_usage"
+        | "supplier_invoice"
+        | "sub_invoice"
+        | "accounting_sync";
       sourceId: string | null;
+      externalRef?: string | null | undefined;
       txnDate: string;
       amount: string;
       qty?: string | null | undefined;
@@ -188,6 +241,7 @@ export class CostTransactionsService {
         costCodeId: input.costCodeId,
         source: input.source,
         sourceId: input.sourceId,
+        externalRef: input.externalRef,
         txnDate: input.txnDate,
         amount: input.amount,
         qty: input.qty,

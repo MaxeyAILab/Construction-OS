@@ -37,6 +37,29 @@ const envSchema = z.object({
   // ai-spec.md §4: the embedding provider for RAG (M17). Same "optional,
   // dialed lazily" reasoning as ANTHROPIC_API_KEY.
   VOYAGE_API_KEY: z.string().optional(),
+  // FR-PLAT-8: field-level encryption for accounting_connections' OAuth
+  // tokens (EncryptionService) — deliberately a separate key from
+  // MFA_ENCRYPTION_KEY, same "one leaked secret shouldn't unlock a second,
+  // unrelated class of data" reasoning as MAGIC_LINK_SECRET being separate
+  // from JWT_ACCESS_SECRET.
+  ACCOUNTING_ENCRYPTION_KEY: z
+    .string()
+    .base64()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "must decode to 32 bytes"),
+  // Signs the OAuth `state` param round-tripped through Intuit's redirect
+  // (AccountingOAuthStateService) — same "separate secret, same shape as
+  // MagicLinkService" precedent as MAGIC_LINK_SECRET.
+  ACCOUNTING_OAUTH_STATE_SECRET: z.string().min(32),
+  // Intuit app credentials. Optional (not required) since no Intuit app is
+  // registered yet anywhere this app currently boots — same "unconfigured
+  // is fine at startup, only fails when actually invoked" reasoning as
+  // ANTHROPIC_API_KEY/S3_* above. Getting these costs nothing (Intuit's
+  // developer program and sandbox are free); they're just not provisioned
+  // in this environment.
+  QUICKBOOKS_CLIENT_ID: z.string().optional(),
+  QUICKBOOKS_CLIENT_SECRET: z.string().optional(),
+  QUICKBOOKS_REDIRECT_URI: z.string().url().optional(),
+  QUICKBOOKS_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
 });
 
 export type Env = z.infer<typeof envSchema>;

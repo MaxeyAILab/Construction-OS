@@ -1175,6 +1175,35 @@ export const reportRunCompletedV1Schema = z.object({
 });
 export type ReportRunCompletedV1 = z.infer<typeof reportRunCompletedV1Schema>;
 
+// FR-PLAT-8: accounting integration lifecycle — audited privileged actions
+// (connect/disconnect a third-party financial system, complete a sync run
+// that posts/reads real money data) same "audit-worthy" framing as
+// report_run.completed.v1.
+export const accountingConnectionConnectedV1Schema = z.object({
+  companyId: uuidSchema,
+  connectionId: uuidSchema,
+  provider: z.string(),
+  realmId: z.string(),
+});
+export type AccountingConnectionConnectedV1 = z.infer<typeof accountingConnectionConnectedV1Schema>;
+
+export const accountingConnectionDisconnectedV1Schema = z.object({
+  companyId: uuidSchema,
+  connectionId: uuidSchema,
+  provider: z.string(),
+});
+export type AccountingConnectionDisconnectedV1 = z.infer<typeof accountingConnectionDisconnectedV1Schema>;
+
+export const accountingSyncRunCompletedV1Schema = z.object({
+  companyId: uuidSchema,
+  connectionId: uuidSchema,
+  syncRunId: uuidSchema,
+  provider: z.string(),
+  pushedCount: z.number().int().nonnegative(),
+  conflictCount: z.number().int().nonnegative(),
+});
+export type AccountingSyncRunCompletedV1 = z.infer<typeof accountingSyncRunCompletedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1308,6 +1337,9 @@ export const eventRegistry = {
   "report_definition.created.v1": reportDefinitionCreatedV1Schema,
   "report_definition.updated.v1": reportDefinitionUpdatedV1Schema,
   "report_run.completed.v1": reportRunCompletedV1Schema,
+  "accounting_connection.connected.v1": accountingConnectionConnectedV1Schema,
+  "accounting_connection.disconnected.v1": accountingConnectionDisconnectedV1Schema,
+  "accounting_sync_run.completed.v1": accountingSyncRunCompletedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

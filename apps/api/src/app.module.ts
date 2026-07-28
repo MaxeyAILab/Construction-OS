@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AccountingModule } from "./modules/accounting";
 import { AiModule } from "./modules/ai";
 import { AuditModule } from "./modules/audit";
 import { AuthModule } from "./modules/auth";
@@ -72,6 +73,7 @@ import { HealthModule } from "./platform/health/health.module";
     ProjectAssistantModule,
     PhotoAiModule,
     FinanceAlertsModule,
+    AccountingModule,
   ],
 })
 export class AppModule {}

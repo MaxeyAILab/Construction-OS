@@ -740,6 +740,22 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "report_run",
     entityId: payload.reportRunId as string,
   }),
+  // FR-PLAT-8 (api.md §10, M18 Platform/Admin).
+  "accounting_connection.connected.v1": (payload) => ({
+    action: "admin.integration.manage",
+    entityType: "accounting_connection",
+    entityId: payload.connectionId as string,
+  }),
+  "accounting_connection.disconnected.v1": (payload) => ({
+    action: "admin.integration.manage",
+    entityType: "accounting_connection",
+    entityId: payload.connectionId as string,
+  }),
+  "accounting_sync_run.completed.v1": (payload) => ({
+    action: "admin.integration.manage",
+    entityType: "accounting_sync_run",
+    entityId: payload.syncRunId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { PATH_METADATA } from "@nestjs/common/constants";
 import { describe, expect, it } from "vitest";
+import { AccountingController } from "../src/modules/accounting/api/accounting.controller";
 import { AiController } from "../src/modules/ai/api/ai.controller";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { AuthController } from "../src/modules/auth/api/auth.controller";
@@ -122,6 +123,7 @@ const controllers = [
   BidPackagesController,
   InvoicesController,
   PaymentApplicationsController,
+  AccountingController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {
