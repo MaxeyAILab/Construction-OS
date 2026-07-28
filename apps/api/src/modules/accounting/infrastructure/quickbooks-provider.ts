@@ -52,6 +52,13 @@ export class QuickBooksProvider implements AccountingProvider {
     return this.requestToken({ grant_type: "refresh_token", refresh_token: refreshToken });
   }
 
+  // QBO's OAuth callback carries the realm id directly in the redirect
+  // query string — no follow-up API call needed, unlike Xero/Sage.
+  async resolveRealmId(_accessToken: string, callbackParams: { realmId?: string | undefined }): Promise<string> {
+    if (!callbackParams.realmId) throw new Error("quickbooks callback missing realmId");
+    return callbackParams.realmId;
+  }
+
   async listAccounts(accessToken: string, realmId: string): Promise<AccountingAccount[]> {
     const body = (await this.apiGet(accessToken, realmId, "select * from Account")) as {
       QueryResponse?: { Account?: Array<{ Id: string; Name: string; AccountType: string }> };

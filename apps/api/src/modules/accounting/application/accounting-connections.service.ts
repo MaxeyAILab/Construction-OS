@@ -6,7 +6,7 @@ import { accountingConnections, costCodes } from "../../../infrastructure/db/sch
 import { EncryptionService } from "../../auth";
 import { OutboxService } from "../../events";
 import { AccountingConnectionNotConnectedError, AccountingConnectionNotFoundError } from "../domain/errors";
-import { ACCOUNTING_PROVIDER, type AccountingProvider } from "../domain/provider";
+import { ACCOUNTING_PROVIDER_REGISTRY, AccountingProviderRegistry } from "../domain/provider-registry";
 import { AccountingOAuthStateService } from "../infrastructure/oauth-state.service";
 
 // Refresh proactively once fewer than 5 minutes of validity remain, rather
@@ -25,7 +25,7 @@ export class AccountingConnectionsService {
     private readonly outbox: OutboxService,
     private readonly encryption: EncryptionService,
     private readonly oauthState: AccountingOAuthStateService,
-    @Inject(ACCOUNTING_PROVIDER) private readonly provider: AccountingProvider,
+    @Inject(ACCOUNTING_PROVIDER_REGISTRY) private readonly providers: AccountingProviderRegistry,
   ) {}
 
   async connect(tenantId: string, actorId: string, input: ConnectAccountingInput): Promise<{ authorizationUrl: string }> {
@@ -44,31 +44,36 @@ export class AccountingConnectionsService {
     });
 
     const state = this.oauthState.issue({ tenantId, actorId, provider: input.provider });
-    return { authorizationUrl: this.provider.getAuthorizationUrl(state) };
+    const provider = this.providers.resolve(input.provider);
+    return { authorizationUrl: provider.getAuthorizationUrl(state) };
   }
 
-  // The redirect target Intuit sends the user's browser back to — no
-  // Authorization header is available on this request (see
+  // The redirect target the provider sends the user's browser back to —
+  // no Authorization header is available on this request (see
   // AccountingController's @Public() on this route), so `state` is what
   // authenticates the tenant/actor, same role MagicLinkService's token
-  // plays for /auth/magic-link/verify.
-  async handleCallback(input: { code: string; state: string; realmId: string; redirectUri: string }) {
-    const { tenantId, actorId, provider } = this.oauthState.consume(input.state);
-    const tokens = await this.provider.exchangeCode(input.code, input.redirectUri);
+  // plays for /auth/magic-link/verify. `realmId` is only present in the
+  // callback query string for QuickBooks — Sage/Xero resolve their
+  // organization id via a follow-up API call (provider.resolveRealmId).
+  async handleCallback(input: { code: string; state: string; realmId?: string | undefined; redirectUri: string }) {
+    const { tenantId, actorId, provider: providerName } = this.oauthState.consume(input.state);
+    const provider = this.providers.resolve(providerName);
+    const tokens = await provider.exchangeCode(input.code, input.redirectUri);
+    const realmId = await provider.resolveRealmId(tokens.accessToken, { realmId: input.realmId });
 
     return withTenant(this.db, tenantId, async (tx) => {
       const [updated] = await tx
         .update(accountingConnections)
         .set({
           status: "connected",
-          realmId: input.realmId,
+          realmId,
           accessTokenEnc: this.encryption.encrypt(tokens.accessToken),
           refreshTokenEnc: this.encryption.encrypt(tokens.refreshToken),
           tokenExpiresAt: new Date(Date.now() + tokens.expiresInSeconds * 1000),
           error: null,
           updatedBy: actorId,
         })
-        .where(and(eq(accountingConnections.tenantId, tenantId), eq(accountingConnections.provider, provider)))
+        .where(and(eq(accountingConnections.tenantId, tenantId), eq(accountingConnections.provider, providerName)))
         .returning();
       if (!updated) throw new AccountingConnectionNotFoundError();
 
@@ -77,7 +82,7 @@ export class AccountingConnectionsService {
         eventType: "accounting_connection.connected.v1",
         dedupeKey: `accounting_connection.connected.v1:${updated.id}`,
         actorId,
-        payload: { companyId: tenantId, connectionId: updated.id, provider, realmId: input.realmId },
+        payload: { companyId: tenantId, connectionId: updated.id, provider: providerName, realmId },
       });
 
       return { status: updated.status, provider: updated.provider };
@@ -127,7 +132,7 @@ export class AccountingConnectionsService {
   async listAccounts(tenantId: string, provider: string) {
     const connection = await withTenant(this.db, tenantId, (tx) => this.requireConnection(tx, tenantId, provider));
     const accessToken = await this.getValidAccessToken(tenantId, connection);
-    return this.provider.listAccounts(accessToken, connection.realmId!);
+    return this.providers.resolve(provider).listAccounts(accessToken, connection.realmId!);
   }
 
   async getMapping(tenantId: string, provider: string) {
@@ -170,7 +175,7 @@ export class AccountingConnectionsService {
     }
 
     const refreshToken = this.encryption.decrypt(connection.refreshTokenEnc);
-    const tokens = await this.provider.refreshAccessToken(refreshToken);
+    const tokens = await this.providers.resolve(connection.provider).refreshAccessToken(refreshToken);
 
     await withTenant(this.db, tenantId, (tx) =>
       tx

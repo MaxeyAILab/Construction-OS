@@ -10,7 +10,8 @@ import {
 } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
 import { AccountingConnectionsService } from "./accounting-connections.service";
-import { ACCOUNTING_PROVIDER, type AccountingProvider } from "../domain/provider";
+import type { AccountingProvider } from "../domain/provider";
+import { ACCOUNTING_PROVIDER_REGISTRY, AccountingProviderRegistry } from "../domain/provider-registry";
 import type { AccountingSyncJobData } from "./accounting-sync.queue";
 
 const PUSH_BATCH_SIZE = 100;
@@ -19,6 +20,7 @@ const PULL_BATCH_SIZE = 200;
 interface AccountingMapping {
   costCodeMappings: Array<{ costCodeId: string; externalAccountId: string; externalAccountName?: string }>;
   defaultExpenseAccountId?: string;
+  defaultClearingAccountId?: string | undefined;
 }
 
 // The actual work behind AccountingSyncWorker's BullMQ consumer (FR-PLAT-8).
@@ -42,7 +44,7 @@ export class AccountingSyncRunnerService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly connections: AccountingConnectionsService,
-    @Inject(ACCOUNTING_PROVIDER) private readonly provider: AccountingProvider,
+    @Inject(ACCOUNTING_PROVIDER_REGISTRY) private readonly providers: AccountingProviderRegistry,
     private readonly outbox: OutboxService,
   ) {}
 
@@ -60,6 +62,7 @@ export class AccountingSyncRunnerService {
       );
       if (!connection) throw new Error(`accounting connection ${connectionId} not found`);
 
+      const provider = this.providers.resolve(connection.provider);
       const accessToken = await this.connections.getValidAccessToken(tenantId, connection);
       const mapping = (connection.mapping as AccountingMapping | null) ?? { costCodeMappings: [] };
 
@@ -68,6 +71,7 @@ export class AccountingSyncRunnerService {
         actorId,
         connection.realmId!,
         connection.provider,
+        provider,
         accessToken,
         mapping,
       );
@@ -75,6 +79,7 @@ export class AccountingSyncRunnerService {
         tenantId,
         connection.realmId!,
         connection.provider,
+        provider,
         accessToken,
         syncRunId,
       );
@@ -125,6 +130,7 @@ export class AccountingSyncRunnerService {
     actorId: string,
     realmId: string,
     provider: string,
+    providerImpl: AccountingProvider,
     accessToken: string,
     mapping: AccountingMapping,
   ): Promise<{ pushedCount: number; skippedCount: number }> {
@@ -160,12 +166,13 @@ export class AccountingSyncRunnerService {
         continue;
       }
 
-      const { externalId } = await this.provider.pushCostTransaction(accessToken, realmId, {
+      const { externalId } = await providerImpl.pushCostTransaction(accessToken, realmId, {
         externalAccountId,
         amount: txn.amount,
         memo: txn.memo,
         date: txn.txnDate,
         docNumber: txn.id.slice(0, 21),
+        clearingAccountId: mapping.defaultClearingAccountId,
       });
 
       await withTenant(this.db, tenantId, (tx) =>
@@ -190,6 +197,7 @@ export class AccountingSyncRunnerService {
     tenantId: string,
     realmId: string,
     provider: string,
+    providerImpl: AccountingProvider,
     accessToken: string,
     syncRunId: string,
   ): Promise<{ pulledCount: number; conflictCount: number }> {
@@ -209,7 +217,7 @@ export class AccountingSyncRunnerService {
     let conflictCount = 0;
 
     for (const link of links) {
-      const remoteAmount = await this.provider.getTransactionAmount(accessToken, realmId, link.externalId);
+      const remoteAmount = await providerImpl.getTransactionAmount(accessToken, realmId, link.externalId);
       if (remoteAmount === null) continue;
 
       const syncState = (link.syncState as { pushedAmount: string } | null) ?? { pushedAmount: remoteAmount };

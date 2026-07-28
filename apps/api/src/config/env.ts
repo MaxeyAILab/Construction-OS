@@ -60,6 +60,17 @@ const envSchema = z.object({
   QUICKBOOKS_CLIENT_SECRET: z.string().optional(),
   QUICKBOOKS_REDIRECT_URI: z.string().url().optional(),
   QUICKBOOKS_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  // roadmap.md "Sage & Xero connectors" (dependency: this accounting
+  // framework, now built). Same "optional, dialed lazily, no fee to
+  // register a developer app" reasoning as QUICKBOOKS_*. Neither Sage nor
+  // Xero splits sandbox/production APIs the way Intuit does — one app
+  // works against whichever organization the user connects.
+  SAGE_CLIENT_ID: z.string().optional(),
+  SAGE_CLIENT_SECRET: z.string().optional(),
+  SAGE_REDIRECT_URI: z.string().url().optional(),
+  XERO_CLIENT_ID: z.string().optional(),
+  XERO_CLIENT_SECRET: z.string().optional(),
+  XERO_REDIRECT_URI: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

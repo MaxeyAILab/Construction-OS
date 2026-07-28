@@ -16,7 +16,7 @@ import {
   AccountingSyncConflictNotFoundError,
   AccountingSyncRunNotFoundError,
 } from "../domain/errors";
-import { ACCOUNTING_PROVIDER, type AccountingProvider } from "../domain/provider";
+import { ACCOUNTING_PROVIDER_REGISTRY, AccountingProviderRegistry } from "../domain/provider-registry";
 
 interface Cursor {
   createdAt: string;
@@ -41,7 +41,7 @@ export class AccountingSyncService {
     private readonly connections: AccountingConnectionsService,
     private readonly queue: AccountingSyncQueue,
     private readonly costTransactions: CostTransactionsService,
-    @Inject(ACCOUNTING_PROVIDER) private readonly provider: AccountingProvider,
+    @Inject(ACCOUNTING_PROVIDER_REGISTRY) private readonly providers: AccountingProviderRegistry,
   ) {}
 
   async requestRun(tenantId: string, actorId: string, provider: string) {
@@ -147,7 +147,9 @@ export class AccountingSyncService {
       );
       if (!connection) throw new AccountingConnectionNotConnectedError();
       const accessToken = await this.connections.getValidAccessToken(tenantId, connection);
-      await this.provider.reassertTransactionAmount(accessToken, connection.realmId!, conflict.externalId, localValue.amount);
+      await this.providers
+        .resolve(connection.provider)
+        .reassertTransactionAmount(accessToken, connection.realmId!, conflict.externalId, localValue.amount);
     } else {
       const original = await this.costTransactions.getById(tenantId, conflict.entityId);
       if (original) {

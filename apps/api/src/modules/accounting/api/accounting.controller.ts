@@ -37,9 +37,12 @@ export class AccountingController {
     return this.connections.connect(req.auth!.tenantId, req.auth!.sub, body);
   }
 
+  // realmId is only present in this query string for QuickBooks — Sage/
+  // Xero resolve their organization id via a follow-up API call instead
+  // (AccountingConnectionsService.handleCallback -> provider.resolveRealmId).
   @Get("callback")
   @Public()
-  callback(@Query() query: { code: string; state: string; realmId: string }, @Req() req: AuthenticatedRequest) {
+  callback(@Query() query: { code: string; state: string; realmId?: string | undefined }, @Req() req: AuthenticatedRequest) {
     const redirectUri = `${req.protocol}://${req.hostname}/v1/integrations/accounting/callback`;
     return this.connections.handleCallback({ code: query.code, state: query.state, realmId: query.realmId, redirectUri });
   }

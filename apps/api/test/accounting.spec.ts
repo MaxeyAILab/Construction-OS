@@ -17,7 +17,7 @@ describe("Accounting (QuickBooks integration)", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { costTransactionsService } = buildTestBudgetServices(db);
-  const { connectionsService, syncService, syncRunnerService, provider, queueConnection } = buildTestAccountingServices(
+  const { connectionsService, syncService, syncRunnerService, providers, queueConnection } = buildTestAccountingServices(
     db,
     costTransactionsService,
   );
@@ -169,11 +169,11 @@ describe("Accounting (QuickBooks integration)", () => {
     await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run1.id });
 
     // Simulate someone editing the pushed Purchase inside QuickBooks itself.
-    // provider.remoteAmounts is shared across every test in this file, so
+    // providers.quickbooks.remoteAmounts is shared across every test in this file, so
     // find *this* test's external id by the amount it pushed, not by
     // insertion order.
-    const [externalId] = [...provider.remoteAmounts.entries()].find(([, amount]) => amount === "1000.00")!;
-    provider.remoteAmounts.set(externalId, "1200.00");
+    const [externalId] = [...providers.quickbooks.remoteAmounts.entries()].find(([, amount]) => amount === "1000.00")!;
+    providers.quickbooks.remoteAmounts.set(externalId, "1200.00");
 
     const run2 = await syncService.requestRun(tenantId, ownerId, "quickbooks");
     await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run2.id });
@@ -210,8 +210,8 @@ describe("Accounting (QuickBooks integration)", () => {
     const run1 = await syncService.requestRun(tenantId, ownerId, "quickbooks");
     await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run1.id });
 
-    const [externalId] = [...provider.remoteAmounts.keys()].filter((id) => provider.remoteAmounts.get(id) === "500.00");
-    provider.remoteAmounts.set(externalId!, "999.00");
+    const [externalId] = [...providers.quickbooks.remoteAmounts.keys()].filter((id) => providers.quickbooks.remoteAmounts.get(id) === "500.00");
+    providers.quickbooks.remoteAmounts.set(externalId!, "999.00");
 
     const run2 = await syncService.requestRun(tenantId, ownerId, "quickbooks");
     await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run2.id });
@@ -221,7 +221,7 @@ describe("Accounting (QuickBooks integration)", () => {
 
     const resolved = await syncService.resolveConflict(tenantId, ownerId, conflict.id, { resolution: "keep_local" });
     expect(resolved.status).toBe("resolved_local");
-    expect(provider.remoteAmounts.get(externalId!)).toBe("500.00");
+    expect(providers.quickbooks.remoteAmounts.get(externalId!)).toBe("500.00");
   });
 
   it("rejects resolving an already-resolved conflict", async () => {
@@ -235,8 +235,8 @@ describe("Accounting (QuickBooks integration)", () => {
     const connection = await connectionsService.getStatus(tenantId, "quickbooks");
     const run1 = await syncService.requestRun(tenantId, ownerId, "quickbooks");
     await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run1.id });
-    const [externalId] = [...provider.remoteAmounts.entries()].find(([, amount]) => amount === "100.00")!;
-    provider.remoteAmounts.set(externalId, "150.00");
+    const [externalId] = [...providers.quickbooks.remoteAmounts.entries()].find(([, amount]) => amount === "100.00")!;
+    providers.quickbooks.remoteAmounts.set(externalId, "150.00");
     const run2 = await syncService.requestRun(tenantId, ownerId, "quickbooks");
     await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run2.id });
 
@@ -265,5 +265,77 @@ describe("Accounting (QuickBooks integration)", () => {
     for (const run of runsA.data) {
       expect(run.tenantId).toBe(a.tenantId);
     }
+  });
+
+  // roadmap.md "Sage & Xero connectors": success metric is "connector
+  // parity checklist" — the same connect/mapping/push/pull/conflict
+  // capabilities QuickBooks has, routed through AccountingProviderRegistry
+  // by the connection's `provider` column. Xero/Sage additionally require
+  // a defaultClearingAccountId (double-entry journal posting) and resolve
+  // their realm id via a follow-up call rather than a callback query param.
+  describe("Sage & Xero parity", () => {
+    it.each(["sage", "xero"] as const)("connects to %s, resolving its realm id without a callback query param", async (providerName) => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject(`${providerName}-connect`);
+      const { authorizationUrl } = await connectionsService.connect(tenantId, ownerId, { provider: providerName });
+      expect(authorizationUrl).toContain(`fake-${providerName}.test`);
+      const state = new URL(authorizationUrl).searchParams.get("state")!;
+
+      const result = await connectionsService.handleCallback({
+        code: "fake-code",
+        state,
+        redirectUri: "https://api.test/v1/integrations/accounting/callback",
+      });
+      expect(result.status).toBe("connected");
+
+      const status = await connectionsService.getStatus(tenantId, providerName);
+      expect(status.realmId).toBe(`fake-${providerName}-realm-1`);
+    });
+
+    it.each(["sage", "xero"] as const)(
+      "pushes a %s cost transaction as a balanced journal via the configured clearing account",
+      async (providerName) => {
+        const { tenantId, ownerId, project, costCode } = await signUpCompanyWithProject(`${providerName}-push`);
+        const { authorizationUrl } = await connectionsService.connect(tenantId, ownerId, { provider: providerName });
+        const state = new URL(authorizationUrl).searchParams.get("state")!;
+        await connectionsService.handleCallback({
+          code: "fake-code",
+          state,
+          redirectUri: "https://api.test/v1/integrations/accounting/callback",
+        });
+        await connectionsService.updateMapping(tenantId, ownerId, providerName, {
+          costCodeMappings: [{ costCodeId: costCode.id, externalAccountId: "acct-1" }],
+          defaultClearingAccountId: "acct-clearing",
+        });
+
+        await costTransactionsService.postManual(tenantId, ownerId, project.id, {
+          costCodeId: costCode.id,
+          txnDate: "2026-01-15",
+          amount: "750.00",
+        });
+
+        const connection = await connectionsService.getStatus(tenantId, providerName);
+        const run = await syncService.requestRun(tenantId, ownerId, providerName);
+        await syncRunnerService.run({ tenantId, actorId: ownerId, connectionId: connection.id, syncRunId: run.id });
+
+        const completed = await syncService.getRun(tenantId, run.id);
+        expect(completed.pushedCount).toBe(1);
+        expect(providers[providerName].lastClearingAccountId).toBe("acct-clearing");
+      },
+    );
+
+    it("keeps QuickBooks and Xero connections for the same tenant independent", async () => {
+      const { tenantId, ownerId, costCode } = await signUpCompanyWithProject("multi-provider");
+      await connectAndMap(tenantId, ownerId, costCode.id);
+
+      const { authorizationUrl } = await connectionsService.connect(tenantId, ownerId, { provider: "xero" });
+      const state = new URL(authorizationUrl).searchParams.get("state")!;
+      await connectionsService.handleCallback({ code: "fake-code", state, redirectUri: "https://api.test/v1/integrations/accounting/callback" });
+
+      const qbStatus = await connectionsService.getStatus(tenantId, "quickbooks");
+      const xeroStatus = await connectionsService.getStatus(tenantId, "xero");
+      expect(qbStatus.status).toBe("connected");
+      expect(xeroStatus.status).toBe("connected");
+      expect(qbStatus.realmId).not.toBe(xeroStatus.realmId);
+    });
   });
 });

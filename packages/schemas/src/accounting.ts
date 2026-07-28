@@ -2,12 +2,18 @@ import { z } from "zod";
 import { paginationQuerySchema, uuidSchema } from "./common";
 
 // api.md §10: "GET/POST /integrations/accounting/… | admin.integration.manage
-// | Connect, mapping, sync runs, conflict queue (FR-PLAT-8)." Only
-// 'quickbooks' has a real provider adapter today — see accounting.ts
-// schema's own doc comment for why 'sage'/'xero' still exist in the DB CHECK
-// constraint without being acceptable input here.
+// | Connect, mapping, sync runs, conflict queue (FR-PLAT-8)." roadmap.md's
+// "Sage & Xero connectors" row lists "accounting framework" as its
+// dependency (i.e. this QuickBooks-first pipeline existing) — a pilot
+// customer choosing Sage or Xero unblocks it. All three route through the
+// same AccountingProvider interface (accounting/domain/provider.ts) and
+// AccountingProviderRegistry (one connection row per tenant+provider,
+// database.md §11's accounting_links already carries the 3-way CHECK).
+export const accountingProviderSchema = z.enum(["quickbooks", "sage", "xero"]);
+export type AccountingProviderName = z.infer<typeof accountingProviderSchema>;
+
 export const connectAccountingSchema = z.object({
-  provider: z.literal("quickbooks"),
+  provider: accountingProviderSchema,
 });
 export type ConnectAccountingInput = z.infer<typeof connectAccountingSchema>;
 
@@ -18,13 +24,17 @@ export const costCodeMappingEntrySchema = z.object({
 });
 export type CostCodeMappingEntry = z.infer<typeof costCodeMappingEntrySchema>;
 
-// The "mapping" half of api.md's row — cost code -> QuickBooks chart-of-
-// accounts entry, resolved from a real provider.listAccounts() call so
-// externalAccountId always refers to something that actually exists in the
-// connected QuickBooks company.
+// The "mapping" half of api.md's row — cost code -> chart-of-accounts entry
+// on the connected provider, resolved from a real provider.listAccounts()
+// call so externalAccountId always refers to something that actually
+// exists there. defaultClearingAccountId is only needed for providers that
+// enforce balanced double-entry postings (Sage/Xero journals — see
+// XeroProvider/SageProvider doc comments); QuickBooks' Purchase entity
+// balances implicitly against the payment account, so it ignores this.
 export const updateAccountingMappingSchema = z.object({
   costCodeMappings: z.array(costCodeMappingEntrySchema).max(500),
   defaultExpenseAccountId: z.string().min(1).optional(),
+  defaultClearingAccountId: z.string().min(1).optional(),
 });
 export type UpdateAccountingMappingInput = z.infer<typeof updateAccountingMappingSchema>;
 
