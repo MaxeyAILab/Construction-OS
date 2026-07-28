@@ -48,5 +48,10 @@ const env = loadEnv();
     PaymentApplicationPdfWorker,
     CompanySettingsService,
   ],
+  // api.md §15.3: BillingAgentRunnerService (AgentsModule) composes
+  // create+submit under an agent's own actor — same "broaden an existing
+  // module's public surface" precedent as ProcurementModule for the
+  // Procurement Agent.
+  exports: [PaymentApplicationsService],
 })
 export class FinanceModule {}

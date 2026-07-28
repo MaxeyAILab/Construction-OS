@@ -53,7 +53,16 @@ export class PaymentApplicationsService {
     });
   }
 
-  async create(tenantId: string, actorId: string, projectId: string, input: CreatePaymentApplicationInput) {
+  // actorType: internal-only, same "undefined for humans, 'ai' only from
+  // BillingAgentRunnerService (api.md §15.3)" precedent as
+  // PurchaseOrdersService.create (api.md §15.2).
+  async create(
+    tenantId: string,
+    actorId: string,
+    projectId: string,
+    input: CreatePaymentApplicationInput,
+    actorType?: "ai",
+  ) {
     return withTenant(this.db, tenantId, async (tx) => {
       const project = await tx.query.projects.findFirst({ where: eq(projects.id, projectId) });
       if (!project) throw new ProjectNotFoundError();
@@ -98,6 +107,7 @@ export class PaymentApplicationsService {
         eventType: "payment_application.created.v1",
         dedupeKey: `payment_application.created.v1:${created.id}`,
         actorId,
+        ...(actorType ? { actorType } : {}),
         payload: { companyId: tenantId, projectId, paymentApplicationId: created.id, periodNumber },
       });
 

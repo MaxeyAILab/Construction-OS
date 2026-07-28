@@ -1,12 +1,16 @@
 import type { Database } from "../../src/infrastructure/db/client";
 import { AgentIdentitiesService } from "../../src/modules/agents/application/agent-identities.service";
+import { BillingAgentRunnerService } from "../../src/modules/agents/application/billing-agent-runner.service";
 import { ProcurementAgentRunnerService } from "../../src/modules/agents/application/procurement-agent-runner.service";
+import type { BudgetService } from "../../src/modules/budgets/application/budget.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
+import type { PaymentApplicationsService } from "../../src/modules/finance/application/payment-applications.service";
 import { createRedisClient, type RedisClient } from "../../src/infrastructure/redis/client";
 import type { ProcurementNeedsService } from "../../src/modules/procurement/application/procurement-needs.service";
 import type { PurchaseOrderLifecycleService } from "../../src/modules/procurement/application/purchase-order-lifecycle.service";
 import { RbacService } from "../../src/modules/rbac/application/rbac.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
+import type { SchedulesService } from "../../src/modules/scheduling/application/schedules.service";
 
 export function buildTestAgentIdentitiesService(db: Database): { agents: AgentIdentitiesService; redis: RedisClient } {
   const outbox = new OutboxService();
@@ -26,4 +30,17 @@ export function buildTestProcurementAgentRunner(
   lifecycle: PurchaseOrderLifecycleService,
 ): ProcurementAgentRunnerService {
   return new ProcurementAgentRunnerService(db, agents, procurementNeeds, lifecycle);
+}
+
+// api.md §15.3: wires BillingAgentRunnerService directly (bypassing
+// BillingAgentWorker's BullMQ scheduling), same "test the runner, not the
+// queue" split as buildTestProcurementAgentRunner above.
+export function buildTestBillingAgentRunner(
+  db: Database,
+  agents: AgentIdentitiesService,
+  budgetService: BudgetService,
+  schedulesService: SchedulesService,
+  paymentApplications: PaymentApplicationsService,
+): BillingAgentRunnerService {
+  return new BillingAgentRunnerService(db, agents, budgetService, schedulesService, paymentApplications);
 }

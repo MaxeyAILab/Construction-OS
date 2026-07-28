@@ -30,6 +30,9 @@ const KNOWN_TOOL_NAMES = new Set([
   // this entry (the declared capability doubles as "is this a Procurement
   // Agent", no separate agent-type column).
   "draft_and_route_purchase_orders",
+  // api.md §15.3 "Billing Agent" — same capability-is-identity precedent,
+  // for BillingAgentRunnerService's monthly tick.
+  "assemble_and_route_pay_applications",
 ]);
 
 function agentEmail(): string {
