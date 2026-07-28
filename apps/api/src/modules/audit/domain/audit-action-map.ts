@@ -69,6 +69,25 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "role",
     entityId: payload.roleId as string,
   }),
+  // spec.md §10.2 (Segregation of duties): queued creation is auditable in
+  // its own right (a request that never gets decided is still a signal),
+  // separate from the eventual role.assigned.v1/permission.granted.v1 etc.
+  // that fires only once an approver actually applies it.
+  "permission_change_request.created.v1": (payload) => ({
+    action: "platform.role.manage",
+    entityType: "permission_change_request",
+    entityId: payload.requestId as string,
+  }),
+  "permission_change_request.approved.v1": (payload) => ({
+    action: "platform.role.manage",
+    entityType: "permission_change_request",
+    entityId: payload.requestId as string,
+  }),
+  "permission_change_request.rejected.v1": (payload) => ({
+    action: "platform.role.manage",
+    entityType: "permission_change_request",
+    entityId: payload.requestId as string,
+  }),
   // M13 Client Portal foundation (FR-RBAC-3). Uses the new `admin.*` key
   // (api.md §15's literal permission string) rather than `platform.*`,
   // same reasoning as the migration seeding it.

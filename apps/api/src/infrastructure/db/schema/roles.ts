@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -106,5 +107,41 @@ export const externalShares = pgTable(
     check("ck_external_shares_access", sql`${table.access} in ('view', 'approve', 'comment')`),
     index("ix_shares_tenant_principal").on(table.tenantId, table.principalUserId),
     index("ix_shares_entity").on(table.tenantId, table.entityType, table.entityId),
+  ],
+);
+
+// spec.md §10.2 (Segregation of duties): "permission changes support
+// maker/checker workflows for enterprise tenants" — architecture.md §12:
+// "modeled as workflow rules on top of permissions, not new permission
+// types." When a tenant's companies.settings.enforceMakerChecker is on,
+// RbacController routes assign-role/revoke-role/grant-permission/revoke-
+// permission through this queue instead of applying immediately;
+// createdBy (from tenantColumns) is the requester ("maker"), decidedBy is
+// the approver ("checker") — the same person can never be both.
+export const permissionChangeRequests = pgTable(
+  "permission_change_requests",
+  {
+    ...tenantColumns(),
+    actionType: text("action_type").notNull(),
+    // Action-specific target: {userId, roleId, scopeType, projectId} for
+    // assign_role/revoke_role, {roleId, permissionKey} for grant_permission/
+    // revoke_permission — one loose jsonb column rather than a wide table
+    // of mostly-null fields, since the request is discarded (not queried
+    // structurally) once decided.
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("pending"),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (table) => [
+    check(
+      "ck_permission_change_requests_action_type",
+      sql`${table.actionType} in ('assign_role', 'revoke_role', 'grant_permission', 'revoke_permission')`,
+    ),
+    check(
+      "ck_permission_change_requests_status",
+      sql`${table.status} in ('pending', 'approved', 'rejected')`,
+    ),
+    index("ix_permission_change_requests_tenant_status").on(table.tenantId, table.status),
   ],
 );

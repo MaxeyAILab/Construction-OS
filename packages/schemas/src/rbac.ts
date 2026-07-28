@@ -53,3 +53,10 @@ export const listExternalSharesQuerySchema = z.object({
   entityId: uuidSchema.optional(),
 });
 export type ListExternalSharesQuery = z.infer<typeof listExternalSharesQuerySchema>;
+
+// spec.md §10.2 (Segregation of duties): "permission changes support
+// maker/checker workflows for enterprise tenants."
+export const listPermissionChangeRequestsQuerySchema = z.object({
+  status: z.enum(["pending", "approved", "rejected"]).optional(),
+});
+export type ListPermissionChangeRequestsQuery = z.infer<typeof listPermissionChangeRequestsQuerySchema>;

@@ -771,6 +771,20 @@
       "when": 1785208070217,
       "tag": "0109_webhooks_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1785228560802,
+      "tag": "0110_permission_change_requests_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1785228560999,
+      "tag": "0111_permission_change_requests_rls_and_triggers",
+      "breakpoints": true
     }
   ]
 }

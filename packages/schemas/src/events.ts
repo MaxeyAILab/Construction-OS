@@ -89,6 +89,45 @@ export const userRoleRevokedV1Schema = z.object({
 });
 export type UserRoleRevokedV1 = z.infer<typeof userRoleRevokedV1Schema>;
 
+// spec.md §10.2 (Segregation of duties): "permission changes support
+// maker/checker workflows for enterprise tenants." When a tenant's
+// companies.settings.enforceMakerChecker is on, assign/revoke-role and
+// grant/revoke-permission are queued here instead of applying immediately
+// — approved.v1 carries both requestedBy (the maker) and the outbox
+// envelope's own actorId (the checker who approved) for a full audit
+// trail without a new permission type (architecture.md §12).
+export const permissionChangeRequestActionTypeSchema = z.enum([
+  "assign_role",
+  "revoke_role",
+  "grant_permission",
+  "revoke_permission",
+]);
+export type PermissionChangeRequestActionType = z.infer<typeof permissionChangeRequestActionTypeSchema>;
+
+export const permissionChangeRequestCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  requestId: uuidSchema,
+  actionType: permissionChangeRequestActionTypeSchema,
+  requestedBy: uuidSchema,
+});
+export type PermissionChangeRequestCreatedV1 = z.infer<typeof permissionChangeRequestCreatedV1Schema>;
+
+export const permissionChangeRequestApprovedV1Schema = z.object({
+  companyId: uuidSchema,
+  requestId: uuidSchema,
+  actionType: permissionChangeRequestActionTypeSchema,
+  requestedBy: uuidSchema,
+});
+export type PermissionChangeRequestApprovedV1 = z.infer<typeof permissionChangeRequestApprovedV1Schema>;
+
+export const permissionChangeRequestRejectedV1Schema = z.object({
+  companyId: uuidSchema,
+  requestId: uuidSchema,
+  actionType: permissionChangeRequestActionTypeSchema,
+  requestedBy: uuidSchema,
+});
+export type PermissionChangeRequestRejectedV1 = z.infer<typeof permissionChangeRequestRejectedV1Schema>;
+
 // M13 Client Portal foundation (FR-RBAC-3). external_share.created.v1
 // covers a grant to any audience (client/sub/supplier) — one generic event
 // rather than per-audience variants, same "one event, a discriminator
@@ -1252,6 +1291,9 @@ export const eventRegistry = {
   "permission.revoked.v1": permissionRevokedV1Schema,
   "company_user.removed.v1": companyUserRemovedV1Schema,
   "user_role.revoked.v1": userRoleRevokedV1Schema,
+  "permission_change_request.created.v1": permissionChangeRequestCreatedV1Schema,
+  "permission_change_request.approved.v1": permissionChangeRequestApprovedV1Schema,
+  "permission_change_request.rejected.v1": permissionChangeRequestRejectedV1Schema,
   "external_share.created.v1": externalShareCreatedV1Schema,
   "client_selection.created.v1": clientSelectionCreatedV1Schema,
   "client_selection.updated.v1": clientSelectionUpdatedV1Schema,

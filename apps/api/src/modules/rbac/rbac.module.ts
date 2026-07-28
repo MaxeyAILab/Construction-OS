@@ -3,11 +3,19 @@ import { APP_GUARD } from "@nestjs/core";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
 import { createRedisClient, REDIS_CLIENT } from "../../infrastructure/redis/client";
+// Deep import (not the "../auth" barrel): auth's own CompanySettingsController
+// imports RequirePermission from this module's index.ts, so importing the
+// "../auth" barrel here would create a real import cycle (auth/index.ts <->
+// rbac/index.ts) that leaves RequirePermission undefined at decoration
+// time. company-settings.service.ts itself has no rbac dependency, so this
+// path is cycle-free.
+import { CompanySettingsService } from "../auth/application/company-settings.service";
 import { EventsModule } from "../events";
 import { ExternalSharesController } from "./api/external-shares.controller";
 import { RbacController } from "./api/rbac.controller";
 import { PermissionGuard } from "./api/permission.guard";
 import { ExternalSharesService } from "./application/external-shares.service";
+import { PermissionChangeRequestsService } from "./application/permission-change-requests.service";
 import { PermissionResolverService } from "./application/permission-resolver.service";
 import { RbacService } from "./application/rbac.service";
 import { PermissionCacheService } from "./infrastructure/permission-cache.service";
@@ -24,6 +32,8 @@ const env = loadEnv();
     PermissionResolverService,
     RbacService,
     ExternalSharesService,
+    CompanySettingsService,
+    PermissionChangeRequestsService,
     PermissionGuard,
     { provide: APP_GUARD, useClass: PermissionGuard },
   ],

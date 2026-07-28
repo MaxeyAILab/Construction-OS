@@ -47,3 +47,19 @@ export class AlreadyAMemberError extends DomainError {
     super("user is already a member of this company");
   }
 }
+
+export class PermissionChangeRequestNotFoundError extends DomainError {
+  readonly code = "not_found";
+  readonly status = 404;
+  constructor() {
+    super("permission change request not found");
+  }
+}
+
+export class PermissionChangeRequestNotPendingError extends DomainError {
+  readonly code = "illegal_transition";
+  readonly status = 409;
+  constructor() {
+    super("this permission change request has already been decided");
+  }
+}
