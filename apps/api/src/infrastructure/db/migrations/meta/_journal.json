@@ -820,6 +820,27 @@
       "when": 1785231233695,
       "tag": "0116_sso_connection_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1785232679095,
+      "tag": "0117_agent_identities_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1785232679096,
+      "tag": "0118_agent_identities_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1785232679097,
+      "tag": "0119_agent_identities_permission",
+      "breakpoints": true
     }
   ]
 }

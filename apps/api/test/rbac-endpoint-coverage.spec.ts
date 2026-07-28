@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { PATH_METADATA } from "@nestjs/common/constants";
 import { describe, expect, it } from "vitest";
 import { AccountingController } from "../src/modules/accounting/api/accounting.controller";
+import { AgentIdentitiesController } from "../src/modules/agents/api/agent-identities.controller";
 import { AiController } from "../src/modules/ai/api/ai.controller";
 import { AuditController } from "../src/modules/audit/api/audit.controller";
 import { ApiKeysController } from "../src/modules/auth/api/api-keys.controller";
@@ -84,6 +85,7 @@ const controllers = [
   SsoLoginController,
   ScimUsersController,
   ScimGroupsController,
+  AgentIdentitiesController,
   RbacController,
   ExternalSharesController,
   NotificationsController,

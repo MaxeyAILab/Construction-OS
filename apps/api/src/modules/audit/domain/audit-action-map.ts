@@ -829,6 +829,27 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "user",
     entityId: payload.userId as string,
   }),
+  // api.md §15.1 "Agent identities" — admin.agent.manage-gated lifecycle.
+  "agent_identity.created.v1": (payload) => ({
+    action: "admin.agent.manage",
+    entityType: "agent_identity",
+    entityId: payload.agentId as string,
+  }),
+  "agent_identity.paused.v1": (payload) => ({
+    action: "admin.agent.manage",
+    entityType: "agent_identity",
+    entityId: payload.agentId as string,
+  }),
+  "agent_identity.resumed.v1": (payload) => ({
+    action: "admin.agent.manage",
+    entityType: "agent_identity",
+    entityId: payload.agentId as string,
+  }),
+  "agent_identity.deleted.v1": (payload) => ({
+    action: "admin.agent.manage",
+    entityType: "agent_identity",
+    entityId: payload.agentId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
