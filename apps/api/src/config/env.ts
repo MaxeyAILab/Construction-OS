@@ -9,6 +9,10 @@ const envSchema = z.object({
   NATS_URL: z.string().url(),
   JWT_ACCESS_SECRET: z.string().min(32),
   MAGIC_LINK_SECRET: z.string().min(32),
+  // api.md §2: POST /auth/password/forgot -> /auth/password/reset. Same
+  // "deliberately separate secret per data class" reasoning as
+  // MAGIC_LINK_SECRET being distinct from JWT_ACCESS_SECRET.
+  PASSWORD_RESET_SECRET: z.string().min(32),
   MFA_ENCRYPTION_KEY: z
     .string()
     .base64()

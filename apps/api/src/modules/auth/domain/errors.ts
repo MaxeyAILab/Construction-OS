@@ -68,6 +68,14 @@ export class UnknownApiKeyScopeError extends DomainError {
   }
 }
 
+export class InvalidPasswordResetTokenError extends DomainError {
+  readonly code = "invalid_password_reset_token";
+  readonly status = 401;
+  constructor() {
+    super("invalid or expired password reset token");
+  }
+}
+
 export class InvalidRefreshTokenError extends DomainError {
   readonly code = "invalid_refresh_token";
   readonly status = 401;

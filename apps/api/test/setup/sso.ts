@@ -8,6 +8,7 @@ import { ScimUsersService } from "../../src/modules/auth/application/scim-users.
 import { SsoConnectionsService } from "../../src/modules/auth/application/sso-connections.service";
 import { EncryptionService } from "../../src/modules/auth/infrastructure/encryption.service";
 import { MagicLinkService } from "../../src/modules/auth/infrastructure/magic-link.service";
+import { PasswordResetService } from "../../src/modules/auth/infrastructure/password-reset.service";
 import { PasswordService } from "../../src/modules/auth/infrastructure/password.service";
 import { RefreshTokenService } from "../../src/modules/auth/infrastructure/refresh-token.service";
 import type { SamlAssertionResult } from "../../src/modules/auth/infrastructure/saml.service";
@@ -17,6 +18,7 @@ import { TokenService } from "../../src/modules/auth/infrastructure/token.servic
 import { TotpService } from "../../src/modules/auth/infrastructure/totp.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
+import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
 import { RbacService } from "../../src/modules/rbac/application/rbac.service";
 
 // Stands in for a real IdP's signature verification the same way
@@ -52,9 +54,11 @@ export function buildTestAuthServiceWithSso(db: Database): {
     new TotpService(),
     new EncryptionService(randomBytes(32).toString("base64")),
     new MagicLinkService("test-magic-link-secret-01234567890123"),
+    new PasswordResetService("test-password-reset-secret-0123456789012"),
     denylist,
     outbox,
     fakeSaml,
+    new PermissionResolverService(db, new PermissionCacheService(redis)),
   );
 
   return { authService, fakeSaml, redis };

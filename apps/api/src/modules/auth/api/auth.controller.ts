@@ -4,6 +4,8 @@ import {
   magicLinkConsumeSchema,
   magicLinkRequestSchema,
   mfaConfirmSchema,
+  passwordResetRequestSchema,
+  passwordResetSchema,
   refreshSchema,
   signUpSchema,
   updateUserPreferencesSchema,
@@ -43,6 +45,32 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.auth.login(body, this.deviceContext(req));
+  }
+
+  // api.md §2: POST /auth/password/forgot -> /auth/password/reset | Reset
+  // flow | Public, tokenized. Always 202 — never reveals whether the email
+  // is registered.
+  @Post("password/forgot")
+  @Public()
+  @HttpCode(HttpStatus.ACCEPTED)
+  async requestPasswordReset(
+    @Body(new ZodValidationPipe(passwordResetRequestSchema))
+    body: z.infer<typeof passwordResetRequestSchema>,
+  ): Promise<void> {
+    // Real delivery (email) is the Notification Service, a separate roadmap
+    // row not yet built. The token is deliberately not returned here (unlike
+    // the magic-link stopgap) since this endpoint's whole point is to never
+    // reveal anything to the caller either way.
+    await this.auth.requestPasswordReset(body.email);
+  }
+
+  @Post("password/reset")
+  @Public()
+  async resetPassword(
+    @Body(new ZodValidationPipe(passwordResetSchema)) body: z.infer<typeof passwordResetSchema>,
+  ) {
+    await this.auth.resetPassword(body.token, body.newPassword);
+    return { success: true };
   }
 
   @Post("refresh")

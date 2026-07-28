@@ -7,6 +7,7 @@ import {
   AmbiguousCompanyError,
   InvalidCredentialsError,
   InvalidMfaCodeError,
+  InvalidPasswordResetTokenError,
   InvalidRefreshTokenError,
   MfaRequiredError,
 } from "../src/modules/auth/domain/errors";
@@ -313,5 +314,43 @@ describe("auth flows", () => {
     expect(me.roles).toEqual(["Owner"]);
     expect(me.permissions.length).toBeGreaterThan(0);
     expect(me.permissions).toContain("platform.role.manage");
+  });
+
+  // api.md §2: POST /auth/password/forgot -> /auth/password/reset. Same
+  // stateless-JWT shape as MagicLinkService (not tracked as single-use
+  // server-side, same precedent as consumeMagicLink above) — the token
+  // itself just proves control of the original request within its TTL.
+  it("resets a password via a tokenized link", async () => {
+    const suffix = Date.now();
+    const email = `forgot-${suffix}@example.com`;
+    await authService.signUp({
+      email,
+      password: "correct horse battery staple",
+      fullName: "Forgot Case",
+      companyName: `Forgotco ${suffix}`,
+    });
+
+    const token = await authService.requestPasswordReset(email);
+    expect(token).toBeTruthy();
+
+    await authService.resetPassword(token!, "new correct horse battery");
+    const login = await authService.login({ email, password: "new correct horse battery" });
+    expect(login.companyId).toBeTruthy();
+
+    await expect(authService.login({ email, password: "correct horse battery staple" })).rejects.toThrow(
+      InvalidCredentialsError,
+    );
+  });
+
+  it("requestPasswordReset silently no-ops for an unknown email (no user enumeration)", async () => {
+    await expect(
+      authService.requestPasswordReset(`nobody-${Date.now()}@example.com`),
+    ).resolves.toBeNull();
+  });
+
+  it("resetPassword rejects a garbage token", async () => {
+    await expect(authService.resetPassword("not-a-real-token", "some new password")).rejects.toThrow(
+      InvalidPasswordResetTokenError,
+    );
   });
 });

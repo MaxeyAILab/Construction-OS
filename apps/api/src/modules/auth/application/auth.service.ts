@@ -19,6 +19,7 @@ import {
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
   InvalidMfaCodeError,
+  InvalidPasswordResetTokenError,
   InvalidRefreshTokenError,
   MfaRequiredError,
   NoCompanyMembershipError,
@@ -35,6 +36,7 @@ import { PermissionResolverService } from "../../rbac/application/permission-res
 import type { SsoConnectionForLogin } from "./sso-connections.service";
 import { EncryptionService } from "../infrastructure/encryption.service";
 import { MagicLinkService } from "../infrastructure/magic-link.service";
+import { PasswordResetService } from "../infrastructure/password-reset.service";
 import { PasswordService } from "../infrastructure/password.service";
 import { RefreshTokenService } from "../infrastructure/refresh-token.service";
 import { SamlService } from "../infrastructure/saml.service";
@@ -71,6 +73,7 @@ export class AuthService {
     private readonly totp: TotpService,
     private readonly encryption: EncryptionService,
     private readonly magicLink: MagicLinkService,
+    private readonly passwordReset: PasswordResetService,
     private readonly denylist: SessionDenylistService,
     private readonly outbox: OutboxService,
     private readonly saml: SamlService,
@@ -224,6 +227,30 @@ export class AuthService {
       .update(users)
       .set({ mfaSecretEnc: this.encryption.encrypt(secret) })
       .where(eq(users.id, userId));
+  }
+
+  // api.md §2: POST /auth/password/forgot. Silently no-ops for an unknown
+  // email (returns null) — same "don't leak whether an email is registered"
+  // reasoning that a bare 202 Public response conveys nothing either way.
+  async requestPasswordReset(email: string): Promise<string | null> {
+    const user = await this.db.query.users.findFirst({ where: eq(users.email, email) });
+    if (!user) return null;
+    // Real delivery (email) is the Notification Service, a separate roadmap
+    // row not yet built — callers get the token directly for now, same
+    // stopgap as requestMagicLink above.
+    return this.passwordReset.issue({ userId: user.id });
+  }
+
+  // api.md §2: POST /auth/password/reset.
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    let claims: { userId: string };
+    try {
+      claims = this.passwordReset.consume(token);
+    } catch {
+      throw new InvalidPasswordResetTokenError();
+    }
+    const passwordHash = await this.password.hash(newPassword);
+    await this.db.update(users).set({ passwordHash }).where(eq(users.id, claims.userId));
   }
 
   async requestMagicLink(email: string, companyId: string): Promise<string> {

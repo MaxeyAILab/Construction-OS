@@ -28,6 +28,7 @@ import { SsoConnectionsService } from "./application/sso-connections.service";
 import { UserPreferencesService } from "./application/user-preferences.service";
 import { EncryptionService } from "./infrastructure/encryption.service";
 import { MagicLinkService } from "./infrastructure/magic-link.service";
+import { PasswordResetService } from "./infrastructure/password-reset.service";
 import { PasswordService } from "./infrastructure/password.service";
 import { RefreshTokenService } from "./infrastructure/refresh-token.service";
 import { SamlService } from "./infrastructure/saml.service";
@@ -53,6 +54,10 @@ const env = loadEnv();
     { provide: REDIS_CLIENT, useFactory: () => createRedisClient(env) },
     { provide: EncryptionService, useFactory: () => new EncryptionService(env.MFA_ENCRYPTION_KEY) },
     { provide: MagicLinkService, useFactory: () => new MagicLinkService(env.MAGIC_LINK_SECRET) },
+    {
+      provide: PasswordResetService,
+      useFactory: () => new PasswordResetService(env.PASSWORD_RESET_SECRET),
+    },
     PasswordService,
     TokenService,
     RefreshTokenService,

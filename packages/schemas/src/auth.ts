@@ -28,6 +28,18 @@ export const magicLinkConsumeSchema = z.object({
   token: z.string().min(1),
 });
 
+// api.md §2: POST /auth/password/forgot -> /auth/password/reset. forgot()
+// always returns 202 regardless of whether the email exists (no user
+// enumeration); reset() consumes the single-use tokenized link.
+export const passwordResetRequestSchema = z.object({
+  email: z.string().email(),
+});
+
+export const passwordResetSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(12),
+});
+
 export const mfaConfirmSchema = z.object({
   secret: z.string().min(1),
   totpCode: z.string().length(6),

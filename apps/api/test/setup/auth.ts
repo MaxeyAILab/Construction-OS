@@ -7,6 +7,7 @@ import { CompanySettingsService } from "../../src/modules/auth/application/compa
 import { UserPreferencesService } from "../../src/modules/auth/application/user-preferences.service";
 import { EncryptionService } from "../../src/modules/auth/infrastructure/encryption.service";
 import { MagicLinkService } from "../../src/modules/auth/infrastructure/magic-link.service";
+import { PasswordResetService } from "../../src/modules/auth/infrastructure/password-reset.service";
 import { PasswordService } from "../../src/modules/auth/infrastructure/password.service";
 import { RefreshTokenService } from "../../src/modules/auth/infrastructure/refresh-token.service";
 import { SamlService } from "../../src/modules/auth/infrastructure/saml.service";
@@ -40,6 +41,7 @@ export function buildTestAuthService(db: Database): {
     new TotpService(),
     new EncryptionService(randomBytes(32).toString("base64")),
     new MagicLinkService("test-magic-link-secret-01234567890123"),
+    new PasswordResetService("test-password-reset-secret-0123456789012"),
     denylist,
     outbox,
     new SamlService(),
