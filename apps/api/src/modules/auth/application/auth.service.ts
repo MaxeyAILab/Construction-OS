@@ -29,6 +29,9 @@ import {
 // resolves providers via emitDecoratorMetadata, which needs the actual
 // class reference at runtime, not just its type.
 import { OutboxService } from "../../events";
+// Deep import, not the "../../rbac" barrel — same cycle-avoidance
+// precedent documented in scim-groups.service.ts / auth.module.ts.
+import { PermissionResolverService } from "../../rbac/application/permission-resolver.service";
 import type { SsoConnectionForLogin } from "./sso-connections.service";
 import { EncryptionService } from "../infrastructure/encryption.service";
 import { MagicLinkService } from "../infrastructure/magic-link.service";
@@ -71,6 +74,7 @@ export class AuthService {
     private readonly denylist: SessionDenylistService,
     private readonly outbox: OutboxService,
     private readonly saml: SamlService,
+    private readonly permissionResolver: PermissionResolverService,
   ) {}
 
   async signUp(
@@ -301,6 +305,43 @@ export class AuthService {
       const session = await this.issueSession(tx, user!.id, tenantId, roleNames, device);
       return { ...session, companyId: tenantId };
     });
+  }
+
+  // api.md §2: "GET /auth/me | Current principal: user, tenant, roles,
+  // permissions, entitlements." Roles come straight off the access token
+  // (already resolved at login) rather than a re-query. "Entitlements" is
+  // omitted: no billing/plan/entitlements concept exists anywhere in this
+  // codebase yet, and CLAUDE.md forbids inventing one — flagged as a gap
+  // rather than guessed at.
+  async getMe(
+    tenantId: string,
+    userId: string,
+    roleNames: string[],
+  ): Promise<{
+    userId: string;
+    email: string;
+    fullName: string;
+    tenantId: string;
+    companyName: string;
+    roles: string[];
+    permissions: string[];
+  }> {
+    const user = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
+    if (!user) throw new InvalidCredentialsError();
+    const company = await this.db.query.companies.findFirst({ where: eq(companies.id, tenantId) });
+    if (!company) throw new NotAMemberError();
+
+    const permissionKeys = await this.permissionResolver.resolve(tenantId, userId);
+
+    return {
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      tenantId,
+      companyName: company.name,
+      roles: roleNames,
+      permissions: permissionKeys,
+    };
   }
 
   private async issueSession(

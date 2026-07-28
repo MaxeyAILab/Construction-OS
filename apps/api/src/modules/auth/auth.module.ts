@@ -8,6 +8,7 @@ import { createRedisClient, REDIS_CLIENT } from "../../infrastructure/redis/clie
 // precedent documented in scim-groups.service.ts.
 import { PermissionCacheService } from "../rbac/infrastructure/permission-cache.service";
 import { RbacService } from "../rbac/application/rbac.service";
+import { PermissionResolverService } from "../rbac/application/permission-resolver.service";
 import { EventsModule } from "../events";
 import { AccessTokenGuard } from "./api/access-token.guard";
 import { ApiKeysController } from "./api/api-keys.controller";
@@ -68,6 +69,7 @@ const env = loadEnv();
     ScimAuthGuard,
     PermissionCacheService,
     RbacService,
+    PermissionResolverService,
     ScimUsersService,
     ScimGroupsService,
   ],

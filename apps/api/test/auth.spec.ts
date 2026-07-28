@@ -288,4 +288,30 @@ describe("auth flows", () => {
     const eventTypes = await outboxEventTypes(signUp.companyId);
     expect(eventTypes.filter((t) => t === "company.updated.v1")).toHaveLength(2);
   });
+
+  // api.md §2: GET /auth/me — "Current principal: user, tenant, roles,
+  // permissions". Verifies it reflects the real Owner role/permission grant
+  // from signUp, not a stub.
+  it("getMe returns the current principal's identity, tenant, roles, and resolved permissions", async () => {
+    const suffix = Date.now();
+    const email = `me-${suffix}@example.com`;
+    const signUp = await authService.signUp({
+      email,
+      password: "correct horse battery staple",
+      fullName: "Me Case",
+      companyName: `Meco ${suffix}`,
+    });
+    const decoded = JSON.parse(
+      Buffer.from(signUp.accessToken.split(".")[1]!, "base64url").toString(),
+    );
+
+    const me = await authService.getMe(signUp.companyId, decoded.sub, decoded.roles);
+    expect(me.userId).toBe(decoded.sub);
+    expect(me.email).toBe(email);
+    expect(me.tenantId).toBe(signUp.companyId);
+    expect(me.companyName).toBe(`Meco ${suffix}`);
+    expect(me.roles).toEqual(["Owner"]);
+    expect(me.permissions.length).toBeGreaterThan(0);
+    expect(me.permissions).toContain("platform.role.manage");
+  });
 });

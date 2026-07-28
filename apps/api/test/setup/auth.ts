@@ -9,10 +9,13 @@ import { EncryptionService } from "../../src/modules/auth/infrastructure/encrypt
 import { MagicLinkService } from "../../src/modules/auth/infrastructure/magic-link.service";
 import { PasswordService } from "../../src/modules/auth/infrastructure/password.service";
 import { RefreshTokenService } from "../../src/modules/auth/infrastructure/refresh-token.service";
+import { SamlService } from "../../src/modules/auth/infrastructure/saml.service";
 import { SessionDenylistService } from "../../src/modules/auth/infrastructure/session-denylist.service";
 import { TokenService } from "../../src/modules/auth/infrastructure/token.service";
 import { TotpService } from "../../src/modules/auth/infrastructure/totp.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
+import { PermissionResolverService } from "../../src/modules/rbac/application/permission-resolver.service";
+import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
 
 // Wires AuthService with its real dependencies (no HTTP layer) so tests can
 // exercise the actual login/refresh/RLS/Redis interplay directly, the same
@@ -39,6 +42,8 @@ export function buildTestAuthService(db: Database): {
     new MagicLinkService("test-magic-link-secret-01234567890123"),
     denylist,
     outbox,
+    new SamlService(),
+    new PermissionResolverService(db, new PermissionCacheService(redis)),
   );
 
   return {

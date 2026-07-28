@@ -105,6 +105,18 @@ export class AuthController {
     return this.auth.consumeMagicLink(body.token, this.deviceContext(req));
   }
 
+  // api.md §2: "GET /auth/me | Current principal: user, tenant, roles,
+  // permissions, entitlements." Just @Authenticated() — every principal may
+  // read their own identity, no RBAC permission gate involved. "entitlements"
+  // is omitted from the response — no billing/plan/entitlements concept
+  // exists anywhere in this codebase yet (flagged gap, not invented).
+  @Get("me")
+  @Authenticated()
+  getMe(@Req() req: AuthenticatedRequest) {
+    const auth = req.auth!;
+    return this.auth.getMe(auth.tenantId, auth.sub, auth.roles);
+  }
+
   // api.md §2: "GET/PATCH /auth/me/preferences | Locale, notification
   // prefs." Just @Authenticated() — a user always may read/update their
   // own preferences, no RBAC permission gate involved.
