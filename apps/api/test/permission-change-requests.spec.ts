@@ -45,7 +45,7 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     const role = await rbacService.createRole(tenantId, "Viewer", ownerId);
     const request = await permissionChangeRequestsService.request(tenantId, ownerId, "grant_permission", {
       roleId: role.id,
-      permissionKey: "platform.role.read",
+      permissionKey: "admin.role.read",
     });
     expect(request.status).toBe("pending");
 
@@ -66,20 +66,20 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     const role = await rbacService.createRole(tenantId, "Viewer", ownerId);
     const request = await permissionChangeRequestsService.request(tenantId, ownerId, "grant_permission", {
       roleId: role.id,
-      permissionKey: "platform.role.read",
+      permissionKey: "admin.role.read",
     });
 
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { userId: checkerId } = await rbacService.inviteUser(tenantId, `checker-${suffix}@example.com`, "Checker", ownerId, "internal");
     const checkerRole = await rbacService.createRole(tenantId, "Admin", ownerId);
-    await rbacService.grantPermissionToRole(tenantId, checkerRole.id, "platform.role.manage", ownerId);
+    await rbacService.grantPermissionToRole(tenantId, checkerRole.id, "admin.role.manage", ownerId);
     await rbacService.assignRole(tenantId, checkerId, checkerRole.id, { scopeType: "company" }, ownerId);
 
     const approved = await permissionChangeRequestsService.approve(tenantId, checkerId, request.id);
     expect(approved.status).toBe("approved");
 
     const roles = await rbacService.listRoles(tenantId);
-    expect(roles.find((r) => r.id === role.id)?.permissions).toContain("platform.role.read");
+    expect(roles.find((r) => r.id === role.id)?.permissions).toContain("admin.role.read");
   });
 
   it("rejects approval from an admin lacking the underlying action's permission", async () => {
@@ -89,7 +89,7 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     const role = await rbacService.createRole(tenantId, "Viewer", ownerId);
     const request = await permissionChangeRequestsService.request(tenantId, ownerId, "grant_permission", {
       roleId: role.id,
-      permissionKey: "platform.role.read",
+      permissionKey: "admin.role.read",
     });
 
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -108,7 +108,7 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     const role = await rbacService.createRole(tenantId, "Viewer", ownerId);
     const request = await permissionChangeRequestsService.request(tenantId, ownerId, "grant_permission", {
       roleId: role.id,
-      permissionKey: "platform.role.read",
+      permissionKey: "admin.role.read",
     });
 
     const rejected = await permissionChangeRequestsService.reject(tenantId, ownerId, request.id);
@@ -139,17 +139,17 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     const suffix2 = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { userId: checkerId } = await rbacService.inviteUser(tenantId, `checker2-${suffix2}@example.com`, "Checker2", ownerId, "internal");
     const checkerRole = await rbacService.createRole(tenantId, "Admin", ownerId);
-    await rbacService.grantPermissionToRole(tenantId, checkerRole.id, "platform.user_role.assign", ownerId);
-    await rbacService.grantPermissionToRole(tenantId, checkerRole.id, "platform.user_role.revoke", ownerId);
+    await rbacService.grantPermissionToRole(tenantId, checkerRole.id, "admin.user_role.assign", ownerId);
+    await rbacService.grantPermissionToRole(tenantId, checkerRole.id, "admin.user_role.revoke", ownerId);
     await rbacService.assignRole(tenantId, checkerId, checkerRole.id, { scopeType: "company" }, ownerId);
 
     await permissionChangeRequestsService.approve(tenantId, checkerId, assignRequest.id);
     let granted = await permissionResolver.resolve(tenantId, targetUserId);
-    expect(granted).not.toContain("platform.role.read");
+    expect(granted).not.toContain("admin.role.read");
 
-    await rbacService.grantPermissionToRole(tenantId, role.id, "platform.role.read", ownerId);
+    await rbacService.grantPermissionToRole(tenantId, role.id, "admin.role.read", ownerId);
     granted = await permissionResolver.resolve(tenantId, targetUserId);
-    expect(granted).toContain("platform.role.read");
+    expect(granted).toContain("admin.role.read");
 
     const revokeRequest = await permissionChangeRequestsService.request(tenantId, ownerId, "revoke_role", {
       userId: targetUserId,
@@ -157,7 +157,7 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     });
     await permissionChangeRequestsService.approve(tenantId, checkerId, revokeRequest.id);
     granted = await permissionResolver.resolve(tenantId, targetUserId);
-    expect(granted).not.toContain("platform.role.read");
+    expect(granted).not.toContain("admin.role.read");
   });
 
   it("list() filters by status", async () => {
@@ -167,11 +167,11 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     const role = await rbacService.createRole(tenantId, "Viewer", ownerId);
     const pending = await permissionChangeRequestsService.request(tenantId, ownerId, "grant_permission", {
       roleId: role.id,
-      permissionKey: "platform.role.read",
+      permissionKey: "admin.role.read",
     });
     const toReject = await permissionChangeRequestsService.request(tenantId, ownerId, "grant_permission", {
       roleId: role.id,
-      permissionKey: "platform.company_user.invite",
+      permissionKey: "admin.company_user.invite",
     });
     await permissionChangeRequestsService.reject(tenantId, ownerId, toReject.id);
 
@@ -191,8 +191,8 @@ describe("Permission change requests (segregation of duties for RBAC mutations)"
     // does to set up fixtures) still applies immediately, regardless of
     // the tenant's maker-checker setting — the gate lives in
     // RbacController, not RbacService itself.
-    await rbacService.grantPermissionToRole(tenantId, role.id, "platform.role.read", ownerId);
+    await rbacService.grantPermissionToRole(tenantId, role.id, "admin.role.read", ownerId);
     const roles = await rbacService.listRoles(tenantId);
-    expect(roles.find((r) => r.id === role.id)?.permissions).toContain("platform.role.read");
+    expect(roles.find((r) => r.id === role.id)?.permissions).toContain("admin.role.read");
   });
 });

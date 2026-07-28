@@ -333,7 +333,7 @@ describe("auth flows", () => {
     expect(me.companyName).toBe(`Meco ${suffix}`);
     expect(me.roles).toEqual(["Owner"]);
     expect(me.permissions.length).toBeGreaterThan(0);
-    expect(me.permissions).toContain("platform.role.manage");
+    expect(me.permissions).toContain("admin.role.manage");
   });
 
   // api.md §2: POST /auth/password/forgot -> /auth/password/reset. Same

@@ -6,10 +6,7 @@ import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
 import { AuditQueryService } from "../application/audit-query.service";
 
-// api.md §15: this is the one endpoint in this codebase that follows that
-// section's documented /admin/* + admin.* naming exactly, rather than the
-// /rbac/* + platform.* convention the earlier-built RBAC endpoints use —
-// see the flagged follow-up to reconcile those.
+// api.md §15: /admin/* + admin.* naming.
 @Controller()
 export class AuditController {
   constructor(private readonly audit: AuditQueryService) {}

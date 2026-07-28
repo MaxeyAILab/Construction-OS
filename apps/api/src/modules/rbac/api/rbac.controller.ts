@@ -25,7 +25,11 @@ import { PermissionChangeRequestsService } from "../application/permission-chang
 import { RbacService } from "../application/rbac.service";
 import { RequirePermission } from "./require-permission.decorator";
 
-@Controller("rbac")
+// api.md §15: /admin/* + admin.* — matches AuditController's
+// admin.audit.read and ExternalSharesController's admin.share.manage
+// (this controller was the last one still on the pre-rename /rbac/* +
+// platform.* convention; see 0120_rename_platform_permissions_to_admin.sql).
+@Controller("admin")
 export class RbacController {
   constructor(
     private readonly rbac: RbacService,
@@ -33,19 +37,19 @@ export class RbacController {
   ) {}
 
   @Get("roles")
-  @RequirePermission("platform.role.read")
+  @RequirePermission("admin.role.read")
   listRoles(@Req() req: AuthenticatedRequest) {
     return this.rbac.listRoles(req.auth!.tenantId);
   }
 
   @Get("permissions")
-  @RequirePermission("platform.role.read")
+  @RequirePermission("admin.role.read")
   listPermissionCatalog() {
     return this.rbac.listPermissionCatalog();
   }
 
   @Post("roles")
-  @RequirePermission("platform.role.manage")
+  @RequirePermission("admin.role.manage")
   createRole(
     @Body(new ZodValidationPipe(createRoleSchema)) body: z.infer<typeof createRoleSchema>,
     @Req() req: AuthenticatedRequest,
@@ -59,7 +63,7 @@ export class RbacController {
   // admin) instead of applying immediately — see
   // PermissionChangeRequestsService's doc comment for the full design.
   @Post("roles/:roleId/permissions")
-  @RequirePermission("platform.role.manage")
+  @RequirePermission("admin.role.manage")
   async grantPermission(
     @Param("roleId") roleId: string,
     @Body(new ZodValidationPipe(grantPermissionSchema)) body: z.infer<typeof grantPermissionSchema>,
@@ -79,7 +83,7 @@ export class RbacController {
   }
 
   @Delete("roles/:roleId/permissions/:permissionKey")
-  @RequirePermission("platform.role.manage")
+  @RequirePermission("admin.role.manage")
   async revokePermission(
     @Param("roleId") roleId: string,
     @Param("permissionKey") permissionKey: string,
@@ -99,7 +103,7 @@ export class RbacController {
   }
 
   @Post("company-users")
-  @RequirePermission("platform.company_user.invite")
+  @RequirePermission("admin.company_user.invite")
   inviteUser(
     @Body(new ZodValidationPipe(inviteUserSchema)) body: z.infer<typeof inviteUserSchema>,
     @Req() req: AuthenticatedRequest,
@@ -108,7 +112,7 @@ export class RbacController {
   }
 
   @Delete("company-users/:userId")
-  @RequirePermission("platform.company_user.remove")
+  @RequirePermission("admin.company_user.remove")
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeUser(
     @Param("userId") userId: string,
@@ -118,7 +122,7 @@ export class RbacController {
   }
 
   @Post("user-roles")
-  @RequirePermission("platform.user_role.assign")
+  @RequirePermission("admin.user_role.assign")
   async assignRole(
     @Body(new ZodValidationPipe(assignRoleSchema)) body: z.infer<typeof assignRoleSchema>,
     @Req() req: AuthenticatedRequest,
@@ -145,7 +149,7 @@ export class RbacController {
   }
 
   @Delete("user-roles/:userId/:roleId")
-  @RequirePermission("platform.user_role.revoke")
+  @RequirePermission("admin.user_role.revoke")
   async revokeRole(
     @Param("userId") userId: string,
     @Param("roleId") roleId: string,
@@ -165,7 +169,7 @@ export class RbacController {
   }
 
   @Get("permission-change-requests")
-  @RequirePermission("platform.role.read")
+  @RequirePermission("admin.role.read")
   listPermissionChangeRequests(
     @Query(new ZodValidationPipe(listPermissionChangeRequestsQuerySchema))
     query: z.infer<typeof listPermissionChangeRequestsQuerySchema>,

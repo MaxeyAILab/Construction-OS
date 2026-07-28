@@ -33,8 +33,8 @@ describe("RBAC", () => {
       signUp.companyId,
       decodeSub(signUp.accessToken),
     );
-    expect(granted).toContain("platform.role.manage");
-    expect(granted).toContain("platform.company_user.invite");
+    expect(granted).toContain("admin.role.manage");
+    expect(granted).toContain("admin.company_user.invite");
   });
 
   it("a freshly created role starts with no permissions", async () => {
@@ -104,7 +104,7 @@ describe("RBAC", () => {
     await rbacService.grantPermissionToRole(
       signUp.companyId,
       role.id,
-      "platform.role.read",
+      "admin.role.read",
       ownerId,
     );
 
@@ -125,7 +125,7 @@ describe("RBAC", () => {
       ownerId,
     );
     expect(await permissionResolver.resolve(signUp.companyId, invited.userId)).toContain(
-      "platform.role.read",
+      "admin.role.read",
     );
 
     await rbacService.revokeRole(signUp.companyId, invited.userId, role.id, ownerId);

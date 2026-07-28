@@ -20,7 +20,7 @@ export class ImportsExportsController {
   ) {}
 
   @Post("exports/:entity")
-  @RequirePermission("platform.export.manage")
+  @RequirePermission("admin.export.manage")
   @HttpCode(HttpStatus.ACCEPTED)
   requestExport(
     @Param("entity", new ZodValidationPipe(exportEntityTypeSchema)) entity: z.infer<typeof exportEntityTypeSchema>,
@@ -30,20 +30,20 @@ export class ImportsExportsController {
   }
 
   @Get("exports/:id")
-  @RequirePermission("platform.export.manage")
+  @RequirePermission("admin.export.manage")
   getExportJob(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.exports.getJob(req.auth!.tenantId, id);
   }
 
   @Get("exports/:id/download")
-  @RequirePermission("platform.export.manage")
+  @RequirePermission("admin.export.manage")
   async getExportDownloadUrl(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     const url = await this.exports.getDownloadUrl(req.auth!.tenantId, id);
     return { downloadUrl: url };
   }
 
   @Post("imports")
-  @RequirePermission("platform.import.manage")
+  @RequirePermission("admin.import.manage")
   @HttpCode(HttpStatus.CREATED)
   createImport(
     @Body(new ZodValidationPipe(createImportJobSchema)) body: z.infer<typeof createImportJobSchema>,
@@ -53,13 +53,13 @@ export class ImportsExportsController {
   }
 
   @Get("imports/:id")
-  @RequirePermission("platform.import.manage")
+  @RequirePermission("admin.import.manage")
   getImportJob(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.imports.getJob(req.auth!.tenantId, id);
   }
 
   @Post("imports/:id/map")
-  @RequirePermission("platform.import.manage")
+  @RequirePermission("admin.import.manage")
   mapImport(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(mapImportJobSchema)) body: z.infer<typeof mapImportJobSchema>,
@@ -69,13 +69,13 @@ export class ImportsExportsController {
   }
 
   @Post("imports/:id/validate")
-  @RequirePermission("platform.import.manage")
+  @RequirePermission("admin.import.manage")
   validateImport(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.imports.validate(req.auth!.tenantId, req.auth!.sub, id);
   }
 
   @Post("imports/:id/commit")
-  @RequirePermission("platform.import.manage")
+  @RequirePermission("admin.import.manage")
   @HttpCode(HttpStatus.ACCEPTED)
   commitImport(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.imports.commit(req.auth!.tenantId, req.auth!.sub, id);

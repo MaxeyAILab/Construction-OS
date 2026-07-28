@@ -68,13 +68,13 @@ describe("Audit spine", () => {
     await rbacService.grantPermissionToRole(
       signUp.companyId,
       role.id,
-      "platform.role.read",
+      "admin.role.read",
       ownerId,
     );
     await rbacService.revokePermissionFromRole(
       signUp.companyId,
       role.id,
-      "platform.role.read",
+      "admin.role.read",
       ownerId,
     );
     const invited = await rbacService.inviteUser(
@@ -101,14 +101,14 @@ describe("Audit spine", () => {
     const actions = rows.map((r) => r.action).sort();
     expect(actions).toEqual(
       [
-        "platform.company.register",
-        "platform.company_user.invite",
-        "platform.company_user.remove",
-        "platform.role.manage", // createRole
-        "platform.role.manage", // grantPermissionToRole
-        "platform.role.manage", // revokePermissionFromRole
-        "platform.user_role.assign",
-        "platform.user_role.revoke",
+        "admin.company.register",
+        "admin.company_user.invite",
+        "admin.company_user.remove",
+        "admin.role.manage", // createRole
+        "admin.role.manage", // grantPermissionToRole
+        "admin.role.manage", // revokePermissionFromRole
+        "admin.user_role.assign",
+        "admin.user_role.revoke",
       ].sort(),
     );
     expect(rows.every((r) => r.actorId === ownerId)).toBe(true);
@@ -173,13 +173,13 @@ describe("Audit spine", () => {
     await rbacService.grantPermissionToRole(
       signUp.companyId,
       role.id,
-      "platform.role.read",
+      "admin.role.read",
       ownerId,
     );
     await replayOutboxToAudit(signUp.companyId);
 
     const byAction = await auditQueryService.list(signUp.companyId, {
-      action: "platform.role.manage",
+      action: "admin.role.manage",
       limit: 20,
     });
     expect(byAction.data).toHaveLength(2); // createRole + grantPermissionToRole

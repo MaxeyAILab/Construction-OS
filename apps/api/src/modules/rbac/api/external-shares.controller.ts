@@ -8,9 +8,8 @@ import { RequirePermission } from "./require-permission.decorator";
 
 // api.md §15: "GET/POST /admin/external-shares | admin.share.manage |
 // Client/sub/supplier grants (FR-RBAC-3)." A separate controller (not
-// folded into RbacController, which is still @Controller("rbac")) so this
-// brand-new endpoint matches api.md's literal /admin/... path rather than
-// compounding the already-flagged /rbac-vs-/admin prefix inconsistency.
+// folded into RbacController) purely to keep its route registration
+// independent of that controller's own module wiring.
 @Controller()
 export class ExternalSharesController {
   constructor(private readonly shares: ExternalSharesService) {}

@@ -841,6 +841,13 @@
       "when": 1785232679097,
       "tag": "0119_agent_identities_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1785236781502,
+      "tag": "0120_rename_platform_permissions_to_admin",
+      "breakpoints": true
     }
   ]
 }

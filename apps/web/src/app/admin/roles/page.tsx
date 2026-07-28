@@ -40,8 +40,8 @@ export default function RolesAdminPage() {
 
   async function reload() {
     const [roleList, permissionCatalog] = await Promise.all([
-      apiClient.get<Role[]>("/rbac/roles"),
-      apiClient.get<Permission[]>("/rbac/permissions"),
+      apiClient.get<Role[]>("/admin/roles"),
+      apiClient.get<Permission[]>("/admin/permissions"),
     ]);
     setRoles(roleList);
     setCatalog(permissionCatalog);
@@ -61,7 +61,7 @@ export default function RolesAdminPage() {
     e.preventDefault();
     if (!newRoleName.trim()) return;
     try {
-      await apiClient.post("/rbac/roles", { name: newRoleName });
+      await apiClient.post("/admin/roles", { name: newRoleName });
       setNewRoleName("");
       await reload();
     } catch (err) {
@@ -72,9 +72,9 @@ export default function RolesAdminPage() {
   async function togglePermission(role: Role, permissionKey: string, granted: boolean) {
     try {
       if (granted) {
-        await apiClient.delete(`/rbac/roles/${role.id}/permissions/${permissionKey}`);
+        await apiClient.delete(`/admin/roles/${role.id}/permissions/${permissionKey}`);
       } else {
-        await apiClient.post(`/rbac/roles/${role.id}/permissions`, { permissionKey });
+        await apiClient.post(`/admin/roles/${role.id}/permissions`, { permissionKey });
       }
       await reload();
     } catch (err) {

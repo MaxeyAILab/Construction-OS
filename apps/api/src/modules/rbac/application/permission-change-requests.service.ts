@@ -41,10 +41,10 @@ type RequestPayload = AssignRolePayload | RevokeRolePayload | GrantOrRevokePermi
 // permission the underlying action itself would have required, per
 // architecture.md §12 ("not new permission types").
 const REQUIRED_PERMISSION_BY_ACTION_TYPE: Record<PermissionChangeActionType, string> = {
-  assign_role: "platform.user_role.assign",
-  revoke_role: "platform.user_role.revoke",
-  grant_permission: "platform.role.manage",
-  revoke_permission: "platform.role.manage",
+  assign_role: "admin.user_role.assign",
+  revoke_role: "admin.user_role.revoke",
+  grant_permission: "admin.role.manage",
+  revoke_permission: "admin.role.manage",
 };
 
 // spec.md §10.2 (Segregation of duties): "permission changes support

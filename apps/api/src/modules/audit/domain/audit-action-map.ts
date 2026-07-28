@@ -12,15 +12,15 @@ export interface AuditEntry {
 
 type AuditMapper = (payload: Record<string, unknown>) => AuditEntry;
 
-// database.md §6: action strings reuse the exact platform.* permission key
+// database.md §6: action strings reuse the exact admin.* permission key
 // that gates the corresponding mutation (api.md §1.1's module.resource.action
-// convention) — e.g. role.created.v1 -> "platform.role.manage" because
-// RbacController.createRole is @RequirePermission('platform.role.manage').
+// convention) — e.g. role.created.v1 -> "admin.role.manage" because
+// RbacController.createRole is @RequirePermission('admin.role.manage').
 // That keeps "what permission let this happen" and "what got logged"
 // traceable to the same string instead of a parallel vocabulary.
 const mappers: Partial<Record<EventType, AuditMapper>> = {
   "company.registered.v1": (payload) => ({
-    action: "platform.company.register",
+    action: "admin.company.register",
     entityType: "company",
     entityId: payload.companyId as string,
   }),
@@ -35,37 +35,37 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityId: payload.companyId as string,
   }),
   "user.invited.v1": (payload) => ({
-    action: "platform.company_user.invite",
+    action: "admin.company_user.invite",
     entityType: "user",
     entityId: payload.userId as string,
   }),
   "role.assigned.v1": (payload) => ({
-    action: "platform.user_role.assign",
+    action: "admin.user_role.assign",
     entityType: "role",
     entityId: payload.roleId as string,
   }),
   "role.created.v1": (payload) => ({
-    action: "platform.role.manage",
+    action: "admin.role.manage",
     entityType: "role",
     entityId: payload.roleId as string,
   }),
   "permission.granted.v1": (payload) => ({
-    action: "platform.role.manage",
+    action: "admin.role.manage",
     entityType: "role",
     entityId: payload.roleId as string,
   }),
   "permission.revoked.v1": (payload) => ({
-    action: "platform.role.manage",
+    action: "admin.role.manage",
     entityType: "role",
     entityId: payload.roleId as string,
   }),
   "company_user.removed.v1": (payload) => ({
-    action: "platform.company_user.remove",
+    action: "admin.company_user.remove",
     entityType: "user",
     entityId: payload.userId as string,
   }),
   "user_role.revoked.v1": (payload) => ({
-    action: "platform.user_role.revoke",
+    action: "admin.user_role.revoke",
     entityType: "role",
     entityId: payload.roleId as string,
   }),
@@ -74,23 +74,21 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
   // separate from the eventual role.assigned.v1/permission.granted.v1 etc.
   // that fires only once an approver actually applies it.
   "permission_change_request.created.v1": (payload) => ({
-    action: "platform.role.manage",
+    action: "admin.role.manage",
     entityType: "permission_change_request",
     entityId: payload.requestId as string,
   }),
   "permission_change_request.approved.v1": (payload) => ({
-    action: "platform.role.manage",
+    action: "admin.role.manage",
     entityType: "permission_change_request",
     entityId: payload.requestId as string,
   }),
   "permission_change_request.rejected.v1": (payload) => ({
-    action: "platform.role.manage",
+    action: "admin.role.manage",
     entityType: "permission_change_request",
     entityId: payload.requestId as string,
   }),
-  // M13 Client Portal foundation (FR-RBAC-3). Uses the new `admin.*` key
-  // (api.md §15's literal permission string) rather than `platform.*`,
-  // same reasoning as the migration seeding it.
+  // M13 Client Portal foundation (FR-RBAC-3).
   "external_share.created.v1": (payload) => ({
     action: "admin.share.manage",
     entityType: "external_share",
@@ -731,12 +729,12 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
   // M18 Imports/Exports (FR-PLAT-7). Only the two privileged actions get an
   // event at all — see events.ts's comment on why map/validate don't.
   "export_job.requested.v1": (payload) => ({
-    action: "platform.export.manage",
+    action: "admin.export.manage",
     entityType: "export_job",
     entityId: payload.exportJobId as string,
   }),
   "import_job.committed.v1": (payload) => ({
-    action: "platform.import.manage",
+    action: "admin.import.manage",
     entityType: "import_job",
     entityId: payload.importJobId as string,
   }),
