@@ -4,6 +4,7 @@ import {
   magicLinkConsumeSchema,
   magicLinkRequestSchema,
   mfaConfirmSchema,
+  mfaVerifySchema,
   passwordResetRequestSchema,
   passwordResetSchema,
   refreshSchema,
@@ -95,6 +96,18 @@ export class AuthController {
   @Authenticated()
   startMfaEnrollment(@Req() req: AuthenticatedRequest) {
     return this.auth.startMfaEnrollment(req.auth!.sub);
+  }
+
+  // api.md §2: POST /auth/mfa/verify | Complete TOTP challenge | Public
+  // (mfa_token) — completes the step-up flow login() started by returning
+  // { mfaRequired: true, mfaToken } instead of a session.
+  @Post("mfa/verify")
+  @Public()
+  mfaVerify(
+    @Body(new ZodValidationPipe(mfaVerifySchema)) body: z.infer<typeof mfaVerifySchema>,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.auth.verifyMfaChallenge(body.mfaToken, body.totpCode, this.deviceContext(req));
   }
 
   @Post("mfa/confirm")

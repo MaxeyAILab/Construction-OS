@@ -7,6 +7,7 @@ import { CompanySettingsService } from "../../src/modules/auth/application/compa
 import { UserPreferencesService } from "../../src/modules/auth/application/user-preferences.service";
 import { EncryptionService } from "../../src/modules/auth/infrastructure/encryption.service";
 import { MagicLinkService } from "../../src/modules/auth/infrastructure/magic-link.service";
+import { MfaChallengeService } from "../../src/modules/auth/infrastructure/mfa-challenge.service";
 import { PasswordResetService } from "../../src/modules/auth/infrastructure/password-reset.service";
 import { PasswordService } from "../../src/modules/auth/infrastructure/password.service";
 import { RefreshTokenService } from "../../src/modules/auth/infrastructure/refresh-token.service";
@@ -46,6 +47,7 @@ export function buildTestAuthService(db: Database): {
     outbox,
     new SamlService(),
     new PermissionResolverService(db, new PermissionCacheService(redis)),
+    new MfaChallengeService("test-mfa-challenge-secret-0123456789012"),
   );
 
   return {

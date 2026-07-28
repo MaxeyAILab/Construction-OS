@@ -13,6 +13,10 @@ const envSchema = z.object({
   // "deliberately separate secret per data class" reasoning as
   // MAGIC_LINK_SECRET being distinct from JWT_ACCESS_SECRET.
   PASSWORD_RESET_SECRET: z.string().min(32),
+  // api.md §2: POST /auth/login (mfa_required) -> POST /auth/mfa/verify.
+  // Same "deliberately separate secret per data class" reasoning as
+  // PASSWORD_RESET_SECRET/MAGIC_LINK_SECRET.
+  MFA_CHALLENGE_SECRET: z.string().min(32),
   MFA_ENCRYPTION_KEY: z
     .string()
     .base64()

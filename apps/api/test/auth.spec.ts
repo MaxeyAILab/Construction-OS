@@ -6,10 +6,10 @@ import { companies, companyUsers, outbox, roles, userRoles } from "../src/infras
 import {
   AmbiguousCompanyError,
   InvalidCredentialsError,
+  InvalidMfaChallengeError,
   InvalidMfaCodeError,
   InvalidPasswordResetTokenError,
   InvalidRefreshTokenError,
-  MfaRequiredError,
 } from "../src/modules/auth/domain/errors";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 import { buildTestAuthService } from "./setup/auth";
@@ -46,7 +46,9 @@ describe("auth flows", () => {
     expect(signUp.accessToken).toBeTruthy();
     expect(signUp.refreshToken).toContain(signUp.companyId);
 
-    const login = await authService.login({ email, password: "correct horse battery staple" });
+    const login = (await authService.login({ email, password: "correct horse battery staple" })) as {
+      companyId: string;
+    };
     expect(login.companyId).toBe(signUp.companyId);
   });
 
@@ -96,11 +98,11 @@ describe("auth flows", () => {
       authService.login({ email, password: "correct horse battery staple" }),
     ).rejects.toThrow(AmbiguousCompanyError);
 
-    const login = await authService.login({
+    const login = (await authService.login({
       email,
       password: "correct horse battery staple",
       companyId: first.companyId,
-    });
+    })) as { companyId: string };
     expect(login.companyId).toBe(first.companyId);
   });
 
@@ -171,19 +173,37 @@ describe("auth flows", () => {
       authenticator.generate(enrollment.secret),
     );
 
-    await expect(
-      authService.login({ email, password: "correct horse battery staple" }),
-    ).rejects.toThrow(MfaRequiredError);
+    // api.md §2: login() returns a step-up challenge instead of throwing.
+    const challenge = await authService.login({ email, password: "correct horse battery staple" });
+    expect(challenge).toMatchObject({ mfaRequired: true });
+    const mfaToken = (challenge as { mfaRequired: true; mfaToken: string }).mfaToken;
+    expect(mfaToken).toBeTruthy();
+
     await expect(
       authService.login({ email, password: "correct horse battery staple", totpCode: "000000" }),
     ).rejects.toThrow(InvalidMfaCodeError);
+    await expect(authService.verifyMfaChallenge(mfaToken, "000000")).rejects.toThrow(
+      InvalidMfaCodeError,
+    );
+    await expect(authService.verifyMfaChallenge("not-a-real-token", "000000")).rejects.toThrow(
+      InvalidMfaChallengeError,
+    );
 
+    // The inline-totpCode shortcut still completes login in one call.
     const login = await authService.login({
       email,
       password: "correct horse battery staple",
       totpCode: authenticator.generate(enrollment.secret),
     });
-    expect(login.companyId).toBe(signUp.companyId);
+    expect((login as { companyId: string }).companyId).toBe(signUp.companyId);
+
+    // The two-step flow: consume the original challenge token.
+    const verified = await authService.verifyMfaChallenge(
+      mfaToken,
+      authenticator.generate(enrollment.secret),
+    );
+    expect(verified.companyId).toBe(signUp.companyId);
+    expect(verified.accessToken).toBeTruthy();
   });
 
   it("issues a working session via magic link", async () => {
@@ -334,7 +354,9 @@ describe("auth flows", () => {
     expect(token).toBeTruthy();
 
     await authService.resetPassword(token!, "new correct horse battery");
-    const login = await authService.login({ email, password: "new correct horse battery" });
+    const login = (await authService.login({ email, password: "new correct horse battery" })) as {
+      companyId: string;
+    };
     expect(login.companyId).toBeTruthy();
 
     await expect(authService.login({ email, password: "correct horse battery staple" })).rejects.toThrow(

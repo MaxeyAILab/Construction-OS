@@ -28,6 +28,7 @@ import { SsoConnectionsService } from "./application/sso-connections.service";
 import { UserPreferencesService } from "./application/user-preferences.service";
 import { EncryptionService } from "./infrastructure/encryption.service";
 import { MagicLinkService } from "./infrastructure/magic-link.service";
+import { MfaChallengeService } from "./infrastructure/mfa-challenge.service";
 import { PasswordResetService } from "./infrastructure/password-reset.service";
 import { PasswordService } from "./infrastructure/password.service";
 import { RefreshTokenService } from "./infrastructure/refresh-token.service";
@@ -57,6 +58,10 @@ const env = loadEnv();
     {
       provide: PasswordResetService,
       useFactory: () => new PasswordResetService(env.PASSWORD_RESET_SECRET),
+    },
+    {
+      provide: MfaChallengeService,
+      useFactory: () => new MfaChallengeService(env.MFA_CHALLENGE_SECRET),
     },
     PasswordService,
     TokenService,

@@ -8,6 +8,7 @@ import { ScimUsersService } from "../../src/modules/auth/application/scim-users.
 import { SsoConnectionsService } from "../../src/modules/auth/application/sso-connections.service";
 import { EncryptionService } from "../../src/modules/auth/infrastructure/encryption.service";
 import { MagicLinkService } from "../../src/modules/auth/infrastructure/magic-link.service";
+import { MfaChallengeService } from "../../src/modules/auth/infrastructure/mfa-challenge.service";
 import { PasswordResetService } from "../../src/modules/auth/infrastructure/password-reset.service";
 import { PasswordService } from "../../src/modules/auth/infrastructure/password.service";
 import { RefreshTokenService } from "../../src/modules/auth/infrastructure/refresh-token.service";
@@ -59,6 +60,7 @@ export function buildTestAuthServiceWithSso(db: Database): {
     outbox,
     fakeSaml,
     new PermissionResolverService(db, new PermissionCacheService(redis)),
+    new MfaChallengeService("test-mfa-challenge-secret-0123456789012"),
   );
 
   return { authService, fakeSaml, redis };

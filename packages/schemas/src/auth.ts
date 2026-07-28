@@ -45,6 +45,13 @@ export const mfaConfirmSchema = z.object({
   totpCode: z.string().length(6),
 });
 
+// api.md §2: POST /auth/mfa/verify — completes the two-step MFA challenge
+// login() returns when MFA is enabled and no totpCode was supplied inline.
+export const mfaVerifySchema = z.object({
+  mfaToken: z.string().min(1),
+  totpCode: z.string().length(6),
+});
+
 export const authTokensSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),

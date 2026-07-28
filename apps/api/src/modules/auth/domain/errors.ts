@@ -8,18 +8,6 @@ export class InvalidCredentialsError extends DomainError {
   }
 }
 
-// api.md §2 documents a two-step MFA challenge (login returns mfa_required
-// + a step-up token, then POST /auth/mfa/verify completes it) — not yet
-// implemented; this is a temporary single-call approximation (flagged
-// follow-up) so it's mapped as an auth failure, not a distinct flow state.
-export class MfaRequiredError extends DomainError {
-  readonly code = "mfa_required";
-  readonly status = 401;
-  constructor() {
-    super("totp code required");
-  }
-}
-
 export class InvalidMfaCodeError extends DomainError {
   readonly code = "invalid_mfa_code";
   readonly status = 401;
@@ -65,6 +53,14 @@ export class UnknownApiKeyScopeError extends DomainError {
   readonly status = 422;
   constructor(readonly scope: string) {
     super(`unknown permission key: ${scope}`);
+  }
+}
+
+export class InvalidMfaChallengeError extends DomainError {
+  readonly code = "invalid_mfa_challenge";
+  readonly status = 401;
+  constructor() {
+    super("invalid or expired MFA challenge token");
   }
 }
 

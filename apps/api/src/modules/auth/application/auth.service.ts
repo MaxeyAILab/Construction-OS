@@ -18,10 +18,10 @@ import {
   AmbiguousCompanyError,
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
+  InvalidMfaChallengeError,
   InvalidMfaCodeError,
   InvalidPasswordResetTokenError,
   InvalidRefreshTokenError,
-  MfaRequiredError,
   NoCompanyMembershipError,
   NotAMemberError,
   SsoConnectionNotFoundError,
@@ -36,6 +36,7 @@ import { PermissionResolverService } from "../../rbac/application/permission-res
 import type { SsoConnectionForLogin } from "./sso-connections.service";
 import { EncryptionService } from "../infrastructure/encryption.service";
 import { MagicLinkService } from "../infrastructure/magic-link.service";
+import { MfaChallengeService } from "../infrastructure/mfa-challenge.service";
 import { PasswordResetService } from "../infrastructure/password-reset.service";
 import { PasswordService } from "../infrastructure/password.service";
 import { RefreshTokenService } from "../infrastructure/refresh-token.service";
@@ -78,6 +79,7 @@ export class AuthService {
     private readonly outbox: OutboxService,
     private readonly saml: SamlService,
     private readonly permissionResolver: PermissionResolverService,
+    private readonly mfaChallenge: MfaChallengeService,
   ) {}
 
   async signUp(
@@ -139,27 +141,61 @@ export class AuthService {
     return { ...session, companyId: company!.id };
   }
 
+  // api.md §2: POST /auth/login — "Returns access+refresh; mfa_required ->
+  // step-up." When MFA is enabled and no totpCode was supplied inline, this
+  // resolves companyId once (it's needed either way) and returns a step-up
+  // token instead of throwing — the caller then completes the flow via
+  // verifyMfaChallenge (POST /auth/mfa/verify). Passing totpCode inline
+  // still completes login in one call, preserved for backward compatibility.
   async login(
     input: z.infer<typeof loginSchema>,
     device: DeviceContext = {},
-  ): Promise<IssuedSession & { companyId: string }> {
+  ): Promise<(IssuedSession & { companyId: string }) | { mfaRequired: true; mfaToken: string }> {
     const user = await this.db.query.users.findFirst({ where: eq(users.email, input.email) });
     if (!user?.passwordHash || !(await this.password.verify(user.passwordHash, input.password))) {
       throw new InvalidCredentialsError();
     }
 
+    const companyId = input.companyId ?? (await this.resolveSoleCompanyId(user.id));
+
     if (user.mfaSecretEnc) {
-      if (!input.totpCode) throw new MfaRequiredError();
+      if (!input.totpCode) {
+        return { mfaRequired: true, mfaToken: this.mfaChallenge.issue({ userId: user.id, companyId }) };
+      }
       const secret = this.encryption.decrypt(user.mfaSecretEnc);
       if (!this.totp.verify(input.totpCode, secret)) throw new InvalidMfaCodeError();
     }
-
-    const companyId = input.companyId ?? (await this.resolveSoleCompanyId(user.id));
 
     return withTenant(this.db, companyId, async (tx) => {
       const roleNames = await this.membershipRoleNames(tx, companyId, user.id);
       const session = await this.issueSession(tx, user.id, companyId, roleNames, device);
       return { ...session, companyId };
+    });
+  }
+
+  // api.md §2: POST /auth/mfa/verify — completes the step-up challenge
+  // login() issues above.
+  async verifyMfaChallenge(
+    mfaToken: string,
+    totpCode: string,
+    device: DeviceContext = {},
+  ): Promise<IssuedSession & { companyId: string }> {
+    let claims: { userId: string; companyId: string };
+    try {
+      claims = this.mfaChallenge.consume(mfaToken);
+    } catch {
+      throw new InvalidMfaChallengeError();
+    }
+
+    const user = await this.db.query.users.findFirst({ where: eq(users.id, claims.userId) });
+    if (!user?.mfaSecretEnc) throw new InvalidMfaChallengeError();
+    const secret = this.encryption.decrypt(user.mfaSecretEnc);
+    if (!this.totp.verify(totpCode, secret)) throw new InvalidMfaCodeError();
+
+    return withTenant(this.db, claims.companyId, async (tx) => {
+      const roleNames = await this.membershipRoleNames(tx, claims.companyId, user.id);
+      const session = await this.issueSession(tx, user.id, claims.companyId, roleNames, device);
+      return { ...session, companyId: claims.companyId };
     });
   }
 
