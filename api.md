@@ -398,6 +398,16 @@ SSE stream → … final:
 - **Tool allowlist:** `tool_allowlist[]` entries are validated against the live tool-runner registry (`ai-spec.md` §6) at declare/update time, the same "validate against the real catalog, don't invent a parallel enum" precedent as API-key `scopes[]` (§16.4).
 - **Budget:** `budget_monthly_usd` is compared against that agent's own `ai_runs.cost_usd` for the current month (same computed-on-demand approach as the tenant-level `ai_budgets` row in `ai-spec.md` §2, just narrower) — informational at this stage (no live agent execution loop exists yet to enforce it against), but the same computation an actual agent implementation calls before acting.
 
+### 15.2 Procurement Agent (`ai-spec.md` §15, roadmap "Procurement Agent (draft→act ladder)")
+
+The first concrete "planned agent" built on §15.1's scaffolding. No new endpoints — it is a background process, not a human-facing surface; it is declared and administered entirely through the existing `/admin/agents` CRUD by giving an agent's `tool_allowlist[]` the `draft_and_route_purchase_orders` entry.
+
+- **Trigger:** a daily (00:00 UTC) tick, the first genuinely scheduled (not on-demand or event-consumer) background job in this codebase, alongside the existing `outbox-relay` repeatable job's pattern.
+- **Per tick, per active agent whose `tool_allowlist` contains `draft_and_route_purchase_orders`:** `assertCanAct` (kill-switch + budget gate) first — a paused or over-budget agent is skipped for the day, not retried mid-tick. Agent roles are always company-scoped (§15.1's `POST /admin/agents` only offers company-scoped assignment), so "watch schedule/stock" is every `active`-status project in the tenant — no separate "watched projects" list.
+- **Per project:** calls the existing `ProcurementNeedsService.draftFromNeeds` (§11's `POST /projects/{id}/purchase-orders:draft-from-needs`) unchanged, under the agent's own identity as actor. "Route" means each drafted PO is immediately submitted into the human approval queue (the existing `POST /purchase-orders/{id}/submit` transition) — not sent to the supplier. Sending remains a human-executed action, per `ai-spec.md` §7.4's autonomy ceiling for Procurement AI ("`act` (send PO) restricted to human execution").
+- **Attribution:** every `purchase_order.created.v1`/`purchase_order.updated.v1` event this produces carries `actor_id` = the agent's `users.id` and `actor_type = 'ai'`, same guarantee as §15.1.
+- **Explicit scope cut:** `escalation_contacts` notification on a skipped/blocked tick (paused, over budget, or a need with no historical supplier) is not wired up this pass — those are raw emails with no platform-user record, and the Notifications module is keyed to internal users. The run still leaves a complete, attributed audit trail either way; a real notification path is a self-contained follow-up.
+
 ---
 
 ## 16. Realtime, Sync & Webhook APIs
