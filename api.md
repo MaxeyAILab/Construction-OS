@@ -376,11 +376,28 @@ SSE stream → … final:
 
 Delivery: HMAC-SHA256 signature header (`X-COS-Signature`, timestamped, replay-protected), at-least-once, exponential retries 24 h → dead-letter + notification. Event catalog = the domain event registry (`project.created`, `changeorder.approved`, `dailyreport.submitted`, `invoice.approved`, `incident.reported`, `job.completed`, …) — versioned, documented, additive.
 
+### 16.4 Public API: API keys (NFR-23, roadmap "Public API GA")
+
+`database.md` §7's `api_keys` table (`name`, `key_hash`, `scopes[]`, `last_used_at`, `revoked_at`) is the server-to-server counterpart to §1.1's `X-Api-Key` auth scheme — this section is that table's CRUD surface.
+
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| GET | `/api-keys` | `admin.apikey.manage` | List keys, redacted (`name`, `scopes`, `last_used_at`, `created_at`, `revoked_at`) — the raw key is never returned again after creation |
+| POST | `/api-keys` | `admin.apikey.manage` | Create `{name, scopes[]}` → `201` body includes the raw key **once**; only its hash is ever persisted |
+| DELETE | `/api-keys/{id}` | `admin.apikey.manage` | Revoke (sets `revoked_at`) — immediate and irreversible, same posture as session revocation (FR-PLAT-10); a replacement is a new key, not an un-revoke |
+
+- **Scopes, not a new permission type:** each entry in `scopes[]` is one of the existing `module.resource.action` catalog keys (§1.1, `architecture.md` §12) — same "workflow/config on top of permissions, not a parallel authorization system" precedent already used for maker/checker (§10.2). A request authenticated via `X-Api-Key` is authorized against the *intersection* of the key's scopes and its owning user's own current permissions, so a key can never grant more access than its creator already holds (same ceiling logic as external-share scoping, FR-RBAC-3) — if the creator's access is later reduced, every key they hold is reduced with it.
+- **Key format & storage:** raw key is `cos_live_<32 random bytes, base62>`, shown exactly once in the `POST` response; the stored `key_hash` uses the same Argon2id hashing as user passwords (FR-PLAT-2). A lost key cannot be recovered — only revoked and replaced.
+- **Rate limit:** the existing "API key (integration): 600 req/min" tier (§1.6) applies unchanged.
+- **Out of scope for this row:** per-key IP allowlists, scoped expiry dates, and a sandbox/test-mode key prefix are deferred until a real integration partner asks for one — the schema's `scopes[]`/`revoked_at` shape doesn't need to change to add them later.
+
 ---
 
 ## 17. OpenAPI
 
-The normative machine-readable contract is generated from code (`pnpm api:openapi` → `openapi.json`) and published at `/v1/openapi.json` + hosted reference docs. This document governs intent; generated OpenAPI governs exact shapes; CI fails if they diverge from the zod schemas.
+The normative machine-readable contract is generated from code (`pnpm api:openapi` → `openapi.json`) and published at `/v1/openapi.json` + hosted reference docs — this *is* the "docs portal" half of the roadmap's "Public API GA" row; there is no separate hand-authored portal to build. This document governs intent; generated OpenAPI governs exact shapes; CI fails if they diverge from the zod schemas.
+
+Official TS/Python SDKs (the other half of that roadmap row) are thin typed clients generated from this same OpenAPI contract, not a hand-written API surface of their own — tracked as a packaging/release-process follow-up once the contract is stable enough to commit to backward-compatible client libraries, not as new endpoints in this document.
 
 ---
 
