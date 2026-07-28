@@ -106,7 +106,19 @@ export class PurchaseOrdersService {
   // (FR-PROC-6 traceability), same "hardcode what the public schema
   // doesn't expose" precedent as EstimateLinesService hardcoding
   // source:'manual'/'assembly' per call site.
-  async create(tenantId: string, actorId: string, input: CreatePurchaseOrderInput, aiRunId?: string | null) {
+  //
+  // actorType: also internal-only. Undefined for every human call site
+  // (outbox.append's own default of 'user' applies); set to 'ai' only by
+  // ProcurementAgentRunnerService (api.md §15.2), so the agent's actorId
+  // still produces a correctly-attributed outbox row without every other
+  // caller of create() needing to know or care.
+  async create(
+    tenantId: string,
+    actorId: string,
+    input: CreatePurchaseOrderInput,
+    aiRunId?: string | null,
+    actorType?: "ai",
+  ) {
     return withTenant(this.db, tenantId, async (tx) => {
       const project = await tx.query.projects.findFirst({ where: eq(projects.id, input.projectId) });
       if (!project) throw new ProjectNotFoundError();
@@ -165,6 +177,7 @@ export class PurchaseOrdersService {
         eventType: "purchase_order.created.v1",
         dedupeKey: `purchase_order.created.v1:${created.id}`,
         actorId,
+        ...(actorType ? { actorType } : {}),
         payload: { companyId: tenantId, projectId: input.projectId, purchaseOrderId: created.id, number },
       });
 

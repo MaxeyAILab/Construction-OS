@@ -7,10 +7,10 @@ import { buildTestRbacServices } from "./setup/rbac";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 
 // api.md §15.1 "Agent identities" (ai-spec.md §15, roadmap "Agent runtime
-// GA"). No live agent execution loop exists yet (none of the "planned
-// agents" are built) — these tests cover exactly what this row ships:
-// declaring an identity, its budget/kill-switch primitives, and the
-// admin surface, not any concrete agent behavior.
+// GA") — these tests cover exactly what this row ships: declaring an
+// identity, its budget/kill-switch primitives, and the admin surface, not
+// any concrete agent behavior. The first concrete agent (Procurement
+// Agent, api.md §15.2) has its own test file, test/procurement-agent.spec.ts.
 describe("Agent identities (declare, budget, kill-switch)", () => {
   const db = getTestDatabase();
   const { authService, redis: authRedis } = buildTestAuthService(db);

@@ -25,6 +25,11 @@ const KNOWN_TOOL_NAMES = new Set([
   "suggest_tasks",
   "search_company_records",
   "get_company_summary",
+  // api.md §15.2 "Procurement Agent" — ProcurementAgentRunnerService's
+  // daily tick processes every active agent whose tool_allowlist contains
+  // this entry (the declared capability doubles as "is this a Procurement
+  // Agent", no separate agent-type column).
+  "draft_and_route_purchase_orders",
 ]);
 
 function agentEmail(): string {

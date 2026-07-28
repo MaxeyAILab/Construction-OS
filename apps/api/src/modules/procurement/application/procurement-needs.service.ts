@@ -143,7 +143,16 @@ export class ProcurementNeedsService {
   // Procurement (schedule_activities carries no qty/BOM), so each drafted
   // line is qty=1 LS at the cost code's full remaining budget — a
   // documented simplification, not a real takeoff.
-  async draftFromNeeds(tenantId: string, actorId: string, projectId: string): Promise<DraftFromNeedsResponse> {
+  // actorType: internal-only, forwarded to PurchaseOrdersService.create —
+  // undefined for the human-triggered POST .../purchase-orders:draft-from-needs
+  // endpoint, 'ai' only when called from ProcurementAgentRunnerService
+  // (api.md §15.2).
+  async draftFromNeeds(
+    tenantId: string,
+    actorId: string,
+    projectId: string,
+    actorType?: "ai",
+  ): Promise<DraftFromNeedsResponse> {
     const needs = await this.computeNeeds(tenantId, actorId, projectId);
     const draftable = needs.filter((n) => n.supplierId);
     const skipped = needs
@@ -172,6 +181,7 @@ export class ProcurementNeedsService {
           ],
         },
         aiRunId,
+        actorType,
       );
       draftedPurchaseOrderIds.push(created.id);
     }

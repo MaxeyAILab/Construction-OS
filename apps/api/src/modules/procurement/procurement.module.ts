@@ -44,7 +44,10 @@ const env = loadEnv();
   // PurchaseOrdersService for PO/line lookups (2-/3-way match, FR-VEND-2)
   // and SuppliersService for counterparty validation — same "broaden an
   // existing module's public surface" precedent as every other
-  // cross-module reuse this session.
-  exports: [PurchaseOrdersService, SuppliersService],
+  // cross-module reuse this session. ProcurementNeedsService/
+  // PurchaseOrderLifecycleService are additionally exported for
+  // ProcurementAgentRunnerService (api.md §15.2), which composes
+  // draftFromNeeds + submit under an agent's own actor.
+  exports: [PurchaseOrdersService, SuppliersService, ProcurementNeedsService, PurchaseOrderLifecycleService],
 })
 export class ProcurementModule {}

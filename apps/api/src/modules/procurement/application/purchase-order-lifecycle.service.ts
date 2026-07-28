@@ -35,8 +35,10 @@ export class PurchaseOrderLifecycleService {
     private readonly externalShares: ExternalSharesService,
   ) {}
 
-  async submit(tenantId: string, actorId: string, id: string) {
-    return this.transition(tenantId, actorId, id, "draft", "pending_approval");
+  // actorType: internal-only, same "undefined for humans, 'ai' only from
+  // ProcurementAgentRunnerService" precedent as PurchaseOrdersService.create.
+  async submit(tenantId: string, actorId: string, id: string, actorType?: "ai") {
+    return this.transition(tenantId, actorId, id, "draft", "pending_approval", actorType);
   }
 
   async send(tenantId: string, actorId: string, id: string) {
@@ -253,7 +255,14 @@ export class PurchaseOrderLifecycleService {
     });
   }
 
-  private async transition(tenantId: string, actorId: string, id: string, fromStatus: string, toStatus: string) {
+  private async transition(
+    tenantId: string,
+    actorId: string,
+    id: string,
+    fromStatus: string,
+    toStatus: string,
+    actorType?: "ai",
+  ) {
     return withTenant(this.db, tenantId, async (tx) => {
       const po = await this.purchaseOrdersService.requirePurchaseOrder(tx, id);
       if (po.status !== fromStatus) throw new PurchaseOrderIllegalTransitionError(fromStatus);
@@ -269,6 +278,7 @@ export class PurchaseOrderLifecycleService {
         eventType: "purchase_order.updated.v1",
         dedupeKey: `purchase_order.updated.v1:${id}:${updated!.updatedSeq}`,
         actorId,
+        ...(actorType ? { actorType } : {}),
         payload: { companyId: tenantId, projectId: po.projectId, purchaseOrderId: id, changedFields: ["status"] },
       });
 
