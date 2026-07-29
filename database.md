@@ -447,6 +447,22 @@ audit_log (
 - **Statement timeouts:** 5 s interactive role, 5 min worker role; all long work belongs in queues.
 - **Future scalability:** every table already carries the shard key (`tenant_id`); read models are rebuildable; ledgers are append-only — the three properties that make later scale-out (replicas → Citus → extracted analytics) mechanical rather than a redesign.
 
+## 23. Warranty & Closeout (M19)
+
+Appended, not inserted before §22 — `database.md §20`/`§21` are cited by exact section number from committed code comments; adding a section earlier and renumbering everything after it would silently invalidate them.
+
+### `closeout_checklist_items`
+- Per project: `category CHECK IN ('as_built_drawings','om_manuals','warranty_certificates','permits_certificate_of_occupancy','training_signoff','lien_waivers','other')`, `title`, `status CHECK IN ('pending','complete','not_applicable')`, `document_id NULL` (FK `documents.id`), `completed_at/completed_by NULL` (FR-CLOSE-1).
+
+### `closeout_packages`
+- One row per assembly attempt, not per project — an append-only history of `status CHECK IN ('assembled','delivered')`, `file_id` (FK `files.id`, the generated bundle), `assembled_by`, `assembled_at`; `assembled_by` is a `users.id` (human or the Closeout Agent's own agent-kind user row, same actor-attribution shape as every other agent-authored row) (FR-CLOSE-2/3).
+
+### `warranties`
+- Per project: `scope` (e.g. "Roofing system"), `warranty_type CHECK IN ('labor','material','manufacturer')`, `responsible_party_type CHECK IN ('subcontractor','supplier','manufacturer')`, `responsible_subcontractor_id NULL` (FK `subcontractors.id`), `responsible_supplier_id NULL` (FK `suppliers.id`), `start_date`, `duration_months`, `document_id NULL`. Due-state (`active`/`expiring_soon`/`expired`) is computed on read from `start_date + duration_months`, same "no reconciliation job, plain read is always exact" pattern as `certifications`/`maintenance_schedules` — not a stored column (FR-CLOSE-4).
+
+### `warranty_claims`
+- Per `warranty_id`: `description`, `status CHECK IN ('submitted','acknowledged','in_progress','resolved','rejected')`, `submitted_by` (a `users.id` — internal staff or, for a client-submitted claim, resolved via `external_shares` the same way every other portal write is attributed), `resolution_notes NULL`, `resolved_at NULL` (FR-CLOSE-5).
+
 ---
 
 *End of `database.md` v1.0.*

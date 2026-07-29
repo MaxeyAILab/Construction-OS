@@ -400,6 +400,13 @@ ConstructionOS is organized into modules that share one data model and one AI la
 - **Primary users:** Admin, Owner, Ops.
 - **Integrations:** Underpins every module; provides identity, entitlement, notification, and audit services platform-wide.
 
+### M19 — Warranty & Closeout Management
+- **Purpose:** Manage the transition from construction to occupancy — a gated closeout checklist, a packaged handover deliverable, and post-handover warranty tracking and claims.
+- **Key objects:** Closeout Checklist Item, Closeout Package, Warranty, Warranty Claim.
+- **Primary users:** PM, Client (portal), Subcontractor/Supplier (claim routing).
+- **AI:** Closeout Agent — assembles the O&M/warranty package automatically once the checklist and punch list are complete, for human review before handover.
+- **Integrations:** Gated on **Tasks/Punch (M6)** being fully closed; sources documents from **Documents (M3)**; responsible parties are **Subcontractors (M14)** and suppliers (**M5/M15**); claims surface through **Client Portal (M13)**.
+
 ---
 
 ## 13. Functional Requirements
@@ -540,6 +547,14 @@ Functional requirements are grouped by module and carry stable IDs (`FR-<MODULE>
 - **FR-AI-5** The system **shall** escalate to a human (or refuse) when confidence is below a defined threshold.
 - **FR-AI-6** The system **shall** log all AI actions to the audit trail and make them reversible where they mutate data.
 - *(Full AI specification: `ai-spec.md`.)*
+
+### 13.18 Warranty & Closeout Management (M19)
+- **FR-CLOSE-1** The system **shall** maintain a configurable closeout checklist per project (as-built drawings, O&M manuals, warranty certificates, permits/certificate of occupancy, training sign-off, lien waivers, and other tenant-defined items), each trackable to complete or not-applicable with an optional linked supporting document.
+- **FR-CLOSE-2** The system **shall** block closeout-package assembly until every checklist item is complete or explicitly marked not-applicable and every punch item (M6) on the project is closed.
+- **FR-CLOSE-3** The system **shall** assemble a closeout package bundling the checklist's linked documents into a single deliverable for owner handover, and record who assembled it and when.
+- **FR-CLOSE-4** The system **shall** track warranties per project scope (labor, material, or manufacturer) with a responsible party (subcontractor, supplier, or manufacturer), a start date, a duration, and a computed due-state (active / expiring soon / expired).
+- **FR-CLOSE-5** The system **shall** allow clients to submit warranty claims through the Client Portal (M13) during a warranty's active period, routed to the responsible party and tracked to resolution.
+- **FR-CLOSE-6** The system **should** provide a Closeout Agent that assembles a draft O&M/warranty package once FR-CLOSE-2's gate is satisfied, for human review before handover (`ai-spec.md` §15).
 
 ---
 
@@ -701,7 +716,7 @@ This is the product-level shape; full sequencing, priority, complexity, dependen
 
 **Enterprise.** SSO/SAML at scale, advanced governance (segregation of duties, approval chains), data residency options, dedicated environments, 99.95% SLA, procurement/security questionnaires, and enterprise onboarding.
 
-**Post-construction & lifecycle expansion.** Warranty management, closeout, O&M handover, and long-term asset/facility linkage — extending the OS past project completion.
+**Post-construction & lifecycle expansion.** Closeout checklist/package assembly and warranty tracking/claims are specified as **M19** (§12, §13.18); long-term asset/facility linkage and deeper O&M lifecycle tooling beyond the handover package remain future, unspecified scope.
 
 **Future Vision.** ConstructionOS as the connective platform for the industry: benchmarking (anonymized), a supplier/sub network, financing and insurance integrations, and an ecosystem where the OS is the default operating layer construction runs on.
 

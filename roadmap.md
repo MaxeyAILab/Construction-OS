@@ -107,7 +107,7 @@
 | Portfolio analytics & custom report builder (M16 full) | P1 | H | M | projections | 2 | self-serve reports ≥ 50% of report volume | L |
 | What-if simulation (bid loss, crew moves, delay cascades) | P1 | H | H | financial AI, sched AI | 2 | used in ≥ 30% of exec sessions | M |
 | Benchmarking (anonymized, opt-in, cross-tenant aggregates) | P2 | M | H | scale of tenants; legal review | 2 | opt-in ≥ 40%; first benchmark report | H |
-| Warranty & closeout module (post-construction, spec §17) | P1 | M | M | punch, documents | 2 | closeout package assembly ≤ 1 day | L |
+| Warranty & closeout module (M19, spec §13.18 / api.md §18 / database.md §23) | P1 | M | M | punch, documents | 2 | closeout package assembly ≤ 1 day | L |
 | Equipment AI: predictive maintenance (ai §7.6) | P2 | M | M | equipment usage history | 1.5 | downtime incidents ↓ 30% | M |
 | On-device field AI (offline tagging/transcription, ai §14) | P2 | M | H | mobile maturity | 2 | offline tag latency < 1 s | M |
 

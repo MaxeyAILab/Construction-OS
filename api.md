@@ -480,4 +480,30 @@ Official TS/Python SDKs (the other half of that roadmap row) are thin typed clie
 
 ---
 
+## 18. Warranty & Closeout API (M19)
+
+New top-level section, not a renumbering of an existing one — every other section number in this document is cited by exact `§X.Y` from committed code comments (agents module, config, schema files), so inserting a section earlier and shifting everything after it would silently invalidate all of them. §18 is simply the next unused number.
+
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| GET | `/projects/{id}/closeout/checklist` | `closeout.checklist_item.read` | Checklist items: category, status (`pending`/`complete`/`not_applicable`), linked document (FR-CLOSE-1) |
+| POST | `/projects/{id}/closeout/checklist` | `closeout.checklist_item.create` | Add a tenant-defined item beyond the standard categories |
+| PATCH | `/closeout/checklist/{id}` | `closeout.checklist_item.update` | Set status / link a supporting document (`document_id`, from §8) |
+| GET | `/projects/{id}/closeout/package` | `closeout.package.read` | Current package status (`draft`/`assembled`/`delivered`) and assembly history |
+| POST | `/projects/{id}/closeout/package:assemble` | `closeout.package.assemble` | Bundles every checklist item's linked document into one deliverable; `409` if any checklist item is still `pending` or any punch item (§7) on the project is still open (FR-CLOSE-2/3) |
+| GET | `/projects/{id}/warranties` | `closeout.warranty.read` | Per-scope warranty records with computed due-state (`active`/`expiring_soon`/`expired`), same on-read projection pattern as Safety's certifications (FR-SAFE-2) and Equipment's maintenance schedules (FR-EQ-3) — not a stored/maintained column |
+| POST | `/projects/{id}/warranties` | `closeout.warranty.create` | `{scope, warranty_type, responsible_party, start_date, duration_months, document_id?}` (FR-CLOSE-4) |
+| PATCH | `/warranties/{id}` | `closeout.warranty.update` | Amend responsible party / duration / linked document |
+| GET | `/warranties/{id}/claims` | `closeout.claim.read` | Claim lifecycle history |
+| POST | `/warranties/{id}/claims` | `closeout.claim.create` **or** portal principal via share on the warranty's project (client submission) | `{description}` → `status: submitted`; dual-path authorization, same "internal permission OR share" shape as Change-Order approval (§10) — `403` outside the warranty's active period |
+| PATCH | `/claims/{id}` | `closeout.claim.update` | Internal-only lifecycle transitions: `submitted → acknowledged → in_progress → resolved`\|`rejected` |
+| POST | `/projects/{id}/closeout/ai:assemble-package` | `closeout.package.assemble` + AI | Closeout Agent draft-assembly (FR-CLOSE-6, `ai-spec.md` §15) — produces a **draft** package for human review; never calls `:assemble` or delivers to the client itself |
+
+- **Gating is the whole point (FR-CLOSE-2):** `:assemble` re-derives readiness from live checklist + punch state on every call — there is no separate "readiness" flag to fall out of sync. The same rule applies whether a human or the Closeout Agent triggers it.
+- **Warranty due-state reuses, not reinvents:** the `active`/`expiring_soon`/`expired` vocabulary and the on-read (not stored) computation are the same shape already established for certifications and equipment maintenance — a new due-state concept here would be an unjustified third implementation of the same idea.
+- **Claims are the only client-write surface this module adds**, and only within the dual-path pattern every other portal write already uses (§10's CO approval, and the supplier-portal PO confirmation code implements the same shape though api.md doesn't separately document it) — no new authorization mechanism.
+- **Delivery to the client is out of scope for this row:** `:assemble` produces the bundle; actually notifying/handing it to the owner (e.g., a portal download or an email with the package attached) is Client Portal (M13) surface work layered on top once M19 ships, not part of this spec.
+
+---
+
 *End of `api.md` v1.0.*
