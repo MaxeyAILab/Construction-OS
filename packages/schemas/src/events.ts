@@ -1365,6 +1365,64 @@ export const complianceAlertRaisedV1Schema = z.object({
 });
 export type ComplianceAlertRaisedV1 = z.infer<typeof complianceAlertRaisedV1Schema>;
 
+// M19 Warranty & Closeout Management (spec.md §13.18, FR-CLOSE-1..5).
+export const closeoutChecklistItemCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  checklistItemId: uuidSchema,
+});
+export type CloseoutChecklistItemCreatedV1 = z.infer<typeof closeoutChecklistItemCreatedV1Schema>;
+
+export const closeoutChecklistItemUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  checklistItemId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type CloseoutChecklistItemUpdatedV1 = z.infer<typeof closeoutChecklistItemUpdatedV1Schema>;
+
+// Fires once FR-CLOSE-2's gate (checklist complete + punch closed) is
+// satisfied and FileUploadService.storeGeneratedFile persists the
+// manifest — same conditional-alert-row precedent as compliance_alert.
+// raised.v1: the write only happens when the gate actually passes.
+export const closeoutPackageAssembledV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  closeoutPackageId: uuidSchema,
+  fileId: uuidSchema,
+});
+export type CloseoutPackageAssembledV1 = z.infer<typeof closeoutPackageAssembledV1Schema>;
+
+export const warrantyCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  warrantyId: uuidSchema,
+});
+export type WarrantyCreatedV1 = z.infer<typeof warrantyCreatedV1Schema>;
+
+export const warrantyUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  warrantyId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type WarrantyUpdatedV1 = z.infer<typeof warrantyUpdatedV1Schema>;
+
+export const warrantyClaimCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  warrantyId: uuidSchema,
+  warrantyClaimId: uuidSchema,
+});
+export type WarrantyClaimCreatedV1 = z.infer<typeof warrantyClaimCreatedV1Schema>;
+
+export const warrantyClaimUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  warrantyId: uuidSchema,
+  warrantyClaimId: uuidSchema,
+  status: z.enum(["submitted", "acknowledged", "in_progress", "resolved", "rejected"]),
+});
+export type WarrantyClaimUpdatedV1 = z.infer<typeof warrantyClaimUpdatedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1519,6 +1577,13 @@ export const eventRegistry = {
   "agent_identity.resumed.v1": agentIdentityResumedV1Schema,
   "agent_identity.deleted.v1": agentIdentityDeletedV1Schema,
   "compliance_alert.raised.v1": complianceAlertRaisedV1Schema,
+  "closeout_checklist_item.created.v1": closeoutChecklistItemCreatedV1Schema,
+  "closeout_checklist_item.updated.v1": closeoutChecklistItemUpdatedV1Schema,
+  "closeout_package.assembled.v1": closeoutPackageAssembledV1Schema,
+  "warranty.created.v1": warrantyCreatedV1Schema,
+  "warranty.updated.v1": warrantyUpdatedV1Schema,
+  "warranty_claim.created.v1": warrantyClaimCreatedV1Schema,
+  "warranty_claim.updated.v1": warrantyClaimUpdatedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

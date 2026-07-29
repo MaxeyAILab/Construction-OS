@@ -61,6 +61,10 @@ import { SubcontractorsController } from "../src/modules/subcontractors/api/subc
 import { SubcontractsController } from "../src/modules/subcontractors/api/subcontracts.controller";
 import { SubmittalsController } from "../src/modules/submittals/api/submittals.controller";
 import { TasksController } from "../src/modules/tasks/api/tasks.controller";
+import { CloseoutChecklistController } from "../src/modules/warranty-closeout/api/closeout-checklist.controller";
+import { CloseoutPackagesController } from "../src/modules/warranty-closeout/api/closeout-packages.controller";
+import { WarrantiesController } from "../src/modules/warranty-closeout/api/warranties.controller";
+import { WarrantyClaimsController } from "../src/modules/warranty-closeout/api/warranty-claims.controller";
 import { WebhooksController } from "../src/modules/webhooks/api/webhooks.controller";
 import { HealthController } from "../src/platform/health/health.controller";
 import { IS_AUTHENTICATED_ONLY_KEY } from "../src/platform/decorators/authenticated.decorator";
@@ -140,6 +144,10 @@ const controllers = [
   PaymentApplicationsController,
   AccountingController,
   WebhooksController,
+  CloseoutChecklistController,
+  CloseoutPackagesController,
+  WarrantiesController,
+  WarrantyClaimsController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

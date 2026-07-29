@@ -34,6 +34,7 @@ import { SubcontractorsModule } from "./modules/subcontractors";
 import { SubmittalsModule } from "./modules/submittals";
 import { SyncModule } from "./modules/sync";
 import { TasksModule } from "./modules/tasks";
+import { WarrantyCloseoutModule } from "./modules/warranty-closeout";
 import { WebhooksModule } from "./modules/webhooks";
 import { HealthModule } from "./platform/health/health.module";
 
@@ -80,6 +81,7 @@ import { HealthModule } from "./platform/health/health.module";
     AccountingModule,
     WebhooksModule,
     AgentsModule,
+    WarrantyCloseoutModule,
   ],
 })
 export class AppModule {}

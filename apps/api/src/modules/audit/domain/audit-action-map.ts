@@ -856,6 +856,42 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "compliance_alert",
     entityId: payload.complianceAlertId as string,
   }),
+  // api.md §18 "Warranty & Closeout API" (M19, FR-CLOSE-1..5).
+  "closeout_checklist_item.created.v1": (payload) => ({
+    action: "closeout.checklist_item.create",
+    entityType: "closeout_checklist_item",
+    entityId: payload.checklistItemId as string,
+  }),
+  "closeout_checklist_item.updated.v1": (payload) => ({
+    action: "closeout.checklist_item.update",
+    entityType: "closeout_checklist_item",
+    entityId: payload.checklistItemId as string,
+  }),
+  "closeout_package.assembled.v1": (payload) => ({
+    action: "closeout.package.assemble",
+    entityType: "closeout_package",
+    entityId: payload.closeoutPackageId as string,
+  }),
+  "warranty.created.v1": (payload) => ({
+    action: "closeout.warranty.create",
+    entityType: "warranty",
+    entityId: payload.warrantyId as string,
+  }),
+  "warranty.updated.v1": (payload) => ({
+    action: "closeout.warranty.update",
+    entityType: "warranty",
+    entityId: payload.warrantyId as string,
+  }),
+  "warranty_claim.created.v1": (payload) => ({
+    action: "closeout.claim.create",
+    entityType: "warranty_claim",
+    entityId: payload.warrantyClaimId as string,
+  }),
+  "warranty_claim.updated.v1": (payload) => ({
+    action: "closeout.claim.update",
+    entityType: "warranty_claim",
+    entityId: payload.warrantyClaimId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
