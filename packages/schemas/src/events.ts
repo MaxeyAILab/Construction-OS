@@ -660,6 +660,21 @@ export const bidSubmittedV1Schema = z.object({
 });
 export type BidSubmittedV1 = z.infer<typeof bidSubmittedV1Schema>;
 
+// ai-spec.md §7.3 (Estimator AI) / api.md §5 `POST /bid-packages/{id}
+// /level` (FR-EST-6). Fires once per leveling run, not once per bid — the
+// per-bid leveled_score writes aren't separately eventable (bids has no
+// own "scored" event convention, unlike suppliers.rated.v1, since a bid's
+// score only ever makes sense in the context of its package's leveling
+// pass, not standalone).
+export const bidPackageLeveledV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  bidPackageId: uuidSchema,
+  bidCount: z.number().int().nonnegative(),
+  aiRunId: uuidSchema,
+});
+export type BidPackageLeveledV1 = z.infer<typeof bidPackageLeveledV1Schema>;
+
 // Supplier Portal (M15) + Finance invoices (database.md §11, api.md §10,
 // FR-VEND-2/FR-SUB-3). direction/counterpartyType travel on the event so
 // consumers (audit, future AP dashboards) don't need a lookup to know
@@ -1516,6 +1531,7 @@ export const eventRegistry = {
   "bid_package.created.v1": bidPackageCreatedV1Schema,
   "bid_invitation.created.v1": bidInvitationCreatedV1Schema,
   "bid.submitted.v1": bidSubmittedV1Schema,
+  "bid_package.leveled.v1": bidPackageLeveledV1Schema,
   "invoice.created.v1": invoiceCreatedV1Schema,
   "invoice.approved.v1": invoiceApprovedV1Schema,
   "invoice.voided.v1": invoiceVoidedV1Schema,

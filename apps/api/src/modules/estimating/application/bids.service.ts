@@ -9,8 +9,8 @@ import { BidInvitationsService } from "./bid-invitations.service";
 
 // database.md §10: "bid (amount, inclusions/exclusions jsonb,
 // leveled_score)" (FR-EST-6). AI bid-leveling (api.md §5's
-// "POST /bid-packages/{id}/level") stays unbuilt — Estimator AI is its
-// own later roadmap row, same "AI gets its own row" convention as
+// "POST /bid-packages/{id}/level") writes leveled_score via
+// BidLevelingService, its own file — same "AI gets its own file" split as
 // Equipment/Safety AI.
 @Injectable()
 export class BidsService {

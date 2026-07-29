@@ -5,19 +5,20 @@ import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { RequirePermission } from "../../rbac";
 import { BidInvitationsService } from "../application/bid-invitations.service";
+import { BidLevelingService } from "../application/bid-leveling.service";
 import { BidPackagesService } from "../application/bid-packages.service";
 import { BidsService } from "../application/bids.service";
 
 // api.md §5: "GET/POST /bid-packages · nested /invitations, /bids |
-// estimating.bid.* | Sub bidding (FR-EST-6)." AI bid-leveling
-// (POST /bid-packages/{id}/level) stays unbuilt — Estimator AI is its
-// own later roadmap row, see BidsService's doc comment.
+// estimating.bid.* | Sub bidding (FR-EST-6); POST /bid-packages/{id}/level
+// -> AI bid-leveling table."
 @Controller()
 export class BidPackagesController {
   constructor(
     private readonly bidPackages: BidPackagesService,
     private readonly bidInvitations: BidInvitationsService,
     private readonly bids: BidsService,
+    private readonly bidLeveling: BidLevelingService,
   ) {}
 
   @Get("projects/:id/bid-packages")
@@ -88,5 +89,14 @@ export class BidPackagesController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.bids.submit(req.auth!.tenantId, req.auth!.sub, bidInvitationId, body);
+  }
+
+  // "+ AI" reuses the base resource's own write permission rather than a
+  // separate AI-specific key — same convention as estimating.controller.ts's
+  // suggest-lines endpoint.
+  @Post("bid-packages/:id/level")
+  @RequirePermission("estimating.bid.update")
+  level(@Param("id") bidPackageId: string, @Req() req: AuthenticatedRequest) {
+    return this.bidLeveling.level(req.auth!.tenantId, req.auth!.sub, bidPackageId);
   }
 }

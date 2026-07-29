@@ -7,6 +7,7 @@ import { SubcontractorsModule } from "../subcontractors";
 import { BidPackagesController } from "./api/bid-packages.controller";
 import { EstimatingController } from "./api/estimating.controller";
 import { BidInvitationsService } from "./application/bid-invitations.service";
+import { BidLevelingService } from "./application/bid-leveling.service";
 import { BidPackagesService } from "./application/bid-packages.service";
 import { BidsService } from "./application/bids.service";
 import { CostBookService } from "./application/cost-book.service";
@@ -29,6 +30,7 @@ const env = loadEnv();
     BidPackagesService,
     BidInvitationsService,
     BidsService,
+    BidLevelingService,
     EstimatorAiService,
   ],
 })

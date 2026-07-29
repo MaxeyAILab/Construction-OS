@@ -114,3 +114,11 @@ export class BidAlreadySubmittedError extends DomainError {
     super("a bid has already been submitted for this invitation");
   }
 }
+
+export class NoBidsToLevelError extends DomainError {
+  readonly code = "no_bids";
+  readonly status = 422;
+  constructor() {
+    super("this bid package has no submitted bids to level");
+  }
+}

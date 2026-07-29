@@ -202,3 +202,32 @@ export const listBidInvitationsQuerySchema = paginationQuerySchema.extend({
   status: bidInvitationStatusSchema.optional(),
 });
 export type ListBidInvitationsQuery = z.infer<typeof listBidInvitationsQuerySchema>;
+
+// api.md §5 `POST /bid-packages/{id}/level` (FR-EST-6; ai-spec.md §7.3
+// "bid-leveling matrix from sub bids"). leveledScore blends a deterministic
+// price-competitiveness component (this bid's amount vs the package's own
+// lowest bid — never a model judgment, same "money is exact" split as
+// EstimatorAiService's cost lookup) with an AI-assessed scope-completeness
+// component (does this bid's inclusions/exclusions look like it covers the
+// package scope, or does it read like a lowball with gaps) — see
+// bid-leveling.service.ts for the weights. gapsSummary is the model's own
+// one-line rationale; it's returned for the caller to read but only
+// leveledScore is persisted onto the bid row (bids has no notes column).
+export const leveledBidSchema = z.object({
+  bidId: uuidSchema,
+  subcontractorId: uuidSchema,
+  subcontractorName: z.string(),
+  amount: moneyAmountSchema,
+  priceScore: z.number(),
+  completenessScore: z.number(),
+  leveledScore: z.string(),
+  gapsSummary: z.string().nullable(),
+});
+export type LeveledBid = z.infer<typeof leveledBidSchema>;
+
+export const levelBidPackageResponseSchema = z.object({
+  bidPackageId: uuidSchema,
+  bids: z.array(leveledBidSchema),
+  aiRunId: uuidSchema,
+});
+export type LevelBidPackageResponse = z.infer<typeof levelBidPackageResponseSchema>;

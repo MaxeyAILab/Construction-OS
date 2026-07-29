@@ -14,10 +14,8 @@ describe("Subcontractor Management & Bidding", () => {
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
   const { certificationsService, subcontractorsService, subcontractsService } = buildTestSubcontractorServices(db);
-  const { bidPackagesService, bidInvitationsService, bidsService } = buildTestEstimatingServices(
-    db,
-    subcontractorsService,
-  );
+  const { bidPackagesService, bidInvitationsService, bidsService, bidLevelingService, bidLevelingProvider } =
+    buildTestEstimatingServices(db, subcontractorsService);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -189,5 +187,67 @@ describe("Subcontractor Management & Bidding", () => {
     const sub = await subcontractorsService.create(tenantA, ownerA, { name: "Isolated Sub" });
 
     await expect(subcontractorsService.getById(tenantB, sub.id)).rejects.toThrow(/not found/);
+  });
+
+  // api.md §5 POST /bid-packages/{id}/level (ai-spec.md §7.3 Estimator AI).
+  describe("Bid leveling", () => {
+    it("blends a deterministic price-competitiveness score with the AI completeness score, writing leveled_score", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("level");
+      const subA = await subcontractorsService.create(tenantId, ownerId, { name: "Complete Co" });
+      const subB = await subcontractorsService.create(tenantId, ownerId, { name: "Lowball LLC" });
+      const bidPackage = await bidPackagesService.create(tenantId, ownerId, project.id, {
+        name: "Curtain Wall",
+        scope: "Full building glazing package including hardware and sealants",
+      });
+      const invitationA = await bidInvitationsService.create(tenantId, ownerId, bidPackage.id, { subcontractorId: subA.id });
+      const invitationB = await bidInvitationsService.create(tenantId, ownerId, bidPackage.id, { subcontractorId: subB.id });
+
+      // subA: pricier but complete. subB: cheapest (100 price score) but the AI will flag gaps.
+      const bidA = await bidsService.submit(tenantId, ownerId, invitationA.id, {
+        amount: "200000.00",
+        inclusionsExclusions: { inclusions: ["glazing", "hardware", "sealants"], exclusions: [] },
+      });
+      const bidB = await bidsService.submit(tenantId, ownerId, invitationB.id, {
+        amount: "100000.00",
+        inclusionsExclusions: { inclusions: ["glazing"], exclusions: ["hardware", "sealants"] },
+      });
+
+      bidLevelingProvider.setScores([
+        { bidId: bidA.id, completenessScore: 95, gapsSummary: "Covers the full stated scope." },
+        { bidId: bidB.id, completenessScore: 30, gapsSummary: "Excludes hardware and sealants called for in the scope." },
+      ]);
+
+      const result = await bidLevelingService.level(tenantId, ownerId, bidPackage.id);
+
+      expect(result.aiRunId).toBeTruthy();
+      expect(result.bids).toHaveLength(2);
+
+      const leveledA = result.bids.find((b) => b.bidId === bidA.id)!;
+      const leveledB = result.bids.find((b) => b.bidId === bidB.id)!;
+
+      // A: priceScore 50% (100000/200000*100), completeness 95 -> 0.6*95+0.4*50 = 77.
+      expect(leveledA.priceScore).toBe(50);
+      expect(leveledA.leveledScore).toBe("77.00");
+      // B: priceScore 100% (lowest bid), completeness 30 -> 0.6*30+0.4*100 = 58.
+      expect(leveledB.priceScore).toBe(100);
+      expect(leveledB.leveledScore).toBe("58.00");
+      // Despite being far cheaper, B's scope gaps keep it below A once leveled.
+      expect(Number(leveledA.leveledScore)).toBeGreaterThan(Number(leveledB.leveledScore));
+      expect(leveledB.gapsSummary).toContain("Excludes hardware");
+
+      const persisted = await bidsService.listForPackage(tenantId, bidPackage.id);
+      expect(persisted.find((b) => b.id === bidA.id)!.leveledScore).toBe("77.00");
+      expect(persisted.find((b) => b.id === bidB.id)!.leveledScore).toBe("58.00");
+    });
+
+    it("throws a 422 when there are no submitted bids to level", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("level-empty");
+      const bidPackage = await bidPackagesService.create(tenantId, ownerId, project.id, { name: "Empty Package" });
+
+      await expect(bidLevelingService.level(tenantId, ownerId, bidPackage.id)).rejects.toMatchObject({
+        code: "no_bids",
+        status: 422,
+      });
+    });
   });
 });

@@ -398,6 +398,14 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "bid",
     entityId: payload.bidId as string,
   }),
+  // ai-spec.md §7.3 (Estimator AI) — fires once per BidLevelingService run
+  // (not per bid, see the event schema's own doc comment).
+  "bid_package.leveled.v1": (payload) => ({
+    action: "estimating.bid.update",
+    entityType: "bid_package",
+    entityId: payload.bidPackageId as string,
+    aiRunId: payload.aiRunId as string,
+  }),
   // Supplier Portal (M15) + Finance invoices (FR-VEND-2, FR-SUB-3).
   "invoice.created.v1": (payload) => ({
     action: "finance.invoice.create",
