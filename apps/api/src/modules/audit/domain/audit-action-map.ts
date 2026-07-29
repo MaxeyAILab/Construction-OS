@@ -892,6 +892,17 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "warranty_claim",
     entityId: payload.warrantyClaimId as string,
   }),
+  // ai-spec.md §7.6 (Equipment AI) / FR-EQ-4 "fault patterns" — fires
+  // after EquipmentFaultAlertsService persists a new equipment_fault_alerts
+  // row. aiRunId is always present here (unlike finance_alert.created.v1's
+  // conditional one): this event only fires once the AI has actually
+  // confirmed a pattern, see equipment-fault-alerts.service.ts.
+  "equipment_fault_alert.raised.v1": (payload) => ({
+    action: "equipment.fault_alert.create",
+    entityType: "equipment_fault_alert",
+    entityId: payload.equipmentFaultAlertId as string,
+    aiRunId: payload.aiRunId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

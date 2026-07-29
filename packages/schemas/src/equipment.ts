@@ -120,17 +120,18 @@ export type CreateEquipmentInspectionInput = z.infer<typeof createEquipmentInspe
 
 // --- Equipment AI: insights feed (ai-spec.md §7.6, FR-EQ-4). api.md §11:
 // "GET /equipment/ai/insights | Idle assets, predictive maintenance,
-// rent-vs-buy". A pure deterministic feed, no AI Gateway call — same
-// "recommendations list" shape/precedent as
-// procurement's suggest-lines/recommendations and inventory's
-// reorder-suggestions (both zero-AI-call feeds), as opposed to the
-// "diff/forecast" single-object AI-narrated pattern used elsewhere
-// (DrawingDiff, CashflowForecast, MarginErosion). Fault-pattern detection
-// from ai-spec §7.6's predictive-maintenance capability is not built here —
-// that requires historical failure-mode data this system doesn't collect
-// yet (flagged, not invented); "usage-hours vs service intervals" is
-// already fully covered by MaintenanceService's existing due-state
-// projection (FR-EQ-3), reused as-is rather than duplicated.
+// rent-vs-buy". idle_asset/maintenance_due/rent_vs_buy are a pure
+// deterministic feed, no AI Gateway call — same "recommendations list"
+// shape/precedent as procurement's suggest-lines/recommendations and
+// inventory's reorder-suggestions (both zero-AI-call feeds). "usage-hours
+// vs service intervals" is already fully covered by MaintenanceService's
+// existing due-state projection (FR-EQ-3), reused as-is rather than
+// duplicated. fault_pattern is the exception: it surfaces persisted
+// equipment_fault_alerts rows (EquipmentFaultAlertsService, triggered off
+// equipment_inspection.created.v1) — the one insight kind an AI Gateway
+// call actually produces, since judging whether failed inspections share
+// a genuine recurring cause requires reading the notes, not just counting
+// them.
 export const equipmentInsightSuggestedActionSchema = z.enum(["reassign", "return"]);
 export type EquipmentInsightSuggestedAction = z.infer<typeof equipmentInsightSuggestedActionSchema>;
 
@@ -177,10 +178,26 @@ export const rentVsBuyInsightSchema = z.object({
 });
 export type RentVsBuyInsight = z.infer<typeof rentVsBuyInsightSchema>;
 
+// Backed by a persisted equipment_fault_alerts row (EquipmentFaultAlertsService)
+// rather than computed live — see that service's doc comment for why
+// there's no rule-only fallback: the AI's read of the inspection notes is
+// what decides whether a "pattern" exists at all.
+export const faultPatternInsightSchema = z.object({
+  kind: z.literal("fault_pattern"),
+  equipmentId: uuidSchema,
+  assetNo: z.string(),
+  name: z.string(),
+  description: z.string(),
+  failedInspectionCount: z.number().int(),
+  windowDays: z.number().int(),
+});
+export type FaultPatternInsight = z.infer<typeof faultPatternInsightSchema>;
+
 export const equipmentInsightSchema = z.discriminatedUnion("kind", [
   idleAssetInsightSchema,
   maintenanceDueInsightSchema,
   rentVsBuyInsightSchema,
+  faultPatternInsightSchema,
 ]);
 export type EquipmentInsight = z.infer<typeof equipmentInsightSchema>;
 

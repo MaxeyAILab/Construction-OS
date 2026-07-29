@@ -911,6 +911,20 @@
       "when": 1785319782586,
       "tag": "0129_closeout_agent_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1785321733098,
+      "tag": "0130_equipment_fault_alerts_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1785321733099,
+      "tag": "0131_equipment_fault_alerts_rls_and_triggers",
+      "breakpoints": true
     }
   ]
 }

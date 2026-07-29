@@ -1365,6 +1365,19 @@ export const complianceAlertRaisedV1Schema = z.object({
 });
 export type ComplianceAlertRaisedV1 = z.infer<typeof complianceAlertRaisedV1Schema>;
 
+// ai-spec.md §7.6 (Equipment AI, M11) / FR-EQ-4 "fault patterns". No
+// aiRunId-optional enrichment split like finance_alert.created.v1 — this
+// event only ever fires once the AI has actually confirmed a recurring
+// pattern from the inspection notes, so aiRunId is always present.
+export const equipmentFaultAlertRaisedV1Schema = z.object({
+  companyId: uuidSchema,
+  equipmentId: uuidSchema,
+  equipmentFaultAlertId: uuidSchema,
+  failedInspectionCount: z.number().int(),
+  aiRunId: uuidSchema,
+});
+export type EquipmentFaultAlertRaisedV1 = z.infer<typeof equipmentFaultAlertRaisedV1Schema>;
+
 // M19 Warranty & Closeout Management (spec.md §13.18, FR-CLOSE-1..5).
 export const closeoutChecklistItemCreatedV1Schema = z.object({
   companyId: uuidSchema,
@@ -1584,6 +1597,7 @@ export const eventRegistry = {
   "warranty.updated.v1": warrantyUpdatedV1Schema,
   "warranty_claim.created.v1": warrantyClaimCreatedV1Schema,
   "warranty_claim.updated.v1": warrantyClaimUpdatedV1Schema,
+  "equipment_fault_alert.raised.v1": equipmentFaultAlertRaisedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

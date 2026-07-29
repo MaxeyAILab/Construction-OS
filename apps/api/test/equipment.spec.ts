@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { withTenant } from "../src/infrastructure/db/client";
+import { equipmentFaultAlerts } from "../src/infrastructure/db/schema";
 import { buildTestAuthService } from "./setup/auth";
 import { buildTestBudgetServices } from "./setup/budgets";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
@@ -11,8 +14,16 @@ describe("Equipment", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
-  const { equipmentService, assignmentsService, usageLogsService, maintenanceService, insightsService } =
-    buildTestEquipmentServices(db);
+  const {
+    equipmentService,
+    assignmentsService,
+    usageLogsService,
+    maintenanceService,
+    faultAlertsService,
+    faultAlertsWriterService,
+    faultAlertsAiProvider,
+    insightsService,
+  } = buildTestEquipmentServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -43,6 +54,26 @@ describe("Equipment", () => {
   function decodeSub(jwt: string): string {
     const payload = JSON.parse(Buffer.from(jwt.split(".")[1]!, "base64url").toString());
     return payload.sub;
+  }
+
+  async function replayLatestOutboxEvent(tenantId: string, eventType: string) {
+    const row = await withTenant(db, tenantId, (tx) =>
+      tx.query.outbox.findFirst({
+        where: (o, { and, eq }) => and(eq(o.tenantId, tenantId), eq(o.eventType, eventType)),
+        orderBy: (o, { desc }) => [desc(o.occurredAt)],
+      }),
+    );
+    if (!row) throw new Error(`no ${eventType} outbox row found for tenant ${tenantId}`);
+    return {
+      id: row.id,
+      tenantId: row.tenantId,
+      eventType: row.eventType,
+      payload: row.payload,
+      dedupeKey: row.dedupeKey,
+      occurredAt: row.occurredAt.toISOString(),
+      actorId: row.actorId,
+      actorType: row.actorType as "user" | "system" | "ai" | "integration",
+    };
   }
 
   it("creates equipment with a unique asset number and rejects a duplicate", async () => {
@@ -293,6 +324,159 @@ describe("Equipment", () => {
 
       const { insights } = await insightsService.listInsights(tenantB);
       expect(insights.some((i) => i.equipmentId === dozer.id)).toBe(false);
+    });
+  });
+
+  // Equipment AI: fault-pattern detection (ai-spec.md §7.6 "+ fault
+  // patterns", FR-EQ-4). Unlike the deterministic insights above, this one
+  // actually calls the AI Gateway (mocked here via FakeAiProvider) to judge
+  // whether failed-inspection notes describe a genuine recurring fault.
+  describe("Equipment AI: fault-pattern detection", () => {
+    it("raises a fault-pattern insight once a second failed inspection confirms a recurring issue", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("fault-pattern");
+      const crane = await equipmentService.create(tenantId, ownerId, { assetNo: "FP-1", name: "Tower Crane" });
+
+      await maintenanceService.createInspection(tenantId, ownerId, crane.id, {
+        inspectionDate: "2026-06-01",
+        passed: false,
+        notes: "Hydraulic leak near the boom cylinder",
+      });
+      // A single failure isn't enough evidence — no AI call yet, no insight.
+      let { insights } = await insightsService.listInsights(tenantId);
+      expect(insights.some((i) => i.kind === "fault_pattern")).toBe(false);
+
+      faultAlertsAiProvider.setResponse({
+        content: "Recurring hydraulic leak at the boom cylinder, worsening across inspections.",
+        inputTokens: 60,
+        outputTokens: 20,
+      });
+      await maintenanceService.createInspection(tenantId, ownerId, crane.id, {
+        inspectionDate: "2026-07-10",
+        passed: false,
+        notes: "Hydraulic leak at the boom cylinder has worsened",
+      });
+      await faultAlertsWriterService.handleEnvelope(await replayLatestOutboxEvent(tenantId, "equipment_inspection.created.v1"));
+
+      ({ insights } = await insightsService.listInsights(tenantId));
+      const fault = insights.find((i) => i.kind === "fault_pattern" && i.equipmentId === crane.id);
+      expect(fault).toBeDefined();
+      expect(fault!.description).toContain("hydraulic leak");
+      expect(fault!.failedInspectionCount).toBe(2);
+    });
+
+    it("does not raise an insight when the AI finds no genuine recurring pattern", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("fault-no-pattern");
+      const truck = await equipmentService.create(tenantId, ownerId, { assetNo: "FP-2", name: "Dump Truck" });
+
+      await maintenanceService.createInspection(tenantId, ownerId, truck.id, {
+        inspectionDate: "2026-06-01",
+        passed: false,
+        notes: "Cracked windshield",
+      });
+      faultAlertsAiProvider.setResponse({ content: "NONE", inputTokens: 40, outputTokens: 5 });
+      await maintenanceService.createInspection(tenantId, ownerId, truck.id, {
+        inspectionDate: "2026-07-10",
+        passed: false,
+        notes: "Flat tire",
+      });
+      await faultAlertsWriterService.handleEnvelope(await replayLatestOutboxEvent(tenantId, "equipment_inspection.created.v1"));
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      expect(insights.some((i) => i.kind === "fault_pattern" && i.equipmentId === truck.id)).toBe(false);
+    });
+
+    it("ignores a passing inspection even after prior failures", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("fault-passed");
+      const loader = await equipmentService.create(tenantId, ownerId, { assetNo: "FP-3", name: "Loader" });
+
+      await maintenanceService.createInspection(tenantId, ownerId, loader.id, {
+        inspectionDate: "2026-06-01",
+        passed: false,
+        notes: "Brake issue",
+      });
+      await maintenanceService.createInspection(tenantId, ownerId, loader.id, {
+        inspectionDate: "2026-07-01",
+        passed: true,
+        notes: "All clear",
+      });
+      await faultAlertsWriterService.handleEnvelope(await replayLatestOutboxEvent(tenantId, "equipment_inspection.created.v1"));
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      expect(insights.some((i) => i.kind === "fault_pattern" && i.equipmentId === loader.id)).toBe(false);
+    });
+
+    it("does not re-alert for the same triggering inspection when the check runs twice", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("fault-dedupe");
+      const crane = await equipmentService.create(tenantId, ownerId, { assetNo: "FP-4", name: "Crane" });
+      await maintenanceService.createInspection(tenantId, ownerId, crane.id, {
+        inspectionDate: "2026-06-01",
+        passed: false,
+        notes: "Cable fraying observed",
+      });
+      await maintenanceService.createInspection(tenantId, ownerId, crane.id, {
+        inspectionDate: "2026-07-01",
+        passed: false,
+        notes: "Cable fraying has spread",
+      });
+
+      faultAlertsAiProvider.setResponse({ content: "Recurring cable fraying.", inputTokens: 50, outputTokens: 10 });
+      await faultAlertsService.checkEquipment(tenantId, crane.id);
+
+      // A repeat check for the same (equipment, latest failed inspection)
+      // pair must not produce a second row — set the provider to throw so
+      // an un-deduped re-check would surface as a caught error rather than
+      // silently matching this assertion for the wrong reason.
+      faultAlertsAiProvider.setShouldThrow(true);
+      await faultAlertsService.checkEquipment(tenantId, crane.id);
+      faultAlertsAiProvider.setShouldThrow(false);
+
+      const rows = await withTenant(db, tenantId, (tx) =>
+        tx.query.equipmentFaultAlerts.findMany({ where: eq(equipmentFaultAlerts.equipmentId, crane.id) }),
+      );
+      expect(rows).toHaveLength(1);
+    });
+
+    it("raises no alert when the AI Gateway call fails", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("fault-ai-error");
+      const crane = await equipmentService.create(tenantId, ownerId, { assetNo: "FP-5", name: "Crane" });
+      await maintenanceService.createInspection(tenantId, ownerId, crane.id, {
+        inspectionDate: "2026-06-01",
+        passed: false,
+        notes: "Sensor fault",
+      });
+      await maintenanceService.createInspection(tenantId, ownerId, crane.id, {
+        inspectionDate: "2026-07-01",
+        passed: false,
+        notes: "Sensor fault again",
+      });
+
+      faultAlertsAiProvider.setShouldThrow(true);
+      await faultAlertsService.checkEquipment(tenantId, crane.id);
+      faultAlertsAiProvider.setShouldThrow(false);
+
+      const { insights } = await insightsService.listInsights(tenantId);
+      expect(insights.some((i) => i.kind === "fault_pattern" && i.equipmentId === crane.id)).toBe(false);
+    });
+
+    it("enforces tenant isolation for fault-pattern insights", async () => {
+      const { tenantId: tenantA, ownerId: ownerA } = await signUpCompanyWithProject("fault-iso-a");
+      const { tenantId: tenantB } = await signUpCompanyWithProject("fault-iso-b");
+      const crane = await equipmentService.create(tenantA, ownerA, { assetNo: "FP-6", name: "Crane" });
+      await maintenanceService.createInspection(tenantA, ownerA, crane.id, {
+        inspectionDate: "2026-06-01",
+        passed: false,
+        notes: "Gearbox noise",
+      });
+      faultAlertsAiProvider.setResponse({ content: "Recurring gearbox noise.", inputTokens: 40, outputTokens: 10 });
+      await maintenanceService.createInspection(tenantA, ownerA, crane.id, {
+        inspectionDate: "2026-07-01",
+        passed: false,
+        notes: "Gearbox noise persists",
+      });
+      await faultAlertsService.checkEquipment(tenantA, crane.id);
+
+      const { insights } = await insightsService.listInsights(tenantB);
+      expect(insights.some((i) => i.equipmentId === crane.id)).toBe(false);
     });
   });
 });

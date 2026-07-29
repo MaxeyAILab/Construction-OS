@@ -4,6 +4,7 @@ import type {
   EquipmentInsightRecommendation,
   EquipmentInsightsResponse,
   EquipmentOwnership,
+  FaultPatternInsight,
   IdleAssetInsight,
   MaintenanceDueInsight,
   RentVsBuyInsight,
@@ -11,14 +12,18 @@ import type {
 import { and, desc, eq, gte, inArray, isNull, sum } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { equipment, equipmentUsageLogs } from "../../../infrastructure/db/schema";
+import { EquipmentFaultAlertsService } from "./equipment-fault-alerts.service";
 import { MaintenanceService } from "./maintenance.service";
 
 // ai-spec.md §7.6 (Equipment AI, M11) / FR-EQ-4. api.md §11: "GET
 // /equipment/ai/insights | Idle assets, predictive maintenance,
-// rent-vs-buy." A pure deterministic feed with no AI Gateway call — see
-// the schema doc comment (packages/schemas/src/equipment.ts) for the
-// "recommendations list" precedent this follows (procurement's
-// recommendations feed, inventory's reorder-suggestions).
+// rent-vs-buy." idle_asset/maintenance_due/rent_vs_buy are a pure
+// deterministic feed with no AI Gateway call — see the schema doc comment
+// (packages/schemas/src/equipment.ts) for the "recommendations list"
+// precedent this follows (procurement's recommendations feed, inventory's
+// reorder-suggestions). fault_pattern instead reads persisted
+// equipment_fault_alerts rows (EquipmentFaultAlertsService) — the one
+// insight kind an actual AI Gateway call produces.
 //
 // Thresholds below are documented assumptions (not specified anywhere in
 // the docs) — same "sensible default, no provisioning required" precedent
@@ -34,17 +39,32 @@ export class EquipmentInsightsService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly maintenanceService: MaintenanceService,
+    private readonly faultAlerts: EquipmentFaultAlertsService,
   ) {}
 
   async listInsights(tenantId: string): Promise<EquipmentInsightsResponse> {
-    const [maintenanceDue, idleAssets, rentVsBuy] = await Promise.all([
+    const [maintenanceDue, idleAssets, rentVsBuy, faultPatterns] = await Promise.all([
       this.maintenanceDueInsights(tenantId),
       this.idleAssetInsights(tenantId),
       this.rentVsBuyInsights(tenantId),
+      this.faultPatternInsights(tenantId),
     ]);
 
-    const insights: EquipmentInsight[] = [...maintenanceDue, ...idleAssets, ...rentVsBuy];
+    const insights: EquipmentInsight[] = [...maintenanceDue, ...idleAssets, ...rentVsBuy, ...faultPatterns];
     return { insights };
+  }
+
+  private async faultPatternInsights(tenantId: string): Promise<FaultPatternInsight[]> {
+    const latestByEquipment = await this.faultAlerts.listLatestByEquipment(tenantId);
+    return Array.from(latestByEquipment.values()).map((alert) => ({
+      kind: "fault_pattern" as const,
+      equipmentId: alert.equipmentId,
+      assetNo: alert.assetNo,
+      name: alert.name,
+      description: alert.description,
+      failedInspectionCount: alert.failedInspectionCount,
+      windowDays: alert.windowDays,
+    }));
   }
 
   // FR-EQ-3's due-state projection (MaintenanceService.listAllDueStates)
