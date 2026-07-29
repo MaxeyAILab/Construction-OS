@@ -33,6 +33,17 @@ export class CloseoutPackagesService {
     });
   }
 
+  // Consumed by CloseoutAgentRunnerService (index.ts's public surface) so
+  // it can check readiness without triggering assembly — avoids the agent
+  // having to distinguish domain-error types across a module boundary.
+  // `assemble` still re-derives readiness itself right before writing
+  // (same "re-derives on every call, no flag to fall out of sync" rule
+  // for both callers), so this is a non-authoritative pre-check only.
+  async isReady(tenantId: string, projectId: string): Promise<boolean> {
+    const blockers = await this.getReadinessBlockers(tenantId, projectId);
+    return !blockers.checklistIncomplete && !blockers.punchOpen;
+  }
+
   async assemble(tenantId: string, actorId: string, projectId: string, actorType?: "ai") {
     await this.assertReady(tenantId, projectId);
 
@@ -63,7 +74,16 @@ export class CloseoutPackagesService {
   }
 
   private async assertReady(tenantId: string, projectId: string): Promise<void> {
-    await withTenant(this.db, tenantId, async (tx) => {
+    const blockers = await this.getReadinessBlockers(tenantId, projectId);
+    if (blockers.checklistIncomplete) throw new ChecklistIncompleteError();
+    if (blockers.punchOpen) throw new PunchListOpenError();
+  }
+
+  private async getReadinessBlockers(
+    tenantId: string,
+    projectId: string,
+  ): Promise<{ checklistIncomplete: boolean; punchOpen: boolean }> {
+    return withTenant(this.db, tenantId, async (tx) => {
       const pending = await tx.query.closeoutChecklistItems.findFirst({
         where: and(
           eq(closeoutChecklistItems.projectId, projectId),
@@ -71,7 +91,6 @@ export class CloseoutPackagesService {
           isNull(closeoutChecklistItems.deletedAt),
         ),
       });
-      if (pending) throw new ChecklistIncompleteError();
 
       // "Closed" = not open/in_progress/blocked (tasks.status, §7) — a
       // cancelled punch item doesn't block closeout, same as it wouldn't
@@ -85,7 +104,8 @@ export class CloseoutPackagesService {
           isNull(tasks.deletedAt),
         ),
       });
-      if (openPunch) throw new PunchListOpenError();
+
+      return { checklistIncomplete: !!pending, punchOpen: !!openPunch };
     });
   }
 

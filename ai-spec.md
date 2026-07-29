@@ -185,7 +185,7 @@ Defense-in-depth, in order of leverage:
 ## 15. Future AI Agents (V3 horizon — design now, ship later)
 
 - **Agent = declared identity:** `{name, purpose, permission_set (narrow, explicit), tool allowlist, budget, triggers, escalation contacts}` — provisioned like a user, visible in admin, fully audited.
-- **Planned agents:** Procurement Agent (watch schedule/stock → draft+route POs end-to-end), Billing Agent (assemble monthly pay-app from progress data → route for approval), Compliance Agent (chase expiring certs/insurance with sub-portal messages), Closeout Agent (assemble O&M/warranty package — draft-assembly call now specified at `api.md` §18 / FR-CLOSE-6, once M19 itself ships).
+- **Planned agents:** Procurement Agent (watch schedule/stock → draft+route POs end-to-end), Billing Agent (assemble monthly pay-app from progress data → route for approval), Compliance Agent (chase expiring certs/insurance with sub-portal messages), Closeout Agent (assemble O&M/warranty package the moment a project's checklist+punch gate clears — fully specified at `api.md` §15.5 / FR-CLOSE-6).
 - **Ladder:** each agent launches at `draft` autonomy and earns `act` per §13 promotion gates; human "pause agent" kill-switch per tenant; all agent actions reversible and attributable (`actor_type='ai'`, `ai_run_id`).
 - The tool registry, consequence classes, and audit spine above are *already* the agent runtime — no re-architecture, only new agent definitions.
 

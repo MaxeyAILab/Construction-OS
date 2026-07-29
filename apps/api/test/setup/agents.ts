@@ -1,6 +1,7 @@
 import type { Database } from "../../src/infrastructure/db/client";
 import { AgentIdentitiesService } from "../../src/modules/agents/application/agent-identities.service";
 import { BillingAgentRunnerService } from "../../src/modules/agents/application/billing-agent-runner.service";
+import { CloseoutAgentRunnerService } from "../../src/modules/agents/application/closeout-agent-runner.service";
 import { ComplianceAgentRunnerService } from "../../src/modules/agents/application/compliance-agent-runner.service";
 import { ProcurementAgentRunnerService } from "../../src/modules/agents/application/procurement-agent-runner.service";
 import type { BudgetService } from "../../src/modules/budgets/application/budget.service";
@@ -14,6 +15,7 @@ import { RbacService } from "../../src/modules/rbac/application/rbac.service";
 import { PermissionCacheService } from "../../src/modules/rbac/infrastructure/permission-cache.service";
 import type { CertificationsService } from "../../src/modules/safety/application/certifications.service";
 import type { SchedulesService } from "../../src/modules/scheduling/application/schedules.service";
+import type { CloseoutPackagesService } from "../../src/modules/warranty-closeout/application/closeout-packages.service";
 
 export function buildTestAgentIdentitiesService(db: Database): { agents: AgentIdentitiesService; redis: RedisClient } {
   const outbox = new OutboxService();
@@ -58,4 +60,15 @@ export function buildTestComplianceAgentRunner(
   complianceAlerts: ComplianceAlertsService,
 ): ComplianceAgentRunnerService {
   return new ComplianceAgentRunnerService(db, agents, certifications, complianceAlerts);
+}
+
+// api.md §15.5: wires CloseoutAgentRunnerService directly (bypassing
+// CloseoutAgentWorker's BullMQ scheduling), same "test the runner, not
+// the queue" split as the three runners above.
+export function buildTestCloseoutAgentRunner(
+  db: Database,
+  agents: AgentIdentitiesService,
+  packages: CloseoutPackagesService,
+): CloseoutAgentRunnerService {
+  return new CloseoutAgentRunnerService(db, agents, packages);
 }

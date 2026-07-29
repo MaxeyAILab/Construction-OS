@@ -36,6 +36,9 @@ const KNOWN_TOOL_NAMES = new Set([
   // api.md §15.4 "Compliance Agent" — same capability-is-identity
   // precedent, for ComplianceAgentRunnerService's daily tick.
   "chase_expiring_subcontractor_compliance",
+  // api.md §15.5 "Closeout Agent" — same capability-is-identity
+  // precedent, for CloseoutAgentRunnerService's daily tick.
+  "assemble_closeout_package",
 ]);
 
 function agentEmail(): string {

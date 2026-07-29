@@ -147,7 +147,7 @@
 | Procurement Agent (draft→act ladder) | P0 | VH | H | agent runtime, Proc AI metrics | 2 | POs handled end-to-end ≥ 30% (confirmed) | H |
 | Billing Agent (monthly pay-app assembly) | P1 | H | M | pay-apps, agent runtime | 1.5 | pay-app prep time ↓ 80% | M |
 | Compliance Agent (cert/insurance chasing) | P1 | M | L | sub compliance | 1 | expired-doc incidents → 0 | L |
-| Closeout Agent (O&M/warranty package) | P2 | M | M | warranty module | 1.5 | closeout time ↓ 50% | L |
+| Closeout Agent (O&M/warranty package, api.md §15.5) | P2 | M | M | warranty module | 1.5 | closeout time ↓ 50% | L |
 | Voice-first field capture (hands-free reports) | P2 | M | H | on-device AI | 2 | voice report adoption ≥ 25% field users | M |
 | Estimator takeoff from drawings (vision) | P1 | VH | VH | drawing AI corpus | 3+ | takeoff time ↓ 50% at ≥ 90% qty accuracy | **H** |
 

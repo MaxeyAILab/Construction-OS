@@ -27,12 +27,18 @@ import { PermissionCacheService } from "../rbac/infrastructure/permission-cache.
 import { RbacService } from "../rbac/application/rbac.service";
 import { SafetyModule } from "../safety";
 import { SchedulingModule } from "../scheduling";
+// api.md §15.5: the Closeout Agent's daily tick composes
+// CloseoutPackagesService.isReady/assemble — WarrantyCloseoutModule
+// doesn't import Agents anywhere, so no cycle.
+import { WarrantyCloseoutModule } from "../warranty-closeout";
 import { AgentIdentitiesController } from "./api/agent-identities.controller";
 import { AgentIdentitiesService } from "./application/agent-identities.service";
 import { BillingAgentRunnerService } from "./application/billing-agent-runner.service";
+import { CloseoutAgentRunnerService } from "./application/closeout-agent-runner.service";
 import { ComplianceAgentRunnerService } from "./application/compliance-agent-runner.service";
 import { ProcurementAgentRunnerService } from "./application/procurement-agent-runner.service";
 import { BillingAgentWorker } from "./infrastructure/billing-agent.worker";
+import { CloseoutAgentWorker } from "./infrastructure/closeout-agent.worker";
 import { ComplianceAgentWorker } from "./infrastructure/compliance-agent.worker";
 import { ProcurementAgentWorker } from "./infrastructure/procurement-agent.worker";
 
@@ -47,6 +53,7 @@ const env = loadEnv();
     FinanceModule,
     SafetyModule,
     ComplianceAlertsModule,
+    WarrantyCloseoutModule,
   ],
   controllers: [AgentIdentitiesController],
   providers: [
@@ -62,6 +69,8 @@ const env = loadEnv();
     BillingAgentWorker,
     ComplianceAgentRunnerService,
     ComplianceAgentWorker,
+    CloseoutAgentRunnerService,
+    CloseoutAgentWorker,
   ],
   exports: [AgentIdentitiesService],
 })

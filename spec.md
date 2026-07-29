@@ -554,7 +554,7 @@ Functional requirements are grouped by module and carry stable IDs (`FR-<MODULE>
 - **FR-CLOSE-3** The system **shall** assemble a closeout package bundling the checklist's linked documents into a single deliverable for owner handover, and record who assembled it and when.
 - **FR-CLOSE-4** The system **shall** track warranties per project scope (labor, material, or manufacturer) with a responsible party (subcontractor, supplier, or manufacturer), a start date, a duration, and a computed due-state (active / expiring soon / expired).
 - **FR-CLOSE-5** The system **shall** allow clients to submit warranty claims through the Client Portal (M13) during a warranty's active period, routed to the responsible party and tracked to resolution.
-- **FR-CLOSE-6** The system **should** provide a Closeout Agent that assembles a draft O&M/warranty package once FR-CLOSE-2's gate is satisfied, for human review before handover (`ai-spec.md` §15).
+- **FR-CLOSE-6** The system **should** provide a Closeout Agent that automatically assembles the O&M/warranty package the moment FR-CLOSE-2's gate is satisfied, leaving delivery to the owner as a human step (`ai-spec.md` §15).
 
 ---
 
