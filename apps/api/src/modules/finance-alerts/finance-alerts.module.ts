@@ -5,19 +5,25 @@ import { createNatsConnection, ensureEventStream, NATS_CONNECTION } from "../../
 import { AiModule } from "../ai";
 import { BudgetsModule } from "../budgets";
 import { EventsModule } from "../events";
+// ai-spec.md §7.10: InvoiceAnomalyService reuses InvoicesService.getById/
+// listByCounterparty (read-only) — FinanceModule doesn't import
+// FinanceAlertsModule anywhere ("nothing imports FinanceModule back", per
+// its own doc comment), so this one-directional dependency is safe.
+import { FinanceModule } from "../finance";
 import { ProjectsModule } from "../projects";
 import { CashflowForecastController } from "./api/cashflow-forecast.controller";
 import { FinanceAlertsController } from "./api/finance-alerts.controller";
 import { CashflowForecastService } from "./application/cashflow-forecast.service";
 import { FinanceAlertsQueryService } from "./application/finance-alerts-query.service";
 import { FinanceAlertsWriterService } from "./application/finance-alerts-writer.service";
+import { InvoiceAnomalyService } from "./application/invoice-anomaly.service";
 import { MarginErosionService } from "./application/margin-erosion.service";
 import { FinanceAlertsConsumerWorker } from "./infrastructure/finance-alerts-consumer.worker";
 
 const env = loadEnv();
 
 @Module({
-  imports: [AiModule, EventsModule, BudgetsModule, ProjectsModule],
+  imports: [AiModule, EventsModule, BudgetsModule, ProjectsModule, FinanceModule],
   controllers: [FinanceAlertsController, CashflowForecastController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
@@ -33,6 +39,7 @@ const env = loadEnv();
       },
     },
     MarginErosionService,
+    InvoiceAnomalyService,
     FinanceAlertsWriterService,
     FinanceAlertsConsumerWorker,
     FinanceAlertsQueryService,

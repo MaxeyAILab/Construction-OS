@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CreateInvoiceInput, CreateInvoiceLineInput, ListInvoicesQuery } from "@constructionos/schemas";
-import { and, desc, eq, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { costCodes, invoiceLines, invoices, payments, projects } from "../../../infrastructure/db/schema";
 import { assertMakerChecker } from "../../../platform/maker-checker";
@@ -89,6 +89,24 @@ export class InvoicesService {
 
       return { data: page, meta: { cursor: nextCursor, hasMore } };
     });
+  }
+
+  // ai-spec.md §7.10 (Financial AI, invoice anomaly detection) —
+  // FinanceAlertsModule's InvoiceAnomalyService reuses this rather than
+  // duplicating the query, same "expose a new public method rather than
+  // touch another module's tables directly" precedent as
+  // MaintenanceService.listAllDueStates.
+  async listByCounterparty(tenantId: string, counterpartyId: string, direction: "payable" | "receivable", excludeInvoiceId: string) {
+    return withTenant(this.db, tenantId, (tx) =>
+      tx.query.invoices.findMany({
+        where: and(
+          eq(invoices.counterpartyId, counterpartyId),
+          eq(invoices.direction, direction),
+          ne(invoices.id, excludeInvoiceId),
+          isNull(invoices.deletedAt),
+        ),
+      }),
+    );
   }
 
   async getById(tenantId: string, id: string) {

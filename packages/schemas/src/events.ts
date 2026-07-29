@@ -304,15 +304,19 @@ export const costTransactionPostedV1Schema = z.object({
 });
 export type CostTransactionPostedV1 = z.infer<typeof costTransactionPostedV1Schema>;
 
-// FR-FIN-6 (ai-spec.md §7.10 Financial AI): fired after MarginErosionService
-// persists a new finance_alerts row. aiRunId is nullable — the rule always
-// fires the alert; the AI causal-decomposition explanation is a best-effort
-// enrichment that can fail (budget exhausted, provider error) without ever
-// blocking the alert itself.
+// FR-FIN-6 (ai-spec.md §7.10 Financial AI): fired after either
+// MarginErosionService or InvoiceAnomalyService persists a new
+// finance_alerts row — one event for both producers, `kind` discriminates.
+// aiRunId is nullable — margin_erosion's AI causal-decomposition
+// explanation is a best-effort enrichment that can fail without ever
+// blocking the alert; invoice_duplicate never sets it (rule-only, no AI
+// call). projectId is nullable since an invoice-level alert may have no
+// project (company-level/overhead invoices).
 export const financeAlertCreatedV1Schema = z.object({
   companyId: uuidSchema,
-  projectId: uuidSchema,
+  projectId: uuidSchema.nullable(),
   financeAlertId: uuidSchema,
+  kind: z.enum(["margin_erosion", "invoice_duplicate"]),
   severity: z.enum(["warning", "critical"]),
   aiRunId: uuidSchema.nullable(),
 });

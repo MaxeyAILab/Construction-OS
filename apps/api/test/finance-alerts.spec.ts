@@ -5,21 +5,37 @@ import { financeAlerts } from "../src/infrastructure/db/schema";
 import { buildTestAuditServices } from "./setup/audit";
 import { buildTestAuthService } from "./setup/auth";
 import { buildTestBudgetServices } from "./setup/budgets";
+import { buildTestCrmServices } from "./setup/crm";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 import { buildTestFinanceAlertsServices } from "./setup/finance-alerts";
+import { buildTestFinanceServices } from "./setup/finance";
+import { buildTestInventoryServices } from "./setup/inventory";
+import { buildTestProcurementServices } from "./setup/procurement";
 import { buildTestProjectServices } from "./setup/projects";
+import { buildTestSubcontractorServices } from "./setup/subcontractors";
 
 // FR-FIN-6 (ai-spec.md §7.10 Financial AI): rule+AI hybrid margin-erosion
-// alerts. The rule (threshold breach) is deterministic and authoritative;
-// the AI causal-decomposition explanation is a best-effort enrichment that
-// can fail without ever blocking the alert.
-describe("Margin Erosion Alerts v1 (FR-FIN-6)", () => {
+// alerts, plus rule-only invoice-duplicate anomaly alerts — one module,
+// two producers into the same finance_alerts feed (see
+// finance-alerts-query.service.ts's doc comment).
+describe("Finance Alerts v1 (FR-FIN-6)", () => {
   const db = getTestDatabase();
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
-  const { budgetService } = buildTestBudgetServices(db);
-  const { marginErosionService, financeAlertsWriterService, financeAlertsQueryService, provider } =
-    buildTestFinanceAlertsServices(db, projectsService);
+  const { budgetService, costTransactionsService } = buildTestBudgetServices(db);
+  const { stockService } = buildTestInventoryServices(db);
+  const { suppliersService, purchaseOrdersService, redis: procurementRedis } = buildTestProcurementServices(db, stockService);
+  const { contactCompaniesService } = buildTestCrmServices(db, projectsService);
+  const { subcontractorsService } = buildTestSubcontractorServices(db);
+  const { invoicesService } = buildTestFinanceServices(db, {
+    purchaseOrdersService,
+    suppliersService,
+    subcontractorsService,
+    contactCompaniesService,
+    costTransactionsService,
+  });
+  const { marginErosionService, invoiceAnomalyService, financeAlertsWriterService, financeAlertsQueryService, provider } =
+    buildTestFinanceAlertsServices(db, projectsService, invoicesService);
   const { auditWriterService } = buildTestAuditServices(db);
 
   beforeAll(async () => {
@@ -28,6 +44,7 @@ describe("Margin Erosion Alerts v1 (FR-FIN-6)", () => {
 
   afterAll(async () => {
     await redis.quit();
+    await procurementRedis.quit();
   });
 
   async function signUpCompanyWithBudget(label: string, contractValueAmount: string) {
@@ -61,7 +78,10 @@ describe("Margin Erosion Alerts v1 (FR-FIN-6)", () => {
 
   async function replayLatestOutboxEvent(tenantId: string, eventType: string) {
     const row = await withTenant(db, tenantId, (tx) =>
-      tx.query.outbox.findFirst({ where: (o, { and, eq }) => and(eq(o.tenantId, tenantId), eq(o.eventType, eventType)) }),
+      tx.query.outbox.findFirst({
+        where: (o, { and, eq }) => and(eq(o.tenantId, tenantId), eq(o.eventType, eventType)),
+        orderBy: (o, { desc }) => [desc(o.occurredAt)],
+      }),
     );
     if (!row) throw new Error(`no ${eventType} outbox row found for tenant ${tenantId}`);
     return {
@@ -224,5 +244,135 @@ describe("Margin Erosion Alerts v1 (FR-FIN-6)", () => {
 
     const bAlerts = await withTenant(db, b.tenantId, (tx) => tx.query.financeAlerts.findMany({ where: eq(financeAlerts.tenantId, b.tenantId) }));
     expect(bAlerts).toHaveLength(0);
+  });
+
+  // ai-spec.md §7.10 "invoice anomaly detection (duplicate, ...)" —
+  // rule-only, no AI Gateway call (InvoiceAnomalyService's own doc
+  // comment explains why: unlike margin-erosion, the match itself is the
+  // whole finding, nothing to narrate on top of it).
+  describe("Invoice duplicate detection", () => {
+    async function payableInvoice(tenantId: string, ownerId: string, supplierId: string, opts: { issueDate: string; amount: string; externalRef?: string }) {
+      return invoicesService.create(tenantId, ownerId, {
+        direction: "payable",
+        counterpartyType: "supplier",
+        counterpartyId: supplierId,
+        issueDate: opts.issueDate,
+        externalRef: opts.externalRef,
+        lines: [{ description: "Materials", amount: opts.amount }],
+      });
+    }
+
+    it("flags a same-day, same-amount invoice from the same supplier (amount_and_date match)", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithBudget("dup-amount", "100000.00");
+      const supplier = await suppliersService.create(tenantId, ownerId, { name: "Ridgeline Supply" });
+
+      const first = await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-01", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, first.id);
+
+      const second = await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-04", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, second.id);
+
+      const alert = await withTenant(db, tenantId, (tx) =>
+        tx.query.financeAlerts.findFirst({ where: eq(financeAlerts.kind, "invoice_duplicate") }),
+      );
+      expect(alert).toBeDefined();
+      expect(alert!.invoiceId).toBe(second.id);
+      expect(alert!.duplicateOfInvoiceId).toBe(first.id);
+      expect(alert!.matchReason).toBe("amount_and_date");
+      expect(alert!.severity).toBe("warning");
+    });
+
+    it("flags a repeated external_ref as critical, taking precedence over an amount/date match", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithBudget("dup-ref", "100000.00");
+      const supplier = await suppliersService.create(tenantId, ownerId, { name: "Ridgeline Supply" });
+
+      const first = await payableInvoice(tenantId, ownerId, supplier.id, {
+        issueDate: "2026-07-01",
+        amount: "5000.00",
+        externalRef: "INV-9001",
+      });
+      const second = await payableInvoice(tenantId, ownerId, supplier.id, {
+        issueDate: "2026-07-01",
+        amount: "5000.00",
+        externalRef: "INV-9001",
+      });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, second.id);
+
+      const alert = await withTenant(db, tenantId, (tx) =>
+        tx.query.financeAlerts.findFirst({ where: eq(financeAlerts.kind, "invoice_duplicate") }),
+      );
+      expect(alert!.duplicateOfInvoiceId).toBe(first.id);
+      expect(alert!.matchReason).toBe("external_ref");
+      expect(alert!.severity).toBe("critical");
+    });
+
+    it("does not flag invoices outside the amount/date match window or from a different supplier", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithBudget("no-dup", "100000.00");
+      const supplierA = await suppliersService.create(tenantId, ownerId, { name: "Ridgeline Supply" });
+      const supplierB = await suppliersService.create(tenantId, ownerId, { name: "Different Supply Co" });
+
+      const first = await payableInvoice(tenantId, ownerId, supplierA.id, { issueDate: "2026-06-01", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, first.id);
+
+      // 20 days later, same amount, same supplier -> outside the 7-day window.
+      const farInTime = await payableInvoice(tenantId, ownerId, supplierA.id, { issueDate: "2026-06-21", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, farInTime.id);
+
+      // Same day, same amount, different supplier.
+      const otherSupplier = await payableInvoice(tenantId, ownerId, supplierB.id, { issueDate: "2026-06-01", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, otherSupplier.id);
+
+      const alerts = await withTenant(db, tenantId, (tx) =>
+        tx.query.financeAlerts.findMany({ where: eq(financeAlerts.kind, "invoice_duplicate") }),
+      );
+      expect(alerts).toHaveLength(0);
+    });
+
+    it("does not re-alert the same invoice on a repeated check", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithBudget("dup-dedupe", "100000.00");
+      const supplier = await suppliersService.create(tenantId, ownerId, { name: "Ridgeline Supply" });
+
+      await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-01", amount: "5000.00" });
+      const second = await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-01", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, second.id);
+      await invoiceAnomalyService.checkForDuplicate(tenantId, second.id);
+
+      const alerts = await withTenant(db, tenantId, (tx) =>
+        tx.query.financeAlerts.findMany({ where: eq(financeAlerts.invoiceId, second.id) }),
+      );
+      expect(alerts).toHaveLength(1);
+    });
+
+    it("invoice.created.v1 drives the check through the shared finance-alerts writer", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithBudget("dup-event", "100000.00");
+      const supplier = await suppliersService.create(tenantId, ownerId, { name: "Ridgeline Supply" });
+
+      const first = await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-01", amount: "5000.00" });
+      const second = await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-02", amount: "5000.00" });
+      await financeAlertsWriterService.handleEnvelope(await replayLatestOutboxEvent(tenantId, "invoice.created.v1"));
+
+      const alert = await withTenant(db, tenantId, (tx) =>
+        tx.query.financeAlerts.findFirst({ where: eq(financeAlerts.invoiceId, second.id) }),
+      );
+      expect(alert).toBeDefined();
+      expect(alert!.duplicateOfInvoiceId).toBe(first.id);
+    });
+
+    it("GET /finance/alerts returns invoice_duplicate rows shaped as a discriminated union, filterable by kind", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithBudget("dup-feed", "100000.00");
+      const supplier = await suppliersService.create(tenantId, ownerId, { name: "Ridgeline Supply" });
+
+      await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-01", amount: "5000.00" });
+      const second = await payableInvoice(tenantId, ownerId, supplier.id, { issueDate: "2026-07-01", amount: "5000.00" });
+      await invoiceAnomalyService.checkForDuplicate(tenantId, second.id);
+
+      const { data } = await financeAlertsQueryService.list(tenantId, { kind: "invoice_duplicate", limit: 20 });
+      expect(data).toHaveLength(1);
+      const alert = data[0]!;
+      expect(alert.kind).toBe("invoice_duplicate");
+      if (alert.kind === "invoice_duplicate") {
+        expect(alert.invoiceId).toBe(second.id);
+      }
+    });
   });
 });

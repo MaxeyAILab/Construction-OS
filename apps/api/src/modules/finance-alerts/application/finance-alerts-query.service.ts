@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ListFinanceAlertsQuery } from "@constructionos/schemas";
+import type { FinanceAlert, ListFinanceAlertsQuery } from "@constructionos/schemas";
 import { and, desc, eq, lt, or, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { financeAlerts } from "../../../infrastructure/db/schema";
@@ -31,6 +31,7 @@ export class FinanceAlertsQueryService {
     return withTenant(this.db, tenantId, async (tx) => {
       const conditions: SQL[] = [];
       if (query.projectId) conditions.push(eq(financeAlerts.projectId, query.projectId));
+      if (query.kind) conditions.push(eq(financeAlerts.kind, query.kind));
       if (query.cursor) {
         const c = decodeCursor(query.cursor);
         conditions.push(
@@ -48,11 +49,40 @@ export class FinanceAlertsQueryService {
       });
 
       const hasMore = rows.length > query.limit;
-      const page = rows.slice(0, query.limit);
+      const page = rows.slice(0, query.limit).map(toFinanceAlert);
       const last = page.at(-1);
-      const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null;
+      const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null;
 
       return { data: page, meta: { cursor: nextCursor, hasMore } };
     });
   }
+}
+
+// Maps the one physical (nullable-columned) row shape to the discriminated
+// union the API returns — see finance_alerts.ts's own doc comment for why
+// there's one table backing two kinds.
+function toFinanceAlert(row: typeof financeAlerts.$inferSelect): FinanceAlert {
+  const base = {
+    id: row.id,
+    projectId: row.projectId,
+    severity: row.severity as "warning" | "critical",
+    createdAt: row.createdAt.toISOString(),
+  };
+  if (row.kind === "invoice_duplicate") {
+    return {
+      ...base,
+      kind: "invoice_duplicate",
+      invoiceId: row.invoiceId!,
+      duplicateOfInvoiceId: row.duplicateOfInvoiceId!,
+      matchReason: row.matchReason as "external_ref" | "amount_and_date",
+    };
+  }
+  return {
+    ...base,
+    kind: "margin_erosion",
+    marginPct: row.marginPct!,
+    thresholdPct: row.thresholdPct!,
+    explanation: row.explanation,
+    aiRunId: row.aiRunId,
+  };
 }

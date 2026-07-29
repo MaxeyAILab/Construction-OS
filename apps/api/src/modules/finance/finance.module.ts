@@ -51,7 +51,10 @@ const env = loadEnv();
   // api.md §15.3: BillingAgentRunnerService (AgentsModule) composes
   // create+submit under an agent's own actor — same "broaden an existing
   // module's public surface" precedent as ProcurementModule for the
-  // Procurement Agent.
-  exports: [PaymentApplicationsService],
+  // Procurement Agent. InvoicesService is exported for FinanceAlertsModule's
+  // InvoiceAnomalyService (ai-spec.md §7.10) — a read-only cross-module call
+  // (getById), same "own connection, non-atomic read" precedent as every
+  // other cross-module reuse this session.
+  exports: [InvoicesService, PaymentApplicationsService],
 })
 export class FinanceModule {}

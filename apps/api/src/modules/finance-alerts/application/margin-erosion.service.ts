@@ -108,6 +108,7 @@ export class MarginErosionService {
           companyId: tenantId,
           projectId,
           financeAlertId: alert!.id,
+          kind: KIND,
           severity,
           aiRunId: explanation?.aiRunId ?? null,
         },
