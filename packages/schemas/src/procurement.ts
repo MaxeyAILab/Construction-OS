@@ -190,8 +190,37 @@ export const listProcurementRecommendationsQuerySchema = z.object({
 });
 export type ListProcurementRecommendationsQuery = z.infer<typeof listProcurementRecommendationsQuerySchema>;
 
+// ai-spec.md §7.4 "delivery-risk alerts (promised vs need dates)" /
+// FR-VEND-3 "flag delivery risk" — the other half of this endpoint's
+// "lead-time risk feed" api.md wording, alongside procurementNeedSchema's
+// buy-timing half. Fires only once a PO already exists for the cost code
+// (computeNeeds already covers "no PO yet" via its own hasOpenPurchaseOrder
+// skip) — this is "a PO is placed, but its own promised date now threatens
+// the schedule" rather than "nothing has been ordered." Deterministic rule,
+// same "no model judgment on a date comparison" split as every other
+// alert in this codebase.
+export const deliveryRiskReasonSchema = z.enum(["promised_after_need_date", "no_promised_date"]);
+export type DeliveryRiskReason = z.infer<typeof deliveryRiskReasonSchema>;
+
+export const procurementDeliveryRiskSchema = z.object({
+  costCodeId: uuidSchema,
+  costCodeCode: z.string(),
+  scheduleActivityId: uuidSchema,
+  activityName: z.string(),
+  needByDate: isoDateSchema,
+  purchaseOrderId: uuidSchema,
+  purchaseOrderNumber: z.string(),
+  supplierId: uuidSchema,
+  supplierName: z.string(),
+  promisedDate: isoDateSchema.nullable(),
+  daysLate: z.number().int().nullable(),
+  reason: deliveryRiskReasonSchema,
+});
+export type ProcurementDeliveryRisk = z.infer<typeof procurementDeliveryRiskSchema>;
+
 export const procurementRecommendationsResponseSchema = z.object({
   needs: z.array(procurementNeedSchema),
+  deliveryRisks: z.array(procurementDeliveryRiskSchema),
 });
 export type ProcurementRecommendationsResponse = z.infer<typeof procurementRecommendationsResponseSchema>;
 

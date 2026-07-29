@@ -301,6 +301,80 @@ describe("Procurement & Purchasing", () => {
     expect(need.daysUntilMustOrder).toBeLessThan(0);
   });
 
+  // ai-spec.md §7.4 "delivery-risk alerts (promised vs need dates)" — the
+  // complement of the buy-timing feed above: these are cost codes that DO
+  // already have an open PO, so computeNeeds skips them entirely.
+  it("FR-VEND-3: flags a PO promised after its need date, an unconfirmed PO with an imminent need date, and clears once received", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("delivery-risk");
+    const budget = await budgetService.create(tenantId, ownerId, project.id, { currency: "USD" });
+    const costCodeLate = await costCodesService.create(tenantId, ownerId, project.id, { code: "L", name: "Late", kind: "other" });
+    const costCodeNoPromise = await costCodesService.create(tenantId, ownerId, project.id, { code: "N", name: "NoPromise", kind: "other" });
+    const costCodeReceived = await costCodesService.create(tenantId, ownerId, project.id, { code: "R", name: "Received", kind: "other" });
+    for (const cc of [costCodeLate, costCodeNoPromise, costCodeReceived]) {
+      await budgetService.addLine(tenantId, ownerId, budget.id, { costCodeId: cc.id, originalAmount: "5000.00" });
+    }
+
+    const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+    await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Late work", durationDays: 5, costCodeId: costCodeLate.id });
+    await activitiesService.create(tenantId, ownerId, schedule.id, {
+      name: "No-promise work",
+      durationDays: 5,
+      costCodeId: costCodeNoPromise.id,
+    });
+    await activitiesService.create(tenantId, ownerId, schedule.id, {
+      name: "Received work",
+      durationDays: 5,
+      costCodeId: costCodeReceived.id,
+    });
+    await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+    // No predecessors -> every activity's need date is the schedule's own data date (today).
+    const needByDate = new Date().toISOString().slice(0, 10);
+
+    const supplier = await suppliersService.create(tenantId, ownerId, { name: "Delivery Risk Supplier" });
+
+    async function createSentPo(costCodeId: string) {
+      const po = await purchaseOrdersService.create(tenantId, ownerId, {
+        projectId: project.id,
+        supplierId: supplier.id,
+        lines: [{ description: "Committed buy", costCodeId, qtyOrdered: "1.000", uom: "LS", unitCostAmount: "50.0000" }],
+      });
+      await lifecycleService.submit(tenantId, ownerId, po.id);
+      await lifecycleService.approve(tenantId, ownerId, po.id);
+      await lifecycleService.send(tenantId, ownerId, po.id);
+      return po;
+    }
+
+    const latePo = await createSentPo(costCodeLate.id);
+    const tenDaysOut = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+    await lifecycleService.confirm(tenantId, ownerId, latePo.id, { promisedDate: tenDaysOut });
+
+    await createSentPo(costCodeNoPromise.id); // sent, never confirmed -> no promised date on file
+
+    const receivedPo = await createSentPo(costCodeReceived.id);
+    const farOut = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+    await lifecycleService.confirm(tenantId, ownerId, receivedPo.id, { promisedDate: farOut });
+    await deliveriesService.create(tenantId, ownerId, receivedPo.id, {
+      deliveryDate: needByDate,
+      lines: [{ purchaseOrderLineId: (await purchaseOrdersService.getById(tenantId, ownerId, receivedPo.id)).lines[0]!.id, qtyReceived: "1.000" }],
+    });
+
+    const risks = await procurementNeedsService.computeDeliveryRisks(tenantId, ownerId, project.id);
+    expect(risks).toHaveLength(2);
+
+    const lateRisk = risks.find((r) => r.costCodeId === costCodeLate.id)!;
+    expect(lateRisk.reason).toBe("promised_after_need_date");
+    expect(lateRisk.promisedDate).toBe(tenDaysOut);
+    expect(lateRisk.daysLate).toBe(10);
+    expect(lateRisk.purchaseOrderId).toBe(latePo.id);
+
+    const noPromiseRisk = risks.find((r) => r.costCodeId === costCodeNoPromise.id)!;
+    expect(noPromiseRisk.reason).toBe("no_promised_date");
+    expect(noPromiseRisk.promisedDate).toBeNull();
+    expect(noPromiseRisk.daysLate).toBeNull();
+
+    expect(risks.some((r) => r.costCodeId === costCodeReceived.id)).toBe(false);
+  });
+
   it("FR-PROC-6: drafts a real PO for a resolvable need and reports an unresolvable one as skipped", async () => {
     const { tenantId, ownerId, project } = await signUpCompanyWithProject("draft-needs");
     const budget = await budgetService.create(tenantId, ownerId, project.id, { currency: "USD" });

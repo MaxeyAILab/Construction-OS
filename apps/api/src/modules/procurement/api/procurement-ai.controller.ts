@@ -22,8 +22,11 @@ export class ProcurementAiController {
     query: z.infer<typeof listProcurementRecommendationsQuerySchema>,
     @Req() req: AuthenticatedRequest,
   ) {
-    const needs = await this.needs.computeNeeds(req.auth!.tenantId, req.auth!.sub, query.projectId);
-    return { needs };
+    const [needs, deliveryRisks] = await Promise.all([
+      this.needs.computeNeeds(req.auth!.tenantId, req.auth!.sub, query.projectId),
+      this.needs.computeDeliveryRisks(req.auth!.tenantId, req.auth!.sub, query.projectId),
+    ]);
+    return { needs, deliveryRisks };
   }
 
   // api.md §11: "POST /projects/{id}/purchase-orders:draft-from-needs | AI
