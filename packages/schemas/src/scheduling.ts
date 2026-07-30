@@ -144,3 +144,34 @@ export const delayImpactResultSchema = z.object({
   aiRunId: uuidSchema.nullable(),
 });
 export type DelayImpactResult = z.infer<typeof delayImpactResultSchema>;
+
+// api.md §6: "GET /schedules/{id}/ai/risk | schedule.read | Critical-path
+// risk scoring (FR-SCH-6, ai-spec.md §7.5 'float burn-rate')". Deterministic
+// — no model call — same "the rule is the authoritative signal" split as
+// the rest of this endpoint's siblings; see
+// predictive-schedule-risk.service.ts for the burn-rate formula.
+export const scheduleRiskLevelSchema = z.enum(["critical", "high", "medium"]);
+export type ScheduleRiskLevel = z.infer<typeof scheduleRiskLevelSchema>;
+
+export const scheduleRiskItemSchema = z.object({
+  activityId: uuidSchema,
+  activityName: z.string(),
+  isCritical: z.boolean(),
+  currentFloatDays: z.number().int(),
+  baselineFloatDays: z.number().int(),
+  burnedFloatDays: z.number().int(),
+  burnRatePerDay: z.number(),
+  // Projected calendar days from today until this activity's float hits
+  // zero at its current burn rate. 0 when already critical.
+  daysUntilCritical: z.number().int().nullable(),
+  riskLevel: scheduleRiskLevelSchema,
+});
+export type ScheduleRiskItem = z.infer<typeof scheduleRiskItemSchema>;
+
+export const scheduleRiskResponseSchema = z.object({
+  scheduleId: uuidSchema,
+  baselineScheduleId: uuidSchema.nullable(),
+  baselineDataDate: isoDateSchema.nullable(),
+  risks: z.array(scheduleRiskItemSchema),
+});
+export type ScheduleRiskResponse = z.infer<typeof scheduleRiskResponseSchema>;

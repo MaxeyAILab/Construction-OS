@@ -210,6 +210,7 @@ Idempotency-Key: 018f…
 | GET | `/projects/{id}/lookahead?weeks=3` | read | Lookahead view (FR-SCH-3) |
 | GET | `/resources/conflicts?from=&to=` | `schedule.resources` | Cross-project crew/equipment conflicts (FR-SCH-5) |
 | POST | `/schedules/{id}/ai/impact` | + AI | Delay simulation (FR-SCH-6): `{delayed_activity_id, days}` → critical-path impact, affected milestones, options, confidence |
+| GET | `/schedules/{id}/ai/risk` | `schedule.read` | Critical-path risk scoring (FR-SCH-6, ai-spec.md §7.5 "float burn-rate"): per-activity float trend vs. the latest baseline → risk level, projected days until the activity goes critical at its current burn rate |
 
 ---
 

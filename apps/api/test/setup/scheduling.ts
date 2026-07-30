@@ -11,6 +11,7 @@ import { ActivitiesService } from "../../src/modules/scheduling/application/acti
 import { DelayImpactService } from "../../src/modules/scheduling/application/delay-impact.service";
 import { DependenciesService } from "../../src/modules/scheduling/application/dependencies.service";
 import { LookaheadService } from "../../src/modules/scheduling/application/lookahead.service";
+import { PredictiveScheduleRiskService } from "../../src/modules/scheduling/application/predictive-schedule-risk.service";
 import { ScheduleRecalcQueue } from "../../src/modules/scheduling/application/recalculate.queue";
 import { RecalculateService } from "../../src/modules/scheduling/application/recalculate.service";
 import { ResourceAssignmentsService } from "../../src/modules/scheduling/application/resource-assignments.service";
@@ -28,6 +29,7 @@ export function buildTestSchedulingServices(db: Database): {
   resourceConflictsService: ResourceConflictsService;
   delayImpactService: DelayImpactService;
   delayImpactAiProvider: FakeAiProvider;
+  predictiveScheduleRiskService: PredictiveScheduleRiskService;
   queueConnection: Redis;
   cacheRedis: Redis;
 } {
@@ -49,6 +51,7 @@ export function buildTestSchedulingServices(db: Database): {
   const resourceConflictsService = new ResourceConflictsService(db);
   const delayImpactAiProvider = new FakeAiProvider();
   const delayImpactService = new DelayImpactService(db, schedulesService, new AiGatewayService(db, delayImpactAiProvider));
+  const predictiveScheduleRiskService = new PredictiveScheduleRiskService(db, schedulesService);
 
   return {
     schedulesService,
@@ -60,6 +63,7 @@ export function buildTestSchedulingServices(db: Database): {
     resourceConflictsService,
     delayImpactService,
     delayImpactAiProvider,
+    predictiveScheduleRiskService,
     queueConnection,
     cacheRedis,
   };

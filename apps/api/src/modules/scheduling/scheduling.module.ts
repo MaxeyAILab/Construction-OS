@@ -10,6 +10,7 @@ import { ActivitiesService } from "./application/activities.service";
 import { DelayImpactService } from "./application/delay-impact.service";
 import { DependenciesService } from "./application/dependencies.service";
 import { LookaheadService } from "./application/lookahead.service";
+import { PredictiveScheduleRiskService } from "./application/predictive-schedule-risk.service";
 import { RecalculateService } from "./application/recalculate.service";
 import { ScheduleRecalcQueue } from "./application/recalculate.queue";
 import { ResourceAssignmentsService } from "./application/resource-assignments.service";
@@ -35,6 +36,7 @@ const env = loadEnv();
     LookaheadService,
     ResourceConflictsService,
     DelayImpactService,
+    PredictiveScheduleRiskService,
   ],
   // Procurement AI (FR-PROC-6) reuses SchedulesService.getActiveSchedule()
   // for schedule_activities' cost-code/start-date data rather than

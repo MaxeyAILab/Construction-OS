@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenant } from "../src/infrastructure/db/client";
-import { outbox } from "../src/infrastructure/db/schema";
+import { outbox, schedules } from "../src/infrastructure/db/schema";
 import { CycleDetectedError } from "../src/modules/scheduling/domain/errors";
 import { buildTestAuthService } from "./setup/auth";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
@@ -23,6 +23,7 @@ describe("Scheduling", () => {
     resourceConflictsService,
     delayImpactService,
     delayImpactAiProvider,
+    predictiveScheduleRiskService,
     queueConnection,
     cacheRedis,
   } = buildTestSchedulingServices(db);
@@ -409,6 +410,84 @@ describe("Scheduling", () => {
         days: 1,
       }),
     ).rejects.toThrow(/not found/);
+  });
+
+  // api.md §6 GET /schedules/{id}/ai/risk (FR-SCH-6, ai-spec.md §7.5
+  // "critical-path risk scoring, float burn-rate").
+  describe("Predictive schedule risk (float burn-rate)", () => {
+    async function backdateBaseline(tenantId: string, scheduleId: string, daysAgo: number) {
+      const pastDate = new Date(Date.now() - daysAgo * 86_400_000);
+      await withTenant(db, tenantId, (tx) => tx.update(schedules).set({ createdAt: pastDate }).where(eq(schedules.id, scheduleId)));
+    }
+
+    it("flags a non-critical activity whose float has burned down since the baseline, and always includes critical activities", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("risk-burn");
+      const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+
+      // A drives the 10-day project end (no successors -> critical, float 0).
+      const a = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Driver", durationDays: 10 });
+      // B has slack: no predecessors/successors, so its late finish is
+      // pinned to the project end regardless of its own (short) duration.
+      const b = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Slack work", durationDays: 3 });
+      await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+      const { schedule: baseline } = await schedulesService.createBaseline(tenantId, ownerId, project.id, { name: "Original Plan" });
+      await backdateBaseline(tenantId, baseline.id, 10);
+
+      // Extending B's own duration burns its float directly (3 -> 8 uses
+      // 5 of its original 7 days of slack) without touching the critical
+      // path at all.
+      const bLatest = await activitiesService.list(tenantId, schedule.id).then((rows) => rows.find((r) => r.id === b.id)!);
+      await activitiesService.update(tenantId, ownerId, b.id, { durationDays: 8 }, bLatest.updatedSeq);
+      await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+      const result = await predictiveScheduleRiskService.computeRisk(tenantId, schedule.id);
+      expect(result.baselineScheduleId).toBe(baseline.id);
+      expect(result.risks).toHaveLength(2);
+
+      const driverRisk = result.risks.find((r) => r.activityId === a.id)!;
+      expect(driverRisk.isCritical).toBe(true);
+      expect(driverRisk.riskLevel).toBe("critical");
+      expect(driverRisk.daysUntilCritical).toBeNull();
+
+      const slackRisk = result.risks.find((r) => r.activityId === b.id)!;
+      expect(slackRisk.isCritical).toBe(false);
+      expect(slackRisk.baselineFloatDays).toBe(7);
+      expect(slackRisk.currentFloatDays).toBe(2);
+      expect(slackRisk.burnedFloatDays).toBe(5);
+      expect(slackRisk.burnRatePerDay).toBe(0.5);
+      expect(slackRisk.daysUntilCritical).toBe(4);
+      expect(slackRisk.riskLevel).toBe("high");
+    });
+
+    it("returns no risks when there's no baseline to compare against yet", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("risk-nobaseline");
+      const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+      await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Solo", durationDays: 5 });
+      await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+      const result = await predictiveScheduleRiskService.computeRisk(tenantId, schedule.id);
+      expect(result.baselineScheduleId).toBeNull();
+      expect(result.risks).toEqual([]);
+    });
+
+    it("doesn't flag an activity whose float hasn't meaningfully burned since the baseline", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("risk-nochange");
+      const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+      const a = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Driver", durationDays: 10 });
+      await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Slack work", durationDays: 3 });
+      await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+      const { schedule: baseline } = await schedulesService.createBaseline(tenantId, ownerId, project.id, { name: "Plan" });
+      await backdateBaseline(tenantId, baseline.id, 10);
+      // No further edits -> nothing has changed since the baseline.
+      await recalculateService.recalculate(tenantId, ownerId, schedule.id);
+
+      const result = await predictiveScheduleRiskService.computeRisk(tenantId, schedule.id);
+      // The driver is still critical (always surfaced); the slack activity's
+      // float is unchanged, so it's excluded.
+      expect(result.risks.map((r) => r.activityId)).toEqual([a.id]);
+    });
   });
 
   it("RLS: a tenant only sees its own schedules, activities, and dependencies", async () => {

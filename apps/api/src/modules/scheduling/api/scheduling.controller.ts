@@ -37,6 +37,7 @@ import { DependenciesService } from "../application/dependencies.service";
 import { LookaheadService } from "../application/lookahead.service";
 import { RecalculateService } from "../application/recalculate.service";
 import { ResourceAssignmentsService } from "../application/resource-assignments.service";
+import { PredictiveScheduleRiskService } from "../application/predictive-schedule-risk.service";
 import { ResourceConflictsService } from "../application/resource-conflicts.service";
 import { SchedulesService } from "../application/schedules.service";
 
@@ -51,6 +52,7 @@ export class SchedulingController {
     private readonly lookahead: LookaheadService,
     private readonly resourceConflicts: ResourceConflictsService,
     private readonly delayImpact: DelayImpactService,
+    private readonly predictiveRisk: PredictiveScheduleRiskService,
   ) {}
 
   // M13 Client Portal v1 (FR-CLIENT-1): schedule.read (internal) or a
@@ -226,5 +228,14 @@ export class SchedulingController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.delayImpact.simulateImpact(req.auth!.tenantId, req.auth!.sub, scheduleId, body);
+  }
+
+  // api.md §6: "GET /schedules/{id}/ai/risk" — same "+AI reuses the base
+  // schedule.read permission" convention as simulateImpact above. Read-only:
+  // nothing is written back to schedule_activities.
+  @Get("schedules/:id/ai/risk")
+  @RequirePermission("schedule.read")
+  getRisk(@Param("id") scheduleId: string, @Req() req: AuthenticatedRequest) {
+    return this.predictiveRisk.computeRisk(req.auth!.tenantId, scheduleId);
   }
 }
