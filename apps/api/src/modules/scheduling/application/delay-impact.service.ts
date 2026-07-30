@@ -137,6 +137,105 @@ export class DelayImpactService {
     };
   }
 
+  // Reused by WhatIfSimulationService (dashboards module, FR-EXEC-4 "delay
+  // cascade" / "crew move" what-if scenarios) — the same "extend duration,
+  // re-run CPM once, diff before/after" math as simulateImpact above,
+  // generalized to N simultaneous activity delays instead of one. Kept as
+  // its own method rather than refactoring simulateImpact to call this with
+  // a single-element array: simulateImpact's own AI narrative step is
+  // scheduling-specific (mitigation *options*), while the what-if caller's
+  // narrative is a different, exec-level sketch — no shared caller to
+  // justify the extra indirection. No AI Gateway call here: narration is
+  // the caller's concern, this method only returns the deterministic CPM
+  // diff.
+  async simulateCascade(
+    tenantId: string,
+    scheduleId: string,
+    delays: Array<{ activityId: string; days: number }>,
+  ): Promise<{
+    scheduleId: string;
+    projectEndDelayDays: number;
+    criticalPathImpacted: boolean;
+    affectedActivities: Array<{
+      id: string;
+      name: string;
+      isMilestone: boolean;
+      finishShiftDays: number;
+      becameCritical: boolean;
+      noLongerCritical: boolean;
+    }>;
+    affectedMilestones: Array<{
+      id: string;
+      name: string;
+      isMilestone: boolean;
+      finishShiftDays: number;
+      becameCritical: boolean;
+      noLongerCritical: boolean;
+    }>;
+  }> {
+    const { activityRows, dependencyInputs } = await withTenant(this.db, tenantId, async (tx) => {
+      await this.schedules.requireSchedule(tx, scheduleId);
+      const rows = await tx.query.scheduleActivities.findMany({
+        where: and(eq(scheduleActivities.scheduleId, scheduleId), isNull(scheduleActivities.deletedAt)),
+      });
+      const rowIds = new Set(rows.map((r) => r.id));
+      for (const delay of delays) {
+        if (!rowIds.has(delay.activityId)) throw new ScheduleActivityNotFoundError();
+      }
+
+      const dependencyRows = await this.schedules.loadDependencies(tx, scheduleId);
+      return {
+        activityRows: rows,
+        dependencyInputs: dependencyRows.map((d) => ({
+          predecessorId: d.predecessorId,
+          successorId: d.successorId,
+          type: d.type as ActivityDependencyType,
+          lagDays: d.lagDays,
+        })),
+      };
+    });
+
+    const extraDaysByActivity = new Map(delays.map((d) => [d.activityId, d.days]));
+    const baselineInputs = activityRows.map((a) => ({ id: a.id, durationDays: a.durationDays }));
+    const before = runCpm(baselineInputs, dependencyInputs);
+
+    const whatIfInputs = baselineInputs.map((a) => {
+      const extraDays = extraDaysByActivity.get(a.id);
+      return extraDays ? { ...a, durationDays: Math.max(0, a.durationDays + extraDays) } : a;
+    });
+    const after = runCpm(whatIfInputs, dependencyInputs);
+
+    const beforeProjectEnd = Math.max(...[...before.values()].map((r) => r.earlyFinish));
+    const afterProjectEnd = Math.max(...[...after.values()].map((r) => r.earlyFinish));
+    const projectEndDelayDays = afterProjectEnd - beforeProjectEnd;
+
+    const affectedActivities = activityRows
+      .map((activity) => {
+        const b = before.get(activity.id)!;
+        const a = after.get(activity.id)!;
+        if (b.earlyFinish === a.earlyFinish && b.isCritical === a.isCritical) return null;
+        return {
+          id: activity.id,
+          name: activity.name,
+          isMilestone: activity.isMilestone,
+          finishShiftDays: a.earlyFinish - b.earlyFinish,
+          becameCritical: !b.isCritical && a.isCritical,
+          noLongerCritical: b.isCritical && !a.isCritical,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    const affectedMilestones = affectedActivities.filter((a) => a.isMilestone);
+
+    return {
+      scheduleId,
+      projectEndDelayDays,
+      criticalPathImpacted: projectEndDelayDays !== 0,
+      affectedActivities,
+      affectedMilestones,
+    };
+  }
+
   private async explainImpact(
     tenantId: string,
     actorId: string,

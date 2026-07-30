@@ -2,10 +2,12 @@ import type { OutboxEnvelope } from "@constructionos/schemas";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenant } from "../src/infrastructure/db/client";
-import { outbox, projectionProjectFinancials } from "../src/infrastructure/db/schema";
+import { opportunities, outbox, projectionProjectFinancials } from "../src/infrastructure/db/schema";
+import { buildTestAiServices } from "./setup/ai";
 import { buildTestAuthService } from "./setup/auth";
 import { buildTestBudgetServices } from "./setup/budgets";
-import { buildTestDashboardsServices } from "./setup/dashboards";
+import { buildTestCrmServices } from "./setup/crm";
+import { buildTestDashboardsServices, buildTestWhatIfSimulationService } from "./setup/dashboards";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
 import { buildTestFileServices } from "./setup/files";
 import { buildTestProjectServices } from "./setup/projects";
@@ -13,7 +15,12 @@ import { buildTestReportsServices } from "./setup/reports";
 import { buildTestRfisServices } from "./setup/rfis";
 import { buildTestSchedulingServices } from "./setup/scheduling";
 import { buildTestTasksServices } from "./setup/tasks";
-import { ProjectNotFoundError, ReportDefinitionNotFoundError } from "../src/modules/dashboards/domain/errors";
+import {
+  OpportunityNotOpenError,
+  ProjectNotFoundError,
+  ReportDefinitionNotFoundError,
+  WhatIfScheduleMismatchError,
+} from "../src/modules/dashboards/domain/errors";
 
 describe("Executive Dashboard v1: projections + aggregate reads", () => {
   const db = getTestDatabase();
@@ -21,8 +28,24 @@ describe("Executive Dashboard v1: projections + aggregate reads", () => {
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
   const { dashboardsService, projectionsWriterService } = buildTestDashboardsServices(db);
-  const { schedulesService, activitiesService, dependenciesService, recalculateService, queueConnection, cacheRedis } =
-    buildTestSchedulingServices(db);
+  const {
+    schedulesService,
+    activitiesService,
+    dependenciesService,
+    recalculateService,
+    resourceAssignmentsService,
+    delayImpactService,
+    queueConnection,
+    cacheRedis,
+  } = buildTestSchedulingServices(db);
+  const { opportunitiesService, pipelineStagesService } = buildTestCrmServices(db, projectsService);
+  const { aiGatewayService: whatIfAiGateway } = buildTestAiServices(db);
+  const whatIfSimulationService = buildTestWhatIfSimulationService(
+    opportunitiesService,
+    resourceAssignmentsService,
+    delayImpactService,
+    whatIfAiGateway,
+  );
   const { tasksService } = buildTestTasksServices(db);
   const { rfisService } = buildTestRfisServices(db);
   const { fileUploadService } = buildTestFileServices(db);
@@ -318,6 +341,179 @@ describe("Executive Dashboard v1: projections + aggregate reads", () => {
 
       const listB = await reportsService.list(b.tenantId, { limit: 20 });
       expect(listB.data).toHaveLength(0);
+    });
+  });
+
+  // What-if simulation (FR-EXEC-4, ai-spec.md §7.1 "what-if sketches",
+  // roadmap.md Phase 3 "bid loss, crew moves, delay cascades"). Each
+  // scenario's numbers are deterministic (pipeline math / CPM re-runs) —
+  // the AI narrative is a best-effort extra, not asserted on here (the fake
+  // provider's canned response is exercised in the AI Gateway's own tests).
+  describe("What-if simulation (FR-EXEC-4)", () => {
+    it("bid_loss: reduces the weighted pipeline by exactly the lost opportunity's weighted value", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("whatif-bid");
+      const stage = await pipelineStagesService.create(tenantId, ownerId, { name: "Qualified", displayOrder: 1 });
+
+      const kept = await opportunitiesService.create(tenantId, ownerId, {
+        name: "Kept Deal",
+        stageId: stage.id,
+        expectedValueAmount: "100000.00",
+        probability: "50.00",
+      });
+      const lost = await opportunitiesService.create(tenantId, ownerId, {
+        name: "Harbor Bid",
+        stageId: stage.id,
+        expectedValueAmount: "200000.00",
+        probability: "25.00",
+      });
+
+      // before = 100000*0.5 + 200000*0.25 = 100000; after = 50000.
+      const result = await whatIfSimulationService.simulate(tenantId, ownerId, {
+        type: "bid_loss",
+        opportunityId: lost.id,
+      });
+
+      expect(result.type).toBe("bid_loss");
+      if (result.type !== "bid_loss") throw new Error("unreachable");
+      expect(result.pipelineWeightedValueBefore).toBe("100000.00");
+      expect(result.lostWeightedValueAmount).toBe("50000.00");
+      expect(result.pipelineWeightedValueAfter).toBe("50000.00");
+      expect(result.pipelineWeightedValueDeltaPct).toBe(-50);
+
+      // sanity: the kept opportunity's own weighted value is unaffected.
+      const stillOpen = await opportunitiesService.listOpenForPipeline(tenantId);
+      expect(stillOpen.find((o) => o.id === kept.id)).toBeDefined();
+    });
+
+    it("bid_loss: rejects simulating the loss of an opportunity that's already won or lost", async () => {
+      const { tenantId, ownerId } = await signUpCompanyWithProject("whatif-bid-closed");
+      const stage = await pipelineStagesService.create(tenantId, ownerId, { name: "Qualified", displayOrder: 1 });
+      const opportunity = await opportunitiesService.create(tenantId, ownerId, {
+        name: "Already Lost Deal",
+        stageId: stage.id,
+        expectedValueAmount: "50000.00",
+        probability: "50.00",
+      });
+
+      await withTenant(db, tenantId, (tx) =>
+        tx.update(opportunities).set({ status: "lost", lostReason: "budget" }).where(eq(opportunities.id, opportunity.id)),
+      );
+
+      await expect(
+        whatIfSimulationService.simulate(tenantId, ownerId, { type: "bid_loss", opportunityId: opportunity.id }),
+      ).rejects.toThrow(OpportunityNotOpenError);
+    });
+
+    it("delay_cascade: combines multiple simultaneous activity delays into one project-end shift", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("whatif-cascade");
+      const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+      const a = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Sitework", durationDays: 5 });
+      const b = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Foundation", durationDays: 10 });
+      await dependenciesService.replace(tenantId, ownerId, b.id, {
+        dependencies: [{ predecessorId: a.id, type: "FS", lagDays: 0 }],
+      });
+      const c = await activitiesService.create(tenantId, ownerId, schedule.id, { name: "Permitting", durationDays: 3 });
+
+      const result = await whatIfSimulationService.simulate(tenantId, ownerId, {
+        type: "delay_cascade",
+        scheduleId: schedule.id,
+        delays: [
+          { activityId: a.id, days: 2 },
+          { activityId: c.id, days: 1 },
+        ],
+      });
+
+      expect(result.type).toBe("delay_cascade");
+      if (result.type !== "delay_cascade") throw new Error("unreachable");
+      // A's chain (A -> B, 5+10=15 days) is critical; delaying A by 2 pushes
+      // the whole chain (and project end) by 2. C (duration 3, plenty of
+      // float against a 15-day project) never becomes the driver.
+      expect(result.projectEndDelayDays).toBe(2);
+      expect(result.criticalPathImpacted).toBe(true);
+      const affectedIds = result.affectedActivities.map((x) => x.id);
+      expect(affectedIds).toContain(a.id);
+      expect(affectedIds).toContain(b.id);
+    });
+
+    it("crew_move: treats losing a resource for its assigned window as an equivalent activity delay and flags a new conflict at the target", async () => {
+      const { tenantId, ownerId, project } = await signUpCompanyWithProject("whatif-crew");
+      const { schedule } = await schedulesService.getActiveSchedule(tenantId, ownerId, project.id);
+      const fromActivity = await activitiesService.create(tenantId, ownerId, schedule.id, {
+        name: "Framing",
+        durationDays: 5,
+      });
+      const targetActivity = await activitiesService.create(tenantId, ownerId, schedule.id, {
+        name: "Drywall",
+        durationDays: 5,
+      });
+
+      const startAt = "2025-06-01T08:00:00.000Z";
+      const endAt = "2025-06-04T08:00:00.000Z"; // exactly 3 days
+      const moved = await resourceAssignmentsService.create(tenantId, ownerId, fromActivity.id, {
+        resourceType: "crew",
+        crewLabel: "Framing Crew",
+        startAt,
+        endAt,
+      });
+      // Already booked on the target activity for the same window/crew —
+      // moving `moved` there should collide with this one.
+      const existingOnTarget = await resourceAssignmentsService.create(tenantId, ownerId, targetActivity.id, {
+        resourceType: "crew",
+        crewLabel: "Framing Crew",
+        startAt,
+        endAt,
+      });
+
+      const result = await whatIfSimulationService.simulate(tenantId, ownerId, {
+        type: "crew_move",
+        scheduleId: schedule.id,
+        resourceAssignmentIds: [moved.id],
+        targetActivityId: targetActivity.id,
+      });
+
+      expect(result.type).toBe("crew_move");
+      if (result.type !== "crew_move") throw new Error("unreachable");
+      expect(result.movedAssignments).toEqual([
+        { resourceAssignmentId: moved.id, fromActivityId: fromActivity.id, fromActivityName: "Framing", lostDays: 3 },
+      ]);
+      expect(result.newConflicts).toEqual([
+        { resourceAssignmentId: moved.id, conflictingAssignmentId: existingOnTarget.id },
+      ]);
+      // fromActivity (duration 5) and targetActivity (duration 5) start tied
+      // for the critical path; losing the crew extends fromActivity to 8
+      // days, which now solely drives the (still-unconnected) project end.
+      expect(result.projectEndDelayDays).toBe(3);
+    });
+
+    it("crew_move: rejects resource assignments that don't belong to the given schedule", async () => {
+      const { tenantId, ownerId, project: projectA } = await signUpCompanyWithProject("whatif-crew-mismatch");
+      const projectB = await projectsService.create(tenantId, ownerId, {
+        name: "Second Project",
+        code: "WHATIF-CREW-B",
+        currency: "USD",
+      });
+      const { schedule: scheduleA } = await schedulesService.getActiveSchedule(tenantId, ownerId, projectA.id);
+      const { schedule: scheduleB } = await schedulesService.getActiveSchedule(tenantId, ownerId, projectB.id);
+      const activityOnB = await activitiesService.create(tenantId, ownerId, scheduleB.id, {
+        name: "Project B's Activity",
+        durationDays: 5,
+      });
+      const assignmentOnB = await resourceAssignmentsService.create(tenantId, ownerId, activityOnB.id, {
+        resourceType: "crew",
+        crewLabel: "Crew",
+        startAt: "2025-06-01T08:00:00.000Z",
+        endAt: "2025-06-02T17:00:00.000Z",
+      });
+
+      // assignmentOnB's activity actually belongs to scheduleB, not scheduleA
+      // — the mismatch guard rejects before any CPM re-run is attempted.
+      await expect(
+        whatIfSimulationService.simulate(tenantId, ownerId, {
+          type: "crew_move",
+          scheduleId: scheduleA.id,
+          resourceAssignmentIds: [assignmentOnB.id],
+        }),
+      ).rejects.toThrow(WhatIfScheduleMismatchError);
     });
   });
 });

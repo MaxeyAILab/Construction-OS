@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { CreateOpportunityInput, ListOpportunitiesQuery, UpdateOpportunityInput } from "@constructionos/schemas";
 import { and, desc, eq, gte, isNull, lte, lt, or, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
-import { opportunities } from "../../../infrastructure/db/schema";
+import { opportunities, pipelineStages } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
 import { OpportunityNotFoundError } from "../domain/errors";
 
@@ -112,6 +112,29 @@ export class OpportunitiesService {
 
       return updated!;
     });
+  }
+
+  // Reused by WhatIfSimulationService (dashboards module, FR-EXEC-4 "bid
+  // loss" what-if scenario, ai-spec.md §7.1 "what does losing the Harbor
+  // bid do to Q4 revenue") for the weighted-pipeline aggregate — the full
+  // open pipeline, unpaginated, same "aggregation needs the full set"
+  // precedent as CashflowForecastService.loadOpenInvoices. Falls back to
+  // each opportunity's stage's default_probability_pct when the
+  // opportunity itself has no explicit probability set.
+  async listOpenForPipeline(tenantId: string) {
+    return withTenant(this.db, tenantId, (tx) =>
+      tx
+        .select({
+          id: opportunities.id,
+          name: opportunities.name,
+          expectedValueAmount: opportunities.expectedValueAmount,
+          probability: opportunities.probability,
+          defaultProbabilityPct: pipelineStages.defaultProbabilityPct,
+        })
+        .from(opportunities)
+        .innerJoin(pipelineStages, eq(pipelineStages.id, opportunities.stageId))
+        .where(and(eq(opportunities.status, "open"), isNull(opportunities.deletedAt))),
+    );
   }
 
   private async requireOpportunity(tx: Database, id: string) {

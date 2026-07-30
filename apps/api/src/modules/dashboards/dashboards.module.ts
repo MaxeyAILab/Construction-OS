@@ -7,9 +7,12 @@ import {
   NATS_CONNECTION,
 } from "../../infrastructure/nats/client";
 import { createQueueConnection, QUEUE_CONNECTION } from "../../infrastructure/queue/connection";
+import { AiModule } from "../ai";
+import { CrmModule } from "../crm";
 import { DocumentsModule } from "../documents";
 import { EventsModule } from "../events";
 import { FilesModule } from "../files";
+import { SchedulingModule } from "../scheduling";
 import { DashboardsController } from "./api/dashboards.controller";
 import { ReportsController } from "./api/reports.controller";
 import { DashboardProjectionsWriterService } from "./application/dashboard-projections-writer.service";
@@ -17,13 +20,14 @@ import { DashboardsService } from "./application/dashboards.service";
 import { ReportRunnerService } from "./application/report-runner.service";
 import { ReportsQueue } from "./application/reports.queue";
 import { ReportsService } from "./application/reports.service";
+import { WhatIfSimulationService } from "./application/what-if-simulation.service";
 import { DashboardProjectionsConsumerWorker } from "./infrastructure/dashboard-projections-consumer.worker";
 import { ReportWorker } from "./infrastructure/report.worker";
 
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule, DocumentsModule, FilesModule],
+  imports: [EventsModule, DocumentsModule, FilesModule, CrmModule, SchedulingModule, AiModule],
   controllers: [DashboardsController, ReportsController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },
@@ -43,6 +47,7 @@ const env = loadEnv();
     ReportsQueue,
     ReportRunnerService,
     ReportWorker,
+    WhatIfSimulationService,
   ],
   // M17 Project Assistant (ai-spec.md §7.2) reuses DashboardsService's
   // per-project rollup (status/health/margin/risk counts) as its

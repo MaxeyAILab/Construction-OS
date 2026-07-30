@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CreateResourceAssignmentInput } from "@constructionos/schemas";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { equipment, resourceAssignments, scheduleActivities } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
@@ -91,6 +91,53 @@ export class ResourceAssignmentsService {
         dedupeKey: `resource_assignment.deleted.v1:${assignmentId}`,
         actorId,
         payload: { companyId: tenantId, activityId: assignment.activityId, resourceAssignmentId: assignmentId },
+      });
+    });
+  }
+
+  // Reused by WhatIfSimulationService (dashboards module, FR-EXEC-4 "crew
+  // move" what-if scenario) — same "broaden an existing module's public
+  // surface" precedent as SchedulesService.loadDependencies. Returns fewer
+  // rows than `ids` when some don't exist/are deleted; the caller decides
+  // whether that's an error.
+  async listByIdsWithActivity(tenantId: string, ids: string[]) {
+    return withTenant(this.db, tenantId, (tx) =>
+      tx
+        .select({
+          assignment: resourceAssignments,
+          activityId: scheduleActivities.id,
+          activityName: scheduleActivities.name,
+          activityScheduleId: scheduleActivities.scheduleId,
+        })
+        .from(resourceAssignments)
+        .innerJoin(scheduleActivities, eq(scheduleActivities.id, resourceAssignments.activityId))
+        .where(and(inArray(resourceAssignments.id, ids), isNull(resourceAssignments.deletedAt))),
+    );
+  }
+
+  // Same "crew move" what-if scenario: does moving a resource onto
+  // `targetActivityId` create a new overlap for the same crew/equipment,
+  // mirroring ResourceConflictsService's overlap predicate (tstzrange
+  // intersection) but scoped to one candidate activity/window instead of a
+  // cross-project time range — a hypothetical check, not the GIST-indexed
+  // query, since nothing is actually being inserted.
+  async findOverlapping(
+    tenantId: string,
+    targetActivityId: string,
+    resourceType: "crew" | "equipment",
+    resourceLabel: string,
+    startAt: Date,
+    endAt: Date,
+  ) {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const candidates = await tx.query.resourceAssignments.findMany({
+        where: and(eq(resourceAssignments.activityId, targetActivityId), isNull(resourceAssignments.deletedAt)),
+      });
+      return candidates.filter((candidate) => {
+        if (candidate.resourceType !== resourceType) return false;
+        const label = resourceType === "equipment" ? candidate.equipmentId : candidate.crewLabel;
+        if (label !== resourceLabel) return false;
+        return candidate.startAt < endAt && candidate.endAt > startAt;
       });
     });
   }

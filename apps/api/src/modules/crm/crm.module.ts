@@ -32,6 +32,9 @@ const env = loadEnv();
   // validate counterparty_type='client' invoices (FR-VEND-2/FR-FIN-4
   // pay-apps) — same "broaden an existing module's public surface"
   // precedent as every other cross-module reuse this session.
-  exports: [ContactCompaniesService],
+  // WhatIfSimulationService (dashboards module, FR-EXEC-4 "bid loss"
+  // what-if scenario) additionally reuses OpportunitiesService's pipeline
+  // read.
+  exports: [ContactCompaniesService, OpportunitiesService],
 })
 export class CrmModule {}

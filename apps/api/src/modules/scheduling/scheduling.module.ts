@@ -42,7 +42,9 @@ const env = loadEnv();
   // for schedule_activities' cost-code/start-date data rather than
   // querying the table directly — same "broaden an existing module's
   // public surface" precedent as every other cross-module reuse this
-  // session.
-  exports: [SchedulesService],
+  // session. WhatIfSimulationService (dashboards module, FR-EXEC-4)
+  // additionally reuses DelayImpactService.simulateCascade and
+  // ResourceAssignmentsService's crew-move helpers.
+  exports: [SchedulesService, DelayImpactService, ResourceAssignmentsService],
 })
 export class SchedulingModule {}

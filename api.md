@@ -360,6 +360,7 @@ SSE stream → … final:
 |--------|------|-------------|
 | GET | `/dashboards/company` | Executive KPI payload (projections; NFR-4 ≤3 s) |
 | GET | `/dashboards/projects/{id}` | Project dashboard aggregate |
+| POST | `/dashboards/company/what-if` | What-if simulation (FR-EXEC-4, ai-spec.md §7.1 "what-if sketches"; roadmap.md Phase 3 "bid loss, crew moves, delay cascades") — `dashboard.company.read`. Rule-computed, AI-narrated: numbers come from CPM re-runs / pipeline math, never a model guess |
 | GET/POST/PATCH | `/reports/definitions` | Saved/scheduled reports (FR-EXEC-2) |
 | POST | `/reports/definitions/{id}/run` | 202 → job → artifact (PDF/XLSX) in documents |
 | GET | `/reports/runs/{id}` | Status + signed download |
