@@ -513,6 +513,16 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "change_order",
     entityId: payload.changeOrderId as string,
   }),
+  "change_order.rejected.v1": (payload) => ({
+    action: "finance.co.reject",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order.submitted_to_client.v1": (payload) => ({
+    action: "finance.co.submit_to_client",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
   "change_order_line.created.v1": (payload) => ({
     action: "finance.co.update",
     entityType: "change_order",

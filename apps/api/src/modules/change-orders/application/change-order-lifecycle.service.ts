@@ -33,10 +33,10 @@ export class ChangeOrderLifecycleService {
     private readonly companySettings: CompanySettingsService,
   ) {}
 
-  // Gap-fill: api.md §9 documents this as "Publishes to portal +
-  // notification" — no client portal exists yet to publish to, and no
-  // notification consumer is wired for this event (flagged follow-up,
-  // same as convert-to-budget's cost-code kind default).
+  // api.md §9: "Publishes to portal + notification." The portal half is
+  // Client Portal's dual-path approval (approve() below already accepts a
+  // share-holding principal) — this closes the notification half, fanning
+  // out to every principal with an active share on this change order.
   async submitToClient(tenantId: string, actorId: string, changeOrderId: string) {
     return withTenant(this.db, tenantId, async (tx) => {
       const co = await this.changeOrdersService.requireChangeOrder(tx, changeOrderId);
@@ -54,6 +54,20 @@ export class ChangeOrderLifecycleService {
         dedupeKey: `change_order.updated.v1:${changeOrderId}:${updated!.updatedSeq}`,
         actorId,
         payload: { companyId: tenantId, projectId: co.projectId, changeOrderId, changedFields: ["status"] },
+      });
+
+      const shares = await this.externalShares.list(tenantId, { entityType: "change_order", entityId: changeOrderId });
+      const now = Date.now();
+      const notifyUserIds = [
+        ...new Set(shares.filter((s) => !s.expiresAt || s.expiresAt.getTime() > now).map((s) => s.principalUserId)),
+      ];
+
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "change_order.submitted_to_client.v1",
+        dedupeKey: `change_order.submitted_to_client.v1:${changeOrderId}:${updated!.updatedSeq}`,
+        actorId,
+        payload: { companyId: tenantId, projectId: co.projectId, changeOrderId, notifyUserIds },
       });
 
       return updated!;
@@ -79,6 +93,17 @@ export class ChangeOrderLifecycleService {
         dedupeKey: `change_order.updated.v1:${changeOrderId}:${updated!.updatedSeq}`,
         actorId,
         payload: { companyId: tenantId, projectId: co.projectId, changeOrderId, changedFields: ["status"] },
+      });
+
+      // Dedicated event, additional to the generic one above, so the
+      // notification map has a precise trigger — notifies the CO's own
+      // author that the client declined it.
+      await this.outbox.append(tx, {
+        tenantId,
+        eventType: "change_order.rejected.v1",
+        dedupeKey: `change_order.rejected.v1:${changeOrderId}:${updated!.updatedSeq}`,
+        actorId,
+        payload: { companyId: tenantId, projectId: co.projectId, changeOrderId, createdBy: co.createdBy },
       });
 
       return updated!;
@@ -228,6 +253,7 @@ export class ChangeOrderLifecycleService {
           changeOrderId,
           costImpactAmount: co.costImpactAmount,
           scheduleImpactDays: co.scheduleImpactDays,
+          createdBy: co.createdBy,
         },
       });
 

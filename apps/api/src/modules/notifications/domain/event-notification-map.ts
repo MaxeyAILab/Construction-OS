@@ -53,6 +53,43 @@ const builders: Partial<Record<EventType, NotificationBuilder>> = {
       entityId: payload.entityId as string,
     }));
   },
+  // api.md §9 "Publishes to portal + notification" (FR-FIN-2). Single
+  // recipient — the CO's own author — same shape as user.invited.v1/
+  // role.assigned.v1.
+  "change_order.approved.v1": (payload) => ({
+    recipientUserId: payload.createdBy as string,
+    category: "change_order.decided",
+    kind: "change_order_approved",
+    title: "Change order approved",
+    body: "Your change order was approved.",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  "change_order.rejected.v1": (payload) => ({
+    recipientUserId: payload.createdBy as string,
+    category: "change_order.decided",
+    kind: "change_order_rejected",
+    title: "Change order rejected",
+    body: "Your change order was rejected.",
+    entityType: "change_order",
+    entityId: payload.changeOrderId as string,
+  }),
+  // notifyUserIds is every principal with an active external_shares grant
+  // on this change order (see ChangeOrderLifecycleService.submitToClient) —
+  // the other real fan-out case alongside comment.created.v1's mentions,
+  // rather than a single named recipient.
+  "change_order.submitted_to_client.v1": (payload) => {
+    const notifyUserIds = payload.notifyUserIds as string[];
+    return notifyUserIds.map((userId) => ({
+      recipientUserId: userId,
+      category: "change_order.submitted",
+      kind: "change_order_submitted_to_client",
+      title: "Change order awaiting your approval",
+      body: "A change order has been submitted for your approval.",
+      entityType: "change_order",
+      entityId: payload.changeOrderId as string,
+    }));
+  },
   // api.md §16.3: "dead-letter + notification". createdBy carries the
   // endpoint's owner directly (no cross-module lookup needed) — same
   // single-recipient shape as user.invited.v1/role.assigned.v1 above. A

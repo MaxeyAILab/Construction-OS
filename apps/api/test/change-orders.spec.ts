@@ -1,11 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenant } from "../src/infrastructure/db/client";
-import { outbox } from "../src/infrastructure/db/schema";
+import { notifications, outbox } from "../src/infrastructure/db/schema";
 import { buildTestAuthService } from "./setup/auth";
 import { buildTestBudgetServices } from "./setup/budgets";
 import { buildTestChangeOrderServices } from "./setup/change-orders";
 import { bootstrapTestRole, getTestDatabase } from "./setup/db";
+import { buildTestNotificationsServices } from "./setup/notifications";
 import { buildTestProjectServices } from "./setup/projects";
 import { buildTestRbacServices } from "./setup/rbac";
 
@@ -14,9 +15,10 @@ describe("Change Orders", () => {
   const { authService, redis } = buildTestAuthService(db);
   const { projectsService, costCodesService } = buildTestProjectServices(db);
   const { budgetService } = buildTestBudgetServices(db);
-  const { changeOrdersService, lifecycleService, companySettingsService, redis: sharesRedis } =
+  const { changeOrdersService, lifecycleService, companySettingsService, externalSharesService, redis: sharesRedis } =
     buildTestChangeOrderServices(db);
   const { rbacService, redis: rbacRedis } = buildTestRbacServices(db);
+  const { dispatchService } = buildTestNotificationsServices(db);
 
   beforeAll(async () => {
     await bootstrapTestRole();
@@ -56,6 +58,26 @@ describe("Change Orders", () => {
       tx.query.outbox.findMany({ where: eq(outbox.tenantId, tenantId) }),
     );
     return rows.map((r) => r.eventType);
+  }
+
+  async function replayLatestOutboxEvent(tenantId: string, eventType: string) {
+    const row = await withTenant(db, tenantId, (tx) =>
+      tx.query.outbox.findFirst({
+        where: and(eq(outbox.tenantId, tenantId), eq(outbox.eventType, eventType)),
+        orderBy: (o, { desc }) => [desc(o.occurredAt)],
+      }),
+    );
+    if (!row) throw new Error(`no ${eventType} outbox row found for tenant ${tenantId}`);
+    return {
+      id: row.id,
+      tenantId: row.tenantId,
+      eventType: row.eventType,
+      payload: row.payload,
+      dedupeKey: row.dedupeKey,
+      occurredAt: row.occurredAt.toISOString(),
+      actorId: row.actorId,
+      actorType: row.actorType as "user" | "system" | "ai" | "integration",
+    };
   }
 
   it("creates a change order with auto-numbering and recomputes cost_impact_amount from lines", async () => {
@@ -192,6 +214,11 @@ describe("Change Orders", () => {
     const eventTypes = await outboxEventTypes(tenantId);
     expect(eventTypes).toContain("change_order.approved.v1");
     expect(eventTypes).toContain("budget_line.updated.v1");
+
+    // createdBy carries the CO's own author so the notification map can
+    // tell them their change order was approved.
+    const approvedEnvelope = await replayLatestOutboxEvent(tenantId, "change_order.approved.v1");
+    expect((approvedEnvelope.payload as { createdBy: string }).createdBy).toBe(ownerId);
   });
 
   // spec.md §10.2 (Segregation of duties): "change-order approvals ...
@@ -284,6 +311,84 @@ describe("Change Orders", () => {
     });
     const voided = await lifecycleService.void(tenantId, ownerId, co2.id);
     expect(voided.status).toBe("void");
+  });
+
+  // api.md §9 "Publishes to portal + notification" (FR-FIN-2) — the
+  // notification half, closing the gap flagged in
+  // ChangeOrderLifecycleService's own prior doc comment.
+  it("notifies every client-share principal when a CO is submitted, and the drafter when it's decided", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("co-notify");
+    const costCode = await costCodesService.create(tenantId, ownerId, project.id, {
+      code: "01",
+      name: "GC",
+      kind: "other",
+    });
+    const co = await changeOrdersService.create(tenantId, ownerId, project.id, {
+      title: "Notify test",
+      priceImpactAmount: "0.00",
+      scheduleImpactDays: 0,
+      lines: [{ costCodeId: costCode.id, description: "A", costImpactAmount: "100.00" }],
+    });
+
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const { userId: clientUserId } = await rbacService.inviteUser(
+      tenantId,
+      `co-client-${suffix}@example.com`,
+      "Client Reviewer",
+      ownerId,
+      "external",
+    );
+    await externalSharesService.create(tenantId, ownerId, {
+      principalUserId: clientUserId,
+      audience: "client",
+      entityType: "change_order",
+      entityId: co.id,
+      access: "approve",
+    });
+
+    await lifecycleService.submitToClient(tenantId, ownerId, co.id);
+    const submittedEnvelope = await replayLatestOutboxEvent(tenantId, "change_order.submitted_to_client.v1");
+    expect((submittedEnvelope.payload as { notifyUserIds: string[] }).notifyUserIds).toEqual([clientUserId]);
+    await dispatchService.handleEnvelope(submittedEnvelope);
+
+    const submittedNotif = await withTenant(db, tenantId, (tx) =>
+      tx.query.notifications.findFirst({ where: and(eq(notifications.tenantId, tenantId), eq(notifications.userId, clientUserId)) }),
+    );
+    expect(submittedNotif?.kind).toBe("change_order_submitted_to_client");
+
+    const rejected = await lifecycleService.reject(tenantId, ownerId, co.id);
+    expect(rejected.status).toBe("rejected");
+    const rejectedEnvelope = await replayLatestOutboxEvent(tenantId, "change_order.rejected.v1");
+    expect((rejectedEnvelope.payload as { createdBy: string }).createdBy).toBe(ownerId);
+    await dispatchService.handleEnvelope(rejectedEnvelope);
+
+    const rejectedNotif = await withTenant(db, tenantId, (tx) =>
+      tx.query.notifications.findFirst({
+        where: and(eq(notifications.tenantId, tenantId), eq(notifications.userId, ownerId), eq(notifications.kind, "change_order_rejected")),
+      }),
+    );
+    expect(rejectedNotif).toBeDefined();
+  });
+
+  it("submitToClient produces an empty notifyUserIds list when no client share exists yet", async () => {
+    const { tenantId, ownerId, project } = await signUpCompanyWithProject("co-notify-empty");
+    const costCode = await costCodesService.create(tenantId, ownerId, project.id, {
+      code: "01",
+      name: "GC",
+      kind: "other",
+    });
+    const co = await changeOrdersService.create(tenantId, ownerId, project.id, {
+      title: "No share yet",
+      priceImpactAmount: "0.00",
+      scheduleImpactDays: 0,
+      lines: [{ costCodeId: costCode.id, description: "A", costImpactAmount: "100.00" }],
+    });
+
+    await lifecycleService.submitToClient(tenantId, ownerId, co.id);
+    const envelope = await replayLatestOutboxEvent(tenantId, "change_order.submitted_to_client.v1");
+    expect((envelope.payload as { notifyUserIds: string[] }).notifyUserIds).toEqual([]);
+    // A no-op dispatch, not an error.
+    await dispatchService.handleEnvelope(envelope);
   });
 
   it("RLS: a tenant only sees its own change orders", async () => {

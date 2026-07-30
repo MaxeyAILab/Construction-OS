@@ -841,14 +841,47 @@ export const changeOrderUpdatedV1Schema = z.object({
 });
 export type ChangeOrderUpdatedV1 = z.infer<typeof changeOrderUpdatedV1Schema>;
 
+// createdBy: the CO's own author — the notification recipient for "your
+// change order was approved," same single-named-recipient shape as
+// user.invited.v1/role.assigned.v1.
 export const changeOrderApprovedV1Schema = z.object({
   companyId: uuidSchema,
   projectId: uuidSchema,
   changeOrderId: uuidSchema,
   costImpactAmount: z.string(),
   scheduleImpactDays: z.number().int(),
+  createdBy: uuidSchema,
 });
 export type ChangeOrderApprovedV1 = z.infer<typeof changeOrderApprovedV1Schema>;
+
+// Dedicated event (rather than overloading change_order.updated.v1, which
+// also fires for void) purely so the notification map has a precise
+// trigger — same "reject gets its own real entry point" gap-fill
+// reasoning as ChangeOrderLifecycleService.reject() itself.
+export const changeOrderRejectedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  createdBy: uuidSchema,
+});
+export type ChangeOrderRejectedV1 = z.infer<typeof changeOrderRejectedV1Schema>;
+
+// api.md §9: "Publishes to portal + notification" — the portal half is
+// Client Portal's dual-path approval (already real); this is the
+// notification half. notifyUserIds is every principal_user_id with an
+// active (unexpired) external_shares grant on this change_order —
+// resolved by ChangeOrderLifecycleService at emit time so the
+// notification-map builder stays a pure function of the payload, same
+// "the event carries its own audience" shape as comment.created.v1's
+// mentions array. Empty when no client has been granted access yet — not
+// an error, just nothing to notify.
+export const changeOrderSubmittedToClientV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  changeOrderId: uuidSchema,
+  notifyUserIds: z.array(uuidSchema),
+});
+export type ChangeOrderSubmittedToClientV1 = z.infer<typeof changeOrderSubmittedToClientV1Schema>;
 
 export const changeOrderLineCreatedV1Schema = z.object({
   companyId: uuidSchema,
@@ -1552,6 +1585,8 @@ export const eventRegistry = {
   "change_order.created.v1": changeOrderCreatedV1Schema,
   "change_order.updated.v1": changeOrderUpdatedV1Schema,
   "change_order.approved.v1": changeOrderApprovedV1Schema,
+  "change_order.rejected.v1": changeOrderRejectedV1Schema,
+  "change_order.submitted_to_client.v1": changeOrderSubmittedToClientV1Schema,
   "change_order_line.created.v1": changeOrderLineCreatedV1Schema,
   "change_order_line.updated.v1": changeOrderLineUpdatedV1Schema,
   "change_order_line.deleted.v1": changeOrderLineDeletedV1Schema,

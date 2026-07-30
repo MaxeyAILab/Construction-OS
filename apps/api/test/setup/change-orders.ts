@@ -12,6 +12,7 @@ export function buildTestChangeOrderServices(db: Database): {
   changeOrdersService: ChangeOrdersService;
   lifecycleService: ChangeOrderLifecycleService;
   companySettingsService: CompanySettingsService;
+  externalSharesService: ExternalSharesService;
   redis: RedisClient;
 } {
   const outbox = new OutboxService();
@@ -26,6 +27,7 @@ export function buildTestChangeOrderServices(db: Database): {
     changeOrdersService,
     lifecycleService: new ChangeOrderLifecycleService(db, outbox, changeOrdersService, permissions, externalShares, companySettingsService),
     companySettingsService,
+    externalSharesService: externalShares,
     redis,
   };
 }
