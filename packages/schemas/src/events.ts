@@ -1421,6 +1421,21 @@ export type ComplianceAlertRaisedV1 = z.infer<typeof complianceAlertRaisedV1Sche
 // aiRunId-optional enrichment split like finance_alert.created.v1 — this
 // event only ever fires once the AI has actually confirmed a recurring
 // pattern from the inspection notes, so aiRunId is always present.
+export const companyBriefingGeneratedV1Schema = z.object({
+  companyId: uuidSchema,
+  companyBriefingId: uuidSchema,
+  // Single named recipient (the human who declared the Executive Briefing
+  // Agent, or the caller of the on-demand generate endpoint) — same v1
+  // scope cut as event-notification-map.ts's own doc comment: "broader-
+  // audience events (e.g. a future budget-threshold alert reaching every
+  // project member) will need a real fan-out/eligibility step, not yet
+  // built." Fanning this out to everyone with dashboard.company.read is
+  // exactly that future step.
+  notifyUserId: uuidSchema.nullable(),
+  aiRunId: uuidSchema.nullable(),
+});
+export type CompanyBriefingGeneratedV1 = z.infer<typeof companyBriefingGeneratedV1Schema>;
+
 export const equipmentFaultAlertRaisedV1Schema = z.object({
   companyId: uuidSchema,
   equipmentId: uuidSchema,
@@ -1653,6 +1668,7 @@ export const eventRegistry = {
   "warranty_claim.created.v1": warrantyClaimCreatedV1Schema,
   "warranty_claim.updated.v1": warrantyClaimUpdatedV1Schema,
   "equipment_fault_alert.raised.v1": equipmentFaultAlertRaisedV1Schema,
+  "company_briefing.generated.v1": companyBriefingGeneratedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

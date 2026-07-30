@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { aiRuns } from "./ai";
 import { tenantColumns } from "./columns";
 import { companies } from "./companies";
 import { documents, documentVersions } from "./documents";
@@ -148,4 +149,27 @@ export const reportRuns = pgTable(
     check("ck_report_runs_status", sql`${table.status} in ('queued', 'running', 'completed', 'failed')`),
     index("ix_report_runs_tenant_definition_created").on(table.tenantId, table.reportDefinitionId, table.createdAt.desc()),
   ],
+);
+
+// FR-EXEC-3 ("the system shall provide proactive alerts on company-wide
+// risks and anomalies") / ai-spec.md §7.1 Executive Assistant: "weekly
+// proactive briefing (notification + portal card)." A durable snapshot —
+// unlike projection_* above, this one IS "created" (by a human's on-demand
+// generate call or the weekly Executive Briefing Agent tick) and immutable
+// once written, so it carries the full tenantColumns() set rather than
+// being upserted in place. `summary` is jsonb (counts + drill-through
+// entity refs into finance_alerts/schedule activities/opportunities) —
+// same "the shape is real, values are a snapshot" precedent as outbox's own
+// payload column; nothing here re-derives numbers from this row later, so
+// it isn't subject to database.md §3's NUMERIC-column rule the way a
+// balance column would be.
+export const companyBriefings = pgTable(
+  "company_briefings",
+  {
+    ...tenantColumns(),
+    summary: jsonb("summary").notNull(),
+    narrative: text("narrative"),
+    aiRunId: uuid("ai_run_id").references(() => aiRuns.id),
+  },
+  (table) => [index("ix_company_briefings_tenant_created").on(table.tenantId, table.createdAt.desc())],
 );

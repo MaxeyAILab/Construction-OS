@@ -361,6 +361,8 @@ SSE stream → … final:
 | GET | `/dashboards/company` | Executive KPI payload (projections; NFR-4 ≤3 s) |
 | GET | `/dashboards/projects/{id}` | Project dashboard aggregate |
 | POST | `/dashboards/company/what-if` | What-if simulation (FR-EXEC-4, ai-spec.md §7.1 "what-if sketches"; roadmap.md Phase 3 "bid loss, crew moves, delay cascades") — `dashboard.company.read`. Rule-computed, AI-narrated: numbers come from CPM re-runs / pipeline math, never a model guess |
+| POST | `/dashboards/company/briefing` | Generate an Executive Briefing now (FR-EXEC-3, ai-spec.md §7.1 "weekly proactive briefing"; §15.6 Executive Briefing Agent runs this same call weekly) — `dashboard.company.read`. Persists a snapshot; rule-computed anomaly counts, AI-narrated summary |
+| GET | `/dashboards/company/briefings` | Briefing history (FR-EXEC-3) — `dashboard.company.read`. The "portal card" surface: most recent briefings, newest first |
 | GET/POST/PATCH | `/reports/definitions` | Saved/scheduled reports (FR-EXEC-2) |
 | POST | `/reports/definitions/{id}/run` | 202 → job → artifact (PDF/XLSX) in documents |
 | GET | `/reports/runs/{id}` | Status + signed download |
@@ -441,6 +443,16 @@ The fourth concrete "planned agent" — the first one built entirely on top of a
 - **No draft→act ladder, unlike §15.2/§15.3:** assembling a package has no external effect — it's an internal bundle a human still has to hand to the owner (§18's own delivery scope-cut) — so there is nothing consequential to gate behind a human approval step. This agent runs at `act` from day one, the same posture §15.4's alert-raising already established for a non-consequential, fully-internal write.
 - **Attribution:** `closeout_package.assembled.v1` carries `actor_id` = the agent's `users.id` and `actor_type = 'ai'`, same guarantee as every agent above — indistinguishable in the audit log from a human-triggered assembly except by that field.
 - **Explicit scope cut:** handing the assembled package to the owner (a portal download, an email with the file attached) is Client Portal (M13) surface work that doesn't exist yet for this module at all (§18) — this agent inherits that gap unchanged rather than working around it. The roadmap's own success metric ("closeout time ↓ 50%") is measured from checklist-ready to package-in-hand for the PM, which this agent already delivers; the owner-facing handoff is a separate, self-contained follow-up.
+
+### 15.6 Executive Briefing Agent (`ai-spec.md` §7.1 Executive Assistant, roadmap.md Phase 3 "Executive Assistant full... proactive briefings")
+
+The fifth concrete "planned agent," declared via `/admin/agents` with `generate_executive_briefing` in `tool_allowlist[]`. No new endpoint of its own — it calls the same `POST /dashboards/company/briefing` (§14) a human's on-demand generate button calls, under its own identity, same "no side door, same use-case as a human" precedent as every agent in this section.
+
+- **Trigger:** a weekly tick (00:00 UTC Monday), the first weekly (not daily/monthly) `repeat`-pattern BullMQ job in this codebase, alongside §15.2–§15.5's daily/monthly ones — matching ai-spec.md §7.1's own "weekly proactive briefing" cadence.
+- **Per tick, per active agent whose `tool_allowlist` contains `generate_executive_briefing`:** `assertCanAct` first, same kill-switch/budget gate as every agent above. Agent roles are company-scoped, so this runs once per tenant with an active Executive Briefing Agent, not per project.
+- **Composition — rule computes fact, AI narrates, same split as every AI feature in this spec:** the briefing aggregates already-built primitives rather than deriving new anomaly logic — `FinanceAlertsQueryService.list` (open `margin_erosion`/`invoice_duplicate` alerts), `PredictiveScheduleRiskService.computeRisk` (looped over every `active`-status project's master schedule, counting `critical`/`high` items), `OpportunitiesService.listOpenForPipeline` (weighted pipeline value), and `CashflowForecastService.forecast` (net cash flow, 4-week horizon). The AI Gateway call turns those numbers into a short executive narrative; a failed/unconfigured model call degrades to a `null` narrative, never to a skipped briefing.
+- **Persistence + notification:** each generated briefing is a new, immutable `company_briefings` row (never updated in place — a durable weekly history, the "portal card" surface). `company_briefing.generated.v1` fires with `actor_id` = the agent's `users.id`, `actor_type = 'ai'`, and `notify_user_id` = the agent's `created_by` (the human who declared it) — a single named recipient, not yet a fan-out to everyone holding `dashboard.company.read` (same v1 scope cut as §15.2's own unwired `escalation_contacts` notification: a real broader-audience fan-out is a self-contained follow-up).
+- **Attribution:** `company_briefing.generated.v1` carries `actor_id`/`actor_type = 'ai'` same guarantee as every agent above — a human's own on-demand `POST .../briefing` call produces an identical row/event under their own identity, indistinguishable in shape except by that field.
 
 ---
 

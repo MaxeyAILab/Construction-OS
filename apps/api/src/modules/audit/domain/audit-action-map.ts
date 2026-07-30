@@ -921,6 +921,17 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityId: payload.equipmentFaultAlertId as string,
     aiRunId: payload.aiRunId as string,
   }),
+  // api.md §15.6 "Executive Briefing Agent" / FR-EXEC-3 — fires after
+  // ExecutiveBriefingService.generate persists a new company_briefings
+  // row, same conditional-aiRunId shape as finance_alert.created.v1 (a
+  // failed/unconfigured model call still produces a briefing, just with a
+  // null narrative).
+  "company_briefing.generated.v1": (payload) => ({
+    action: "dashboards.briefing.generate",
+    entityType: "company_briefing",
+    entityId: payload.companyBriefingId as string,
+    ...(payload.aiRunId ? { aiRunId: payload.aiRunId as string } : {}),
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

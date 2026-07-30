@@ -184,6 +184,31 @@ export class SchedulesService {
     return updated!;
   }
 
+  // Reused by ExecutiveBriefingService (dashboards module, api.md §15.6) —
+  // every active project's master schedule id, unpaginated, no per-project
+  // schedule.read check. Same "the exec view aggregates across many
+  // resource types without re-checking each one's own granular permission"
+  // precedent as DashboardsService.getCompany itself (which already reads
+  // scheduleActivities directly for its critical-activity count) — the
+  // caller has already been gated on dashboard.company.read, once, for the
+  // whole aggregate.
+  async listActiveMasterScheduleIds(tenantId: string): Promise<Array<{ projectId: string; scheduleId: string }>> {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const activeProjects = await tx.query.projects.findMany({
+        where: and(eq(projects.tenantId, tenantId), eq(projects.status, "active"), isNull(projects.deletedAt)),
+        columns: { id: true },
+      });
+      if (activeProjects.length === 0) return [];
+
+      const projectIds = activeProjects.map((p) => p.id);
+      const masterSchedules = await tx.query.schedules.findMany({
+        where: and(inArray(schedules.projectId, projectIds), eq(schedules.kind, "master"), isNull(schedules.deletedAt)),
+        columns: { id: true, projectId: true },
+      });
+      return masterSchedules.map((s) => ({ projectId: s.projectId, scheduleId: s.id }));
+    });
+  }
+
   async loadDependencies(tx: Database, scheduleId: string) {
     const activitiesOfSchedule = await tx.query.scheduleActivities.findMany({
       where: and(eq(scheduleActivities.scheduleId, scheduleId), isNull(scheduleActivities.deletedAt)),

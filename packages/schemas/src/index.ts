@@ -40,3 +40,4 @@ export * from "./agents";
 export * from "./compliance-alerts";
 export * from "./warranty-closeout";
 export * from "./what-if";
+export * from "./executive-briefing";

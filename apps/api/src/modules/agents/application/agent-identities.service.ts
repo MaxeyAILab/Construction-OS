@@ -39,6 +39,9 @@ const KNOWN_TOOL_NAMES = new Set([
   // api.md §15.5 "Closeout Agent" — same capability-is-identity
   // precedent, for CloseoutAgentRunnerService's daily tick.
   "assemble_closeout_package",
+  // api.md §15.6 "Executive Briefing Agent" — same capability-is-identity
+  // precedent, for ExecutiveBriefingAgentRunnerService's weekly tick.
+  "generate_executive_briefing",
 ]);
 
 function agentEmail(): string {

@@ -5,3 +5,4 @@ export { DependenciesService } from "./application/dependencies.service";
 export { RecalculateService } from "./application/recalculate.service";
 export { DelayImpactService } from "./application/delay-impact.service";
 export { ResourceAssignmentsService } from "./application/resource-assignments.service";
+export { PredictiveScheduleRiskService } from "./application/predictive-schedule-risk.service";

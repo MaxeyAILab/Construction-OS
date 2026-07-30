@@ -110,6 +110,27 @@ const builders: Partial<Record<EventType, NotificationBuilder>> = {
       },
     ];
   },
+  // api.md §15.6 "Executive Briefing Agent" / FR-EXEC-3, ai-spec.md §7.1
+  // "weekly proactive briefing (notification + portal card)" — the
+  // notification half. notifyUserId is null for a human's own on-demand
+  // POST .../briefing call (no one to notify but the caller, who already
+  // has the response) — same "no creator = no draft" shape as
+  // webhook_delivery.dead_lettered.v1 above.
+  "company_briefing.generated.v1": (payload) => {
+    const notifyUserId = payload.notifyUserId as string | null;
+    if (!notifyUserId) return [];
+    return [
+      {
+        recipientUserId: notifyUserId,
+        category: "dashboards.briefing",
+        kind: "company_briefing_generated",
+        title: "Your weekly executive briefing is ready",
+        body: "A new company-wide briefing covering pipeline, cash flow, and schedule risk is ready to review.",
+        entityType: "company_briefing",
+        entityId: payload.companyBriefingId as string,
+      },
+    ];
+  },
 };
 
 export function draftNotifications(envelope: OutboxEnvelope): NotificationDraft[] {

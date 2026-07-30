@@ -3,9 +3,11 @@ import { AgentIdentitiesService } from "../../src/modules/agents/application/age
 import { BillingAgentRunnerService } from "../../src/modules/agents/application/billing-agent-runner.service";
 import { CloseoutAgentRunnerService } from "../../src/modules/agents/application/closeout-agent-runner.service";
 import { ComplianceAgentRunnerService } from "../../src/modules/agents/application/compliance-agent-runner.service";
+import { ExecutiveBriefingAgentRunnerService } from "../../src/modules/agents/application/executive-briefing-agent-runner.service";
 import { ProcurementAgentRunnerService } from "../../src/modules/agents/application/procurement-agent-runner.service";
 import type { BudgetService } from "../../src/modules/budgets/application/budget.service";
 import type { ComplianceAlertsService } from "../../src/modules/compliance-alerts/application/compliance-alerts.service";
+import type { ExecutiveBriefingService } from "../../src/modules/dashboards/application/executive-briefing.service";
 import { OutboxService } from "../../src/modules/events/application/outbox.service";
 import type { PaymentApplicationsService } from "../../src/modules/finance/application/payment-applications.service";
 import { createRedisClient, type RedisClient } from "../../src/infrastructure/redis/client";
@@ -71,4 +73,15 @@ export function buildTestCloseoutAgentRunner(
   packages: CloseoutPackagesService,
 ): CloseoutAgentRunnerService {
   return new CloseoutAgentRunnerService(db, agents, packages);
+}
+
+// api.md §15.6: wires ExecutiveBriefingAgentRunnerService directly
+// (bypassing ExecutiveBriefingAgentWorker's BullMQ scheduling), same "test
+// the runner, not the queue" split as the four runners above.
+export function buildTestExecutiveBriefingAgentRunner(
+  db: Database,
+  agents: AgentIdentitiesService,
+  executiveBriefing: ExecutiveBriefingService,
+): ExecutiveBriefingAgentRunnerService {
+  return new ExecutiveBriefingAgentRunnerService(db, agents, executiveBriefing);
 }

@@ -31,15 +31,21 @@ import { SchedulingModule } from "../scheduling";
 // CloseoutPackagesService.isReady/assemble — WarrantyCloseoutModule
 // doesn't import Agents anywhere, so no cycle.
 import { WarrantyCloseoutModule } from "../warranty-closeout";
+// api.md §15.6: the Executive Briefing Agent's weekly tick composes
+// ExecutiveBriefingService.generate — DashboardsModule doesn't import
+// Agents anywhere, so no cycle.
+import { DashboardsModule } from "../dashboards";
 import { AgentIdentitiesController } from "./api/agent-identities.controller";
 import { AgentIdentitiesService } from "./application/agent-identities.service";
 import { BillingAgentRunnerService } from "./application/billing-agent-runner.service";
 import { CloseoutAgentRunnerService } from "./application/closeout-agent-runner.service";
 import { ComplianceAgentRunnerService } from "./application/compliance-agent-runner.service";
+import { ExecutiveBriefingAgentRunnerService } from "./application/executive-briefing-agent-runner.service";
 import { ProcurementAgentRunnerService } from "./application/procurement-agent-runner.service";
 import { BillingAgentWorker } from "./infrastructure/billing-agent.worker";
 import { CloseoutAgentWorker } from "./infrastructure/closeout-agent.worker";
 import { ComplianceAgentWorker } from "./infrastructure/compliance-agent.worker";
+import { ExecutiveBriefingAgentWorker } from "./infrastructure/executive-briefing-agent.worker";
 import { ProcurementAgentWorker } from "./infrastructure/procurement-agent.worker";
 
 const env = loadEnv();
@@ -54,6 +60,7 @@ const env = loadEnv();
     SafetyModule,
     ComplianceAlertsModule,
     WarrantyCloseoutModule,
+    DashboardsModule,
   ],
   controllers: [AgentIdentitiesController],
   providers: [
@@ -71,6 +78,8 @@ const env = loadEnv();
     ComplianceAgentWorker,
     CloseoutAgentRunnerService,
     CloseoutAgentWorker,
+    ExecutiveBriefingAgentRunnerService,
+    ExecutiveBriefingAgentWorker,
   ],
   exports: [AgentIdentitiesService],
 })

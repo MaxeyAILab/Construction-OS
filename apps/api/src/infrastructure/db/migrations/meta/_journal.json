@@ -932,6 +932,27 @@
       "when": 1785338067352,
       "tag": "0132_finance_alerts_invoice_anomaly",
       "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1785427244320,
+      "tag": "0133_executive_briefings_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1785427303006,
+      "tag": "0134_executive_briefings_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1785427306028,
+      "tag": "0135_executive_briefing_agent_lookup",
+      "breakpoints": true
     }
   ]
 }

@@ -44,7 +44,10 @@ const env = loadEnv();
   // public surface" precedent as every other cross-module reuse this
   // session. WhatIfSimulationService (dashboards module, FR-EXEC-4)
   // additionally reuses DelayImpactService.simulateCascade and
-  // ResourceAssignmentsService's crew-move helpers.
-  exports: [SchedulesService, DelayImpactService, ResourceAssignmentsService],
+  // ResourceAssignmentsService's crew-move helpers. ExecutiveBriefingService
+  // (dashboards module, api.md §15.6) additionally reuses
+  // PredictiveScheduleRiskService.computeRisk, looped across every active
+  // project's master schedule.
+  exports: [SchedulesService, DelayImpactService, ResourceAssignmentsService, PredictiveScheduleRiskService],
 })
 export class SchedulingModule {}

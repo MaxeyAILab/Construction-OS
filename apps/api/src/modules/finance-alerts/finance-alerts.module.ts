@@ -45,5 +45,11 @@ const env = loadEnv();
     FinanceAlertsQueryService,
     CashflowForecastService,
   ],
+  // ExecutiveBriefingService (dashboards module, api.md §15.6) reuses
+  // FinanceAlertsQueryService.list (open margin_erosion/invoice_duplicate
+  // alerts) and CashflowForecastService.forecast (net cash flow) — same
+  // "broaden an existing module's public surface" precedent as every other
+  // cross-module reuse this session.
+  exports: [FinanceAlertsQueryService, CashflowForecastService],
 })
 export class FinanceAlertsModule {}
