@@ -83,7 +83,7 @@ Headers on every response: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Rate
 | Method | Path | Description | Notes |
 |--------|------|-------------|-------|
 | POST | `/auth/register` | Create company + owner account | **Public.** Body: company_name, email, password, full_name. 201 → verification email flow |
-| POST | `/auth/login` | Password login | **Public.** Returns access+refresh; `mfa_required` → step-up |
+| POST | `/auth/login` | Password login | **Public.** Returns access+refresh; `mfa_required` → step-up. If the account belongs to more than one company and `company_id` is omitted, `409 ambiguous_company` — `error.details.companies` lists `{company_id, company_name, company_slug}` for every membership so the client can prompt a picker and retry with `company_id` set (FR-PLAT-9 §15.7) |
 | POST | `/auth/mfa/verify` | Complete TOTP challenge | **Public** (mfa_token) |
 | POST | `/auth/refresh` | Rotate refresh → new access | Cookie (web) or body (mobile) |
 | POST | `/auth/logout` | Revoke session family | 204 |
@@ -380,7 +380,8 @@ SSE stream → … final:
 | PUT | `/admin/roles/{id}/permissions` | | Replace grant set; fully audited (FR-RBAC-4) |
 | POST | `/admin/users/{id}/roles` | | Company- or project-scoped assignment |
 | GET | `/admin/permissions` | read | Permission catalog (drives admin UI) |
-| GET/PATCH | `/admin/company` | `admin.company.manage` | Settings, locale, branding, fiscal config |
+| GET/PATCH | `/admin/company` | `admin.company.manage` | Settings, locale, branding, fiscal config; `PATCH` also accepts `parent_company_id` (FR-PLAT-9 §15.7) |
+| GET | `/admin/company/children` | `admin.company.manage` | List this company's direct holding-structure children (FR-PLAT-9 §15.7) |
 | GET | `/admin/audit-log` | `admin.audit.read` | Filter: actor, entity, action, date; export |
 | GET/POST | `/admin/external-shares` | `admin.share.manage` | Client/sub/supplier grants (FR-RBAC-3) |
 | GET/POST/PATCH | `/admin/templates` | `admin.template.manage` | Project/estimate/checklist templates (FR-PLAT-6) |
@@ -453,6 +454,17 @@ The fifth concrete "planned agent," declared via `/admin/agents` with `generate_
 - **Composition — rule computes fact, AI narrates, same split as every AI feature in this spec:** the briefing aggregates already-built primitives rather than deriving new anomaly logic — `FinanceAlertsQueryService.list` (open `margin_erosion`/`invoice_duplicate` alerts), `PredictiveScheduleRiskService.computeRisk` (looped over every `active`-status project's master schedule, counting `critical`/`high` items), `OpportunitiesService.listOpenForPipeline` (weighted pipeline value), and `CashflowForecastService.forecast` (net cash flow, 4-week horizon). The AI Gateway call turns those numbers into a short executive narrative; a failed/unconfigured model call degrades to a `null` narrative, never to a skipped briefing.
 - **Persistence + notification:** each generated briefing is a new, immutable `company_briefings` row (never updated in place — a durable weekly history, the "portal card" surface). `company_briefing.generated.v1` fires with `actor_id` = the agent's `users.id`, `actor_type = 'ai'`, and `notify_user_id` = the agent's `created_by` (the human who declared it) — a single named recipient, not yet a fan-out to everyone holding `dashboard.company.read` (same v1 scope cut as §15.2's own unwired `escalation_contacts` notification: a real broader-audience fan-out is a self-contained follow-up).
 - **Attribution:** `company_briefing.generated.v1` carries `actor_id`/`actor_type = 'ai'` same guarantee as every agent above — a human's own on-demand `POST .../briefing` call produces an identical row/event under their own identity, indistinguishable in shape except by that field.
+
+### 15.7 Multi-company / holding structures (spec.md FR-PLAT-9 "should", roadmap.md Version 2 "one owner operates several tenants")
+
+Deliberately minimal: a *linking* and *enumeration* primitive, not a cross-company access model. Setting `parent_company_id` never grants the parent's members any permission inside the child (or vice versa) — every request still runs under exactly one tenant's RLS scope, per the token it was issued for (§1.1, §2). A holding company reads a child's own data today the same way anyone does: by holding a separate membership (and its own JWT) in that child company. This section only makes the *grouping* itself representable and discoverable.
+
+- `PATCH /admin/company` (`admin.company.manage`, §15) accepts an additional optional field: `parent_company_id` (uuid, nullable — `null` clears an existing link). The `companies.parent_company_id` self-FK (database.md §7) already exists for this, nullable/unused before this section. Validated against three rejections, all `422 invalid_parent_company`:
+  - **Self-parent:** `parent_company_id` equal to the caller's own tenant.
+  - **Not a member:** the acting user must also hold an active `company_users` membership in the target parent company (checked via the same `get_user_company_memberships` lookup login's ambiguous-company resolution already uses, migration 0003) — "one owner operates several tenants" means the *owner* declares the link from a company they belong to on both ends, not an arbitrary third party claiming a parent.
+  - **Cycle:** the target parent's own ancestor chain (walked one row at a time via `parent_company_id` — `companies` is the one table with RLS deliberately disabled, database.md §7, since it IS the tenant boundary rather than tenant-owned data, so no SECURITY DEFINER bypass is needed here) must not already contain the caller's tenant — rejects a link that would close a loop.
+  - A successful change reuses `company.updated.v1` (§15's existing PATCH event, already audit-mapped) with `parent_company_id` included in `changed_fields` — no new event type for what is, mechanically, one more settable field on the same row.
+- `GET /admin/company/children` (`admin.company.manage`) lists the caller's own tenant's direct children (`{company_id, company_name, company_slug}[]`, ordered by name) — never an arbitrary company's children, and never the full multi-level tree (a holding company walks one level at a time, same as clicking into a folder).
 
 ---
 

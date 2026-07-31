@@ -8,6 +8,7 @@ import {
   InvalidCredentialsError,
   InvalidMfaChallengeError,
   InvalidMfaCodeError,
+  InvalidParentCompanyError,
   InvalidPasswordResetTokenError,
   InvalidRefreshTokenError,
 } from "../src/modules/auth/domain/errors";
@@ -94,9 +95,19 @@ describe("auth flows", () => {
         .values({ tenantId: secondCompany!.id, userId, roleId: role!.id, scopeType: "company" });
     });
 
-    await expect(
-      authService.login({ email, password: "correct horse battery staple" }),
-    ).rejects.toThrow(AmbiguousCompanyError);
+    const ambiguous = await authService
+      .login({ email, password: "correct horse battery staple" })
+      .then(
+        () => null,
+        (err: unknown) => err,
+      );
+    expect(ambiguous).toBeInstanceOf(AmbiguousCompanyError);
+    const companiesInError = (ambiguous as AmbiguousCompanyError).details as {
+      companies: { companyId: string; companyName: string; companySlug: string }[];
+    };
+    expect(companiesInError.companies.map((c) => c.companyId).sort()).toEqual(
+      [first.companyId, secondCompany!.id].sort(),
+    );
 
     const login = (await authService.login({
       email,
@@ -308,6 +319,88 @@ describe("auth flows", () => {
 
     const eventTypes = await outboxEventTypes(signUp.companyId);
     expect(eventTypes.filter((t) => t === "company.updated.v1")).toHaveLength(2);
+  });
+
+  // FR-PLAT-9 (api.md §15.7): PATCH /admin/company's parent_company_id +
+  // GET /admin/company/children. `addMembership` mirrors the raw
+  // company_users insert the ambiguous-company test above already uses to
+  // give one user a second membership, without the role/permission
+  // plumbing that test also sets up — assertValidParentLink only needs an
+  // active company_users row, same as get_user_company_memberships itself.
+  describe("multi-company / holding structures", () => {
+    async function addMembership(userId: string, label: string) {
+      const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const [company] = await db
+        .insert(companies)
+        .values({ name: `${label} ${suffix}`, slug: `${label}-${suffix}` })
+        .returning();
+      await withTenant(db, company!.id, (tx) => tx.insert(companyUsers).values({ tenantId: company!.id, userId }));
+      return company!;
+    }
+
+    async function signUpOwner(label: string) {
+      const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const signUp = await authService.signUp({
+        email: `${label}-${suffix}@example.com`,
+        password: "correct horse battery staple",
+        fullName: "Owner",
+        companyName: `${label} ${suffix}`,
+      });
+      const decoded = JSON.parse(Buffer.from(signUp.accessToken.split(".")[1]!, "base64url").toString());
+      return { tenantId: signUp.companyId, ownerId: decoded.sub as string };
+    }
+
+    it("links a company under a holding parent the owner also belongs to, and lists it via children", async () => {
+      const child = await signUpOwner("Child");
+      const parent = await addMembership(child.ownerId, "Parent");
+
+      const updated = await companySettingsService.update(child.tenantId, child.ownerId, {
+        parentCompanyId: parent.id,
+      });
+      expect(updated.parentCompanyId).toBe(parent.id);
+
+      const children = await companySettingsService.listChildren(parent.id);
+      expect(children).toHaveLength(1);
+      expect(children[0]).toMatchObject({ companyId: child.tenantId, companyName: updated.name, companySlug: updated.slug });
+
+      const eventTypes = await outboxEventTypes(child.tenantId);
+      expect(eventTypes).toContain("company.updated.v1");
+
+      const cleared = await companySettingsService.update(child.tenantId, child.ownerId, { parentCompanyId: null });
+      expect(cleared.parentCompanyId).toBeNull();
+      expect(await companySettingsService.listChildren(parent.id)).toHaveLength(0);
+    });
+
+    it("rejects a company naming itself as its own parent", async () => {
+      const { tenantId, ownerId } = await signUpOwner("SelfParent");
+      await expect(
+        companySettingsService.update(tenantId, ownerId, { parentCompanyId: tenantId }),
+      ).rejects.toThrow(InvalidParentCompanyError);
+    });
+
+    it("rejects linking to a company the acting user doesn't belong to", async () => {
+      const { tenantId, ownerId } = await signUpOwner("Outsider");
+      const strangersCompany = await signUpOwner("Stranger");
+
+      await expect(
+        companySettingsService.update(tenantId, ownerId, { parentCompanyId: strangersCompany.tenantId }),
+      ).rejects.toThrow(InvalidParentCompanyError);
+    });
+
+    it("rejects a link that would create a circular holding structure", async () => {
+      const grandparent = await signUpOwner("Grandparent");
+      const parent = await addMembership(grandparent.ownerId, "MiddleParent");
+
+      // parent -> grandparent (a valid link: the owner belongs to both)
+      await companySettingsService.update(parent.id, grandparent.ownerId, {
+        parentCompanyId: grandparent.tenantId,
+      });
+
+      // Now grandparent -> parent would close the loop.
+      await expect(
+        companySettingsService.update(grandparent.tenantId, grandparent.ownerId, { parentCompanyId: parent.id }),
+      ).rejects.toThrow(InvalidParentCompanyError);
+    });
   });
 
   // api.md §2: GET /auth/me — "Current principal: user, tenant, roles,

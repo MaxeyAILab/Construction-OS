@@ -474,7 +474,7 @@ export class AuthService {
     );
     const memberships = Array.from(rows);
     if (memberships.length === 0) throw new NoCompanyMembershipError();
-    if (memberships.length > 1) throw new AmbiguousCompanyError();
+    if (memberships.length > 1) throw new AmbiguousCompanyError(memberships);
     return memberships[0]!.companyId;
   }
 

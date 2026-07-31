@@ -21,9 +21,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const traceId = randomUUID();
 
     if (exception instanceof DomainError) {
-      void reply
-        .status(exception.status)
-        .send({ error: { code: exception.code, message: exception.message, trace_id: traceId } });
+      void reply.status(exception.status).send({
+        error: {
+          code: exception.code,
+          message: exception.message,
+          ...(exception.details !== undefined ? { details: exception.details } : {}),
+          trace_id: traceId,
+        },
+      });
       return;
     }
 

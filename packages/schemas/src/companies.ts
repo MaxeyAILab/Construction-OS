@@ -44,5 +44,16 @@ export const updateCompanySchema = z.object({
   locale: z.string().min(2).max(35).optional(),
   currencyCode: z.string().length(3).optional(),
   settings: companySettingsSchema.optional(),
+  // FR-PLAT-9 (api.md §15.7): links/unlinks this company under a holding
+  // company. `null` clears an existing link; omitted leaves it untouched.
+  parentCompanyId: z.string().uuid().nullable().optional(),
 });
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
+
+// api.md §15.7 GET /admin/company/children.
+export const childCompanySchema = z.object({
+  companyId: z.string().uuid(),
+  companyName: z.string(),
+  companySlug: z.string(),
+});
+export type ChildCompany = z.infer<typeof childCompanySchema>;

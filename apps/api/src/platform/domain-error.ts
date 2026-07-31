@@ -4,4 +4,16 @@
 export abstract class DomainError extends Error {
   abstract readonly code: string;
   abstract readonly status: number;
+
+  // Optional structured payload included in the response envelope's
+  // `details` field when present (e.g. AmbiguousCompanyError's company
+  // list) — mirrors the `details` HttpException already gets via
+  // describe() below, undefined by default so every existing subclass's
+  // bare `super("message")` call is unaffected.
+  constructor(
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+  }
 }

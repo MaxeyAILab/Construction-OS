@@ -16,11 +16,22 @@ export class InvalidMfaCodeError extends DomainError {
   }
 }
 
+export interface CompanyMembershipSummary {
+  companyId: string;
+  companyName: string;
+  companySlug: string;
+}
+
 export class AmbiguousCompanyError extends DomainError {
   readonly code = "ambiguous_company";
   readonly status = 409;
-  constructor() {
-    super("user belongs to multiple companies; companyId is required");
+  // Carries the caller's own membership list (get_user_company_memberships,
+  // migration 0003 — the same rows resolveSoleCompanyId already fetched to
+  // detect the ambiguity) so the client can present a picker without a
+  // separate pre-login "list my companies" endpoint, which would otherwise
+  // require its own credential check to avoid email enumeration.
+  constructor(companies: CompanyMembershipSummary[] = []) {
+    super("user belongs to multiple companies; companyId is required", { companies });
   }
 }
 
@@ -98,6 +109,26 @@ export class CompanyNotFoundError extends DomainError {
   readonly status = 404;
   constructor() {
     super("company not found");
+  }
+}
+
+// FR-PLAT-9 (multi-company/holding structures): PATCH /admin/company
+// parentCompanyId. Covers all three rejections — self-parenting, the
+// acting user lacking membership in the target parent, and a chain that
+// would create a cycle — as one code since all three are the same class
+// of client mistake (an invalid holding-structure edge), not three
+// distinct failure modes a caller would branch on differently.
+export class InvalidParentCompanyError extends DomainError {
+  readonly code = "invalid_parent_company";
+  readonly status = 422;
+  constructor(reason: "self" | "not_a_member" | "cycle") {
+    super(
+      reason === "self"
+        ? "a company cannot be its own parent"
+        : reason === "not_a_member"
+          ? "you must belong to the target parent company to link to it"
+          : "linking to this parent would create a circular holding structure",
+    );
   }
 }
 

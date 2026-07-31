@@ -8,7 +8,9 @@ import type { AuthenticatedRequest } from "./access-token.guard";
 
 // api.md §15: "GET/PATCH /admin/company | admin.company.manage | Settings,
 // locale, branding, fiscal config." Roadmap Phase 2 "Second locale +
-// metric units (NFR-30 activation)" row.
+// metric units (NFR-30 activation)" row. §15.7 adds parent_company_id to
+// PATCH and the /children listing (FR-PLAT-9 multi-company/holding
+// structures).
 @Controller("admin/company")
 export class CompanySettingsController {
   constructor(private readonly companySettings: CompanySettingsService) {}
@@ -26,5 +28,11 @@ export class CompanySettingsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.companySettings.update(req.auth!.tenantId, req.auth!.sub, body);
+  }
+
+  @Get("children")
+  @RequirePermission("admin.company.manage")
+  listChildren(@Req() req: AuthenticatedRequest) {
+    return this.companySettings.listChildren(req.auth!.tenantId);
   }
 }
