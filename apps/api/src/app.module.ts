@@ -9,6 +9,7 @@ import { ChangeOrdersModule } from "./modules/change-orders";
 import { ClientPortalModule } from "./modules/client-portal";
 import { ComplianceAlertsModule } from "./modules/compliance-alerts";
 import { CrmModule } from "./modules/crm";
+import { CustomFieldsModule } from "./modules/custom-fields";
 import { DailyReportsModule } from "./modules/daily-reports";
 import { DashboardsModule } from "./modules/dashboards";
 import { DocumentsModule } from "./modules/documents";
@@ -82,6 +83,7 @@ import { HealthModule } from "./platform/health/health.module";
     WebhooksModule,
     AgentsModule,
     WarrantyCloseoutModule,
+    CustomFieldsModule,
   ],
 })
 export class AppModule {}

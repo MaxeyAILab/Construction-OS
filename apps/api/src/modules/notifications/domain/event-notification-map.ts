@@ -131,6 +131,26 @@ const builders: Partial<Record<EventType, NotificationBuilder>> = {
       },
     ];
   },
+  // database.md §24 / api.md §19 (FR-PLAT-12): the notify_user automation
+  // action reuses this exact pipeline rather than a new delivery
+  // mechanism — same "no notifyUserId = no draft" shape as
+  // company_briefing.generated.v1 (a set_field-triggered event never
+  // reaches here at all, see CustomFieldAutomationsService).
+  "custom_field_automation.triggered.v1": (payload) => {
+    const notifyUserId = payload.notifyUserId as string | null;
+    if (!notifyUserId) return [];
+    return [
+      {
+        recipientUserId: notifyUserId,
+        category: "custom_field.automation",
+        kind: "custom_field_automation_triggered",
+        title: "A custom field update notified you",
+        body: "A custom field automation rule triggered a notification for you.",
+        entityType: payload.entityType as string,
+        entityId: payload.entityId as string,
+      },
+    ];
+  },
 };
 
 export function draftNotifications(envelope: OutboxEnvelope): NotificationDraft[] {

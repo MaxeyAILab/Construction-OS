@@ -17,6 +17,8 @@ import { ChangeOrdersController } from "../src/modules/change-orders/api/change-
 import { PortalMessagesController } from "../src/modules/client-portal/api/portal-messages.controller";
 import { ComplianceAlertsController } from "../src/modules/compliance-alerts/api/compliance-alerts.controller";
 import { SelectionsController } from "../src/modules/client-portal/api/selections.controller";
+import { CustomFieldAdminController } from "../src/modules/custom-fields/api/custom-field-admin.controller";
+import { CustomFieldValuesController } from "../src/modules/custom-fields/api/custom-field-values.controller";
 import { DailyReportsController } from "../src/modules/daily-reports/api/daily-reports.controller";
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
@@ -148,6 +150,8 @@ const controllers = [
   CloseoutPackagesController,
   WarrantiesController,
   WarrantyClaimsController,
+  CustomFieldAdminController,
+  CustomFieldValuesController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

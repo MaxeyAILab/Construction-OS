@@ -1503,6 +1503,59 @@ export const warrantyClaimUpdatedV1Schema = z.object({
 });
 export type WarrantyClaimUpdatedV1 = z.infer<typeof warrantyClaimUpdatedV1Schema>;
 
+// Custom Fields & Workflows (database.md §24, api.md §19, FR-PLAT-11/12).
+export const customFieldDefinitionCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  fieldDefinitionId: uuidSchema,
+});
+export type CustomFieldDefinitionCreatedV1 = z.infer<typeof customFieldDefinitionCreatedV1Schema>;
+
+export const customFieldDefinitionUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  fieldDefinitionId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type CustomFieldDefinitionUpdatedV1 = z.infer<typeof customFieldDefinitionUpdatedV1Schema>;
+
+export const customFieldValueSetV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+  fieldDefinitionId: uuidSchema,
+});
+export type CustomFieldValueSetV1 = z.infer<typeof customFieldValueSetV1Schema>;
+
+export const customFieldAutomationCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  automationId: uuidSchema,
+});
+export type CustomFieldAutomationCreatedV1 = z.infer<typeof customFieldAutomationCreatedV1Schema>;
+
+export const customFieldAutomationUpdatedV1Schema = z.object({
+  companyId: uuidSchema,
+  automationId: uuidSchema,
+  changedFields: z.array(z.string()),
+});
+export type CustomFieldAutomationUpdatedV1 = z.infer<typeof customFieldAutomationUpdatedV1Schema>;
+
+// Fires when CustomFieldValuesService.setValue's write matches an active
+// automation's trigger — the notify_user half feeds Notifications' event
+// -> draft map (same mechanism as comment.created.v1 mentions), the
+// set_field half is already applied by the time this is emitted (it
+// writes custom_field_values directly, never re-entering evaluation —
+// database.md §24's "no chaining, by construction").
+export const customFieldAutomationTriggeredV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+  automationId: uuidSchema,
+  actionType: z.enum(["set_field", "notify_user"]),
+  notifyUserId: uuidSchema.nullable(),
+});
+export type CustomFieldAutomationTriggeredV1 = z.infer<typeof customFieldAutomationTriggeredV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1669,6 +1722,12 @@ export const eventRegistry = {
   "warranty_claim.updated.v1": warrantyClaimUpdatedV1Schema,
   "equipment_fault_alert.raised.v1": equipmentFaultAlertRaisedV1Schema,
   "company_briefing.generated.v1": companyBriefingGeneratedV1Schema,
+  "custom_field_definition.created.v1": customFieldDefinitionCreatedV1Schema,
+  "custom_field_definition.updated.v1": customFieldDefinitionUpdatedV1Schema,
+  "custom_field_value.set.v1": customFieldValueSetV1Schema,
+  "custom_field_automation.created.v1": customFieldAutomationCreatedV1Schema,
+  "custom_field_automation.updated.v1": customFieldAutomationUpdatedV1Schema,
+  "custom_field_automation.triggered.v1": customFieldAutomationTriggeredV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

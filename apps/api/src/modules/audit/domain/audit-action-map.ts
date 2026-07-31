@@ -932,6 +932,55 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityId: payload.companyBriefingId as string,
     ...(payload.aiRunId ? { aiRunId: payload.aiRunId as string } : {}),
   }),
+  // database.md §24 / api.md §19 (M18, FR-PLAT-11/12). Definition and
+  // automation mutations reuse admin.custom_field.manage — the one fixed
+  // permission that gates them (CustomFieldAdminController).
+  "custom_field_definition.created.v1": (payload) => ({
+    action: "admin.custom_field.manage",
+    entityType: "custom_field_definition",
+    entityId: payload.fieldDefinitionId as string,
+  }),
+  "custom_field_definition.updated.v1": (payload) => ({
+    action: "admin.custom_field.manage",
+    entityType: "custom_field_definition",
+    entityId: payload.fieldDefinitionId as string,
+  }),
+  // Value writes have no single fixed permission (CustomFieldValuesService
+  // resolves it per entity_type — see that service's own comment), so the
+  // action string branches on payload.entityType the same way
+  // comment.created.v1 branches its entityType, except here the action
+  // itself varies too: it reuses whichever entity's own `.update`
+  // permission actually gated this write.
+  "custom_field_value.set.v1": (payload) => {
+    const entityType = payload.entityType as string;
+    const actions: Record<string, string> = {
+      project: "projects.project.update",
+      task: "tasks.task.update",
+      rfi: "docs.rfi.update",
+      change_order: "finance.co.update",
+      submittal: "docs.submittal.update",
+    };
+    return {
+      action: actions[entityType] ?? "admin.custom_field.manage",
+      entityType,
+      entityId: payload.entityId as string,
+    };
+  },
+  "custom_field_automation.created.v1": (payload) => ({
+    action: "admin.custom_field.manage",
+    entityType: "custom_field_automation",
+    entityId: payload.automationId as string,
+  }),
+  "custom_field_automation.updated.v1": (payload) => ({
+    action: "admin.custom_field.manage",
+    entityType: "custom_field_automation",
+    entityId: payload.automationId as string,
+  }),
+  "custom_field_automation.triggered.v1": (payload) => ({
+    action: "admin.custom_field.manage",
+    entityType: "custom_field_automation",
+    entityId: payload.automationId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {
