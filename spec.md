@@ -424,6 +424,8 @@ Functional requirements are grouped by module and carry stable IDs (`FR-<MODULE>
 - **FR-PLAT-8** The system **shall** support integrations with accounting systems (QuickBooks, Sage, Xero) and calendar/email.
 - **FR-PLAT-9** The system **should** support multi-company/holding structures where one owner operates several tenants.
 - **FR-PLAT-10** The system **shall** provide user onboarding/offboarding with immediate access revocation.
+- **FR-PLAT-11** The system **should** let a tenant define custom fields (text, number, boolean, date, single-select) on a guard-railed allow-list of entity types, and capture/display their values on those entities.
+- **FR-PLAT-12** The system **may** let a tenant define field-triggered automations — a custom field reaching a specific value sets another custom field or notifies a user — from a fixed, non-scriptable action vocabulary (roadmap risk register: "guard-railed primitives only... no arbitrary scripting").
 
 ### 13.1 CRM & Pre-Construction (M1)
 - **FR-CRM-1** The system **shall** capture and manage leads, contacts, companies, and opportunities through configurable pipeline stages.

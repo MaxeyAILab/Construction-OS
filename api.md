@@ -544,4 +544,27 @@ No separate AI endpoint (FR-CLOSE-6, §15.5 Closeout Agent): assembling a packag
 
 ---
 
+## 19. Custom Fields & Workflows API (M18 — FR-PLAT-11/12)
+
+New top-level section, same "next unused number, never a renumbering" rule as §18. `entity_type` throughout this section is the fixed allow-list from `database.md §24`: `project`, `task`, `rfi`, `change_order`, `submittal`.
+
+| Method | Path | Permission | Description |
+|--------|------|------------|--------------|
+| GET | `/admin/custom-fields/definitions?entity_type=` | `admin.custom_field.manage` | List field definitions for an entity type, including inactive ones |
+| POST | `/admin/custom-fields/definitions` | `admin.custom_field.manage` | `{entity_type, field_key, label, field_type, options?, is_required?}` — `409` on a duplicate `(entity_type, field_key)` |
+| PATCH | `/admin/custom-fields/definitions/{id}` | `admin.custom_field.manage` | Update `label`/`options`/`is_required`/`sort_order`/`is_active`; `field_type` and `entity_type` are immutable once created (changing either would invalidate every existing value row's assumed shape) |
+| GET | `/admin/custom-fields/automations?entity_type=` | `admin.custom_field.manage` | List automations for an entity type |
+| POST | `/admin/custom-fields/automations` | `admin.custom_field.manage` | `{entity_type, name, trigger_field_id, trigger_value, action_type, action_field_id?, action_value?, action_notify_user_id?}` — `422` if the referenced fields don't belong to `entity_type`, or if the action's required companion field (`action_field_id`+`action_value` for `set_field`, `action_notify_user_id` for `notify_user`) is missing |
+| PATCH | `/admin/custom-fields/automations/{id}` | `admin.custom_field.manage` | Update `name`/`trigger_value`/`is_active`; not the trigger/action fields or `action_type` — same "shape is fixed at creation" reasoning as field definitions above |
+| GET | `/custom-fields/values?entity_type=&entity_id=` | `@Authenticated()` — see below | Every active field's current value for one entity (`null` where unset) |
+| PUT | `/custom-fields/values` | `@Authenticated()` — see below | `{entity_type, entity_id, field_id, value}` — upsert one value; `422` if `value` doesn't match the field's `field_type`/`options`; evaluates and applies matching automations synchronously in the same transaction before returning |
+
+**Values endpoints have no single fixed permission** — same "no single fixed permission fits" shape as Sync's `/sync/mutations` (§16.2) and Scheduling's `getActiveSchedule()`, because a request can target any allow-listed `entity_type`, each gated by that *entity's own* permission, not a platform one. `CustomFieldValuesService` resolves the real requirement from a fixed map (`project → projects.project.update`/`.read`, `task → tasks.task.update`/`.read`, `rfi → docs.rfi.update`/`.read`, `change_order → finance.co.update`/`.read`, `submittal → docs.submittal.update`/`.read`) and returns `403` naming that permission if the caller lacks it — the same deny-by-default outcome as a static `@RequirePermission`, just resolved one level later because the resource varies per request.
+
+- **Guard-rails are the whole feature (roadmap V2 risk register):** field types are a fixed enum, automation triggers are equality-only, and automation actions are a fixed two-member vocabulary (`set_field`, `notify_user`) that never re-enters automation evaluation — there is no expression language, no scripting, and no chaining anywhere in this surface.
+- **`notify_user` reuses the existing notification pipeline**, not a new one: applying the action emits `custom_field_automation.triggered.v1` (payload includes `notify_user_id`), and Notifications' event→draft map (already the mechanism behind `comment.created.v1` mentions and `change_order.submitted_to_client.v1`) grows one more entry — no new delivery mechanism.
+- **A field definition is deactivated, never deleted**, once any value references it — same "history over deletion" precedent as everything else in this spec touching dispute-relevant data (documents, estimates).
+
+---
+
 *End of `api.md` v1.0.*

@@ -463,6 +463,24 @@ Appended, not inserted before §22 — `database.md §20`/`§21` are cited by ex
 ### `warranty_claims`
 - Per `warranty_id`: `description`, `status CHECK IN ('submitted','acknowledged','in_progress','resolved','rejected')`, `submitted_by` (a `users.id` — internal staff or, for a client-submitted claim, resolved via `external_shares` the same way every other portal write is attributed), `resolution_notes NULL`, `resolved_at NULL` (FR-CLOSE-5).
 
+## 24. Custom Fields & Workflows (M18 — FR-PLAT-11/12)
+
+Appended, same "cited-by-number, never renumbered" reasoning as §23. Roadmap V2's risk register calls the underlying feature out by name: *"Custom workflows become an unmaintainable escape hatch... Mitigation: guard-railed primitives only (fields, states, automations); no arbitrary scripting."* Every table below exists to keep that promise structurally, not just by convention — there is deliberately no `expression`/`script`/`formula` column anywhere in this section.
+
+### `custom_field_definitions`
+- Per tenant: `entity_type CHECK IN ('project','task','rfi','change_order','submittal')` — the guard-rail is the allow-list itself; widening it is a migration, not a tenant-facing config option. `field_key` (tenant-chosen slug), `label`, `field_type CHECK IN ('text','number','boolean','date','select')`, `options jsonb NULL` (array of strings, `select` only), `is_required boolean DEFAULT false`, `sort_order integer DEFAULT 0`, `is_active boolean DEFAULT true` (a field with existing values is deactivated, never deleted — its `custom_field_values` rows must stay resolvable).
+- **Unique** `ux_custom_field_definitions (tenant_id, entity_type, field_key) WHERE deleted_at IS NULL`. **Index** `ix_custom_field_definitions_tenant_entity (tenant_id, entity_type)`.
+
+### `custom_field_values`
+- One row per `(field_definition_id, entity_id)`: `entity_type` (denormalized off the definition for index/query locality — validated to match at write time, never a second source of truth), `entity_id`, `value jsonb NOT NULL` (shape validated against the definition's `field_type`/`options` at the application layer, per FR-PLAT-11 — Postgres has no schema-level opinion on it, same "type discipline lives in zod, not a CHECK, because the type varies per row" reasoning as `ai_tags`).
+- **Unique** `ux_custom_field_values (tenant_id, field_definition_id, entity_id)`. **Index** `ix_custom_field_values_tenant_entity (tenant_id, entity_type, entity_id)` — the lookup path for "give me this entity's custom fields."
+- **Module boundary:** this table is the *only* place a custom field's value lives — Projects/Tasks/RFIs/Change Orders/Submittals never gain a column for it, and this module never writes to their tables. A consuming module's own permission (`projects.project.update`, `tasks.task.update`, etc.) gates the write; see api.md §19.
+
+### `custom_field_automations`
+- Per tenant + `entity_type`: `name`, `trigger_field_definition_id` (FK, must belong to the same `entity_type`), `trigger_value jsonb NOT NULL` (equality match only — no operators, no expressions), `action_type CHECK IN ('set_field','notify_user')`, `action_field_definition_id NULL` (FK, required + same-`entity_type`-validated when `action_type='set_field'`), `action_value jsonb NULL` (required when `action_type='set_field'`), `action_notify_user_id NULL` (FK `users.id`, required when `action_type='notify_user'`), `is_active boolean DEFAULT true`.
+- **Index** `ix_custom_field_automations_trigger (tenant_id, trigger_field_definition_id) WHERE is_active AND deleted_at IS NULL` — the lookup path evaluated on every value write.
+- **No chaining, by construction:** a `set_field` action writes a `custom_field_values` row directly (bypassing automation evaluation entirely) rather than re-entering the trigger pipeline — one automation can never fire another. That single rule, plus equality-only triggers and a two-member action vocabulary, is the whole guard-rail; there is no sandbox or step-count limiter to reason about because there is nothing capable of looping.
+
 ---
 
 *End of `database.md` v1.0.*
