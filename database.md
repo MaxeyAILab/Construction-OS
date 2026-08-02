@@ -481,6 +481,33 @@ Appended, same "cited-by-number, never renumbered" reasoning as §23. Roadmap V2
 - **Index** `ix_custom_field_automations_trigger (tenant_id, trigger_field_definition_id) WHERE is_active AND deleted_at IS NULL` — the lookup path evaluated on every value write.
 - **No chaining, by construction:** a `set_field` action writes a `custom_field_values` row directly (bypassing automation evaluation entirely) rather than re-entering the trigger pipeline — one automation can never fire another. That single rule, plus equality-only triggers and a two-member action vocabulary, is the whole guard-rail; there is no sandbox or step-count limiter to reason about because there is nothing capable of looping.
 
+## 25. Advanced Document Workflows (M3 — FR-DOC-8/9)
+
+Appended, same "cited-by-number, never renumbered" reasoning as §23/§24.
+
+### `transmittals`
+- Per project: `number integer` (auto, `max(number)+1` scoped to `project_id`, same pattern as `rfis.number`), `purpose CHECK IN ('for_review','for_approval','for_record','as_requested')`, `subject`, `message NULL`, `status CHECK IN ('draft','sent')`, `sent_at NULL`, `sent_by NULL` (FK `users.id`).
+- **Unique** `ux_transmittals_tenant_project_number (tenant_id, project_id, number)`.
+
+### `transmittal_items`
+- Junction to specific document versions being transmitted: `transmittal_id`, `document_version_id` (FK `document_versions.id`) — same "point at an immutable version, not the mutable document" precedent as `drawing_set_sheets`, `description NULL`.
+
+### `transmittal_recipients`
+- `transmittal_id`, `recipient_user_id` (FK `users.id` — internal staff or an external portal user already in `company_users`, never a raw email; no address book of non-users), `acknowledged_at NULL`. **Unique** `(tenant_id, transmittal_id, recipient_user_id)`.
+
+### `approval_matrices`
+- Tenant-defined named chains: `entity_type CHECK IN ('document','transmittal')` (the guard-rail allow-list — deliberately excludes `submittal`, whose reviewer is an external CRM contact, not a `users.id`, and doesn't fit a named-internal-approver chain without a separate design), `name`, `is_active`.
+
+### `approval_matrix_steps`
+- `approval_matrix_id`, `step_order integer`, `approver_user_id` (FK `users.id` — a specific named person, never a role; "any user with role X" would make "who is the current approver" ambiguous), `label NULL`. **Unique** `(tenant_id, approval_matrix_id, step_order)`.
+
+### `approval_instances`
+- One chain run against one entity: `approval_matrix_id`, `entity_type`, `entity_id`, `status CHECK IN ('in_progress','approved','rejected')`, `current_step_order`. **Unique** `(tenant_id, entity_type, entity_id) WHERE status = 'in_progress'` — at most one active chain per entity at a time, same partial-unique "one active X per Y" shape as `budgets`' one-active-budget-per-project.
+
+### `approval_instance_decisions`
+- Append-only decision log: `approval_instance_id`, `step_order`, `approver_user_id`, `decision CHECK IN ('approved','rejected')`, `comments NULL`, `decided_at`.
+- **The whole guard-rail (FR-DOC-9):** steps are strictly ordered with no branching (no OR/AND groups, no parallel steps); `decide()` only accepts a decision from the *current* step's named `approver_user_id` — not from anyone else, regardless of permission; a `rejected` decision halts the chain immediately rather than continuing to evaluate later steps. There is no expression language and nothing resembling one — the entire feature is "an ordered list of people," same minimalism precedent as Custom Fields & Workflows' (§24) automation engine.
+
 ---
 
 *End of `database.md` v1.0.*

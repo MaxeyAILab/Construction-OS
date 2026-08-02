@@ -567,4 +567,26 @@ New top-level section, same "next unused number, never a renumbering" rule as §
 
 ---
 
+## 20. Advanced Document Workflows API (M3 — FR-DOC-8/9)
+
+New top-level section, same "next unused number, never a renumbering" rule as §18/§19.
+
+| Method | Path | Permission | Description |
+|--------|------|------------|--------------|
+| GET | `/projects/{id}/transmittals` | `docs.transmittal.read` | List transmittals for a project |
+| POST | `/projects/{id}/transmittals` | `docs.transmittal.create` | `{purpose, subject, message?, items: [{document_version_id, description?}], recipient_user_ids: [...]}` → auto-numbered, `status: draft` |
+| GET | `/transmittals/{id}` | `docs.transmittal.read` | Full detail: items, recipients, per-recipient `acknowledged_at` |
+| POST | `/transmittals/{id}:send` | `docs.transmittal.send` | `409` outside `draft`; sets `status: sent`, `sent_at`, `sent_by`; notifies every recipient (reuses the existing Notifications event→draft pipeline, same "no new delivery mechanism" precedent as §19's `notify_user`) |
+| POST | `/transmittals/{id}:acknowledge` | `@Authenticated()` — the caller must be one of the transmittal's own recipients, checked in `TransmittalsService` (`403` otherwise); no permission variation across entity types the way §19's values are, so this is an identity check, not a resolved permission | Idempotently sets the caller's own `acknowledged_at` |
+| GET | `/admin/approval-matrices?entity_type=` | `docs.approval_matrix.manage` | List approval matrices for `document` or `transmittal` |
+| POST | `/admin/approval-matrices` | `docs.approval_matrix.manage` | `{entity_type, name, steps: [{step_order, approver_user_id, label?}]}` — `422` if `step_order` isn't a contiguous 1..N sequence |
+| POST | `/approval-instances` | Resolved per `entity_type` the caller is starting a chain against (`document → docs.document.update`, `transmittal → docs.transmittal.send`) — same per-entity-type resolution shape as §19's custom field values | `{approval_matrix_id, entity_type, entity_id}` → `409` if the matrix's own `entity_type` doesn't match, or if an `in_progress` instance already exists for this entity |
+| GET | `/approval-instances/{id}` | Same per-entity-type read resolution as start (`document → docs.document.read`, `transmittal → docs.transmittal.read`) | Current step, status, and the full decision log |
+| POST | `/approval-instances/{id}:decide` | `@Authenticated()` — the caller must be the *current* step's named `approver_user_id`, checked in `ApprovalInstancesService` (`403` otherwise, naming the step's real approver); same identity-check shape as `:acknowledge` above | `{decision: 'approved'\|'rejected', comments?}` — `rejected` ends the chain immediately; `approved` advances to the next step (notifying its approver) or, on the last step, ends the chain as `approved` |
+
+- **Sequential-only, by construction (FR-DOC-9):** there is no branching, no parallel steps, and no permission-based "anyone with role X may approve" shortcut — a step names one specific person, and only that person's decision advances or halts the chain. This is the entire guard-rail; see `database.md §25`'s own note on why this stays deliberately minimal.
+- **Submittals are out of scope for approval matrices in this pass:** a submittal's reviewer is an external CRM contact (`docs.submittal.*`, api.md not shown here), not a `users.id` — folding it into this chain would need a second identity model this feature doesn't build. Submittals keep their existing single-step status flow untouched.
+
+---
+
 *End of `api.md` v1.0.*

@@ -452,6 +452,8 @@ Functional requirements are grouped by module and carry stable IDs (`FR-<MODULE>
 - **FR-DOC-5** The system **shall** make the current drawing set available to the field (M8) including offline.
 - **FR-DOC-6** The system **should** provide Document AI: extraction, classification, semantic search, summarization, and drawing version-diff.
 - **FR-DOC-7** The system **shall** maintain an access and change history for every document.
+- **FR-DOC-8** The system **should** support Transmittals — a numbered, trackable package of specific document versions sent to named recipients for a stated purpose (review/approval/record), per §1's Transmittal key object.
+- **FR-DOC-9** The system **may** support configurable approval matrices — a tenant-defined, strictly sequential chain of named approvers for a document or transmittal, where any rejection halts the chain and advancement requires the current step's approver specifically (roadmap V2 "advanced document workflows"; no parallel/branching approval logic).
 
 ### 13.4 Project Management (M4)
 - **FR-PM-1** The system **shall** allow creation of projects with phases, cost codes (WBS), teams, and milestones.
