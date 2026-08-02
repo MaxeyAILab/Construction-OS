@@ -45,3 +45,4 @@ export * from "./compliance_alerts";
 export * from "./warranty_closeout";
 export * from "./equipment_fault_alerts";
 export * from "./custom_fields";
+export * from "./transmittals";

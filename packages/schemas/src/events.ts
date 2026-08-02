@@ -1556,6 +1556,64 @@ export const customFieldAutomationTriggeredV1Schema = z.object({
 });
 export type CustomFieldAutomationTriggeredV1 = z.infer<typeof customFieldAutomationTriggeredV1Schema>;
 
+// Advanced Document Workflows (database.md §25, api.md §20, FR-DOC-8/9).
+export const transmittalCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  transmittalId: uuidSchema,
+  number: z.number().int(),
+});
+export type TransmittalCreatedV1 = z.infer<typeof transmittalCreatedV1Schema>;
+
+// notifyUserIds is every recipient — same fan-out shape as
+// change_order.submitted_to_client.v1's notifyUserIds.
+export const transmittalSentV1Schema = z.object({
+  companyId: uuidSchema,
+  projectId: uuidSchema,
+  transmittalId: uuidSchema,
+  notifyUserIds: z.array(uuidSchema),
+});
+export type TransmittalSentV1 = z.infer<typeof transmittalSentV1Schema>;
+
+export const transmittalAcknowledgedV1Schema = z.object({
+  companyId: uuidSchema,
+  transmittalId: uuidSchema,
+  recipientUserId: uuidSchema,
+});
+export type TransmittalAcknowledgedV1 = z.infer<typeof transmittalAcknowledgedV1Schema>;
+
+export const approvalMatrixCreatedV1Schema = z.object({
+  companyId: uuidSchema,
+  entityType: z.string(),
+  approvalMatrixId: uuidSchema,
+});
+export type ApprovalMatrixCreatedV1 = z.infer<typeof approvalMatrixCreatedV1Schema>;
+
+export const approvalInstanceStartedV1Schema = z.object({
+  companyId: uuidSchema,
+  approvalMatrixId: uuidSchema,
+  approvalInstanceId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+});
+export type ApprovalInstanceStartedV1 = z.infer<typeof approvalInstanceStartedV1Schema>;
+
+// Fires on every decide() call. notifyUserId is the next step's approver
+// when the chain advances, null on a terminal decision (approved on the
+// last step, or any rejection) — same conditional-notify shape as
+// company_briefing.generated.v1.
+export const approvalInstanceDecidedV1Schema = z.object({
+  companyId: uuidSchema,
+  approvalInstanceId: uuidSchema,
+  entityType: z.string(),
+  entityId: uuidSchema,
+  stepOrder: z.number().int(),
+  decision: z.enum(["approved", "rejected"]),
+  status: z.enum(["in_progress", "approved", "rejected"]),
+  notifyUserId: uuidSchema.nullable(),
+});
+export type ApprovalInstanceDecidedV1 = z.infer<typeof approvalInstanceDecidedV1Schema>;
+
 // The event-type registry: maps each event_type string to its payload
 // schema, so the relay/consumers can validate at both ends.
 export const eventRegistry = {
@@ -1728,6 +1786,12 @@ export const eventRegistry = {
   "custom_field_automation.created.v1": customFieldAutomationCreatedV1Schema,
   "custom_field_automation.updated.v1": customFieldAutomationUpdatedV1Schema,
   "custom_field_automation.triggered.v1": customFieldAutomationTriggeredV1Schema,
+  "transmittal.created.v1": transmittalCreatedV1Schema,
+  "transmittal.sent.v1": transmittalSentV1Schema,
+  "transmittal.acknowledged.v1": transmittalAcknowledgedV1Schema,
+  "approval_matrix.created.v1": approvalMatrixCreatedV1Schema,
+  "approval_instance.started.v1": approvalInstanceStartedV1Schema,
+  "approval_instance.decided.v1": approvalInstanceDecidedV1Schema,
 } as const;
 
 export type EventType = keyof typeof eventRegistry;

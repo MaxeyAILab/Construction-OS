@@ -981,6 +981,42 @@ const mappers: Partial<Record<EventType, AuditMapper>> = {
     entityType: "custom_field_automation",
     entityId: payload.automationId as string,
   }),
+  // database.md §25 / api.md §20 (M3, FR-DOC-8/9).
+  "transmittal.created.v1": (payload) => ({
+    action: "docs.transmittal.create",
+    entityType: "transmittal",
+    entityId: payload.transmittalId as string,
+  }),
+  "transmittal.sent.v1": (payload) => ({
+    action: "docs.transmittal.send",
+    entityType: "transmittal",
+    entityId: payload.transmittalId as string,
+  }),
+  // Reuses .send as its action string even though the actual caller
+  // authorizes via identity (they're a recipient), not a permission — same
+  // "action string names the permission that gates the equivalent internal
+  // mutation" convention as client_selection.decided.v1 reusing
+  // client.selection.manage despite its own portal-share path.
+  "transmittal.acknowledged.v1": (payload) => ({
+    action: "docs.transmittal.send",
+    entityType: "transmittal",
+    entityId: payload.transmittalId as string,
+  }),
+  "approval_matrix.created.v1": (payload) => ({
+    action: "docs.approval_matrix.manage",
+    entityType: "approval_matrix",
+    entityId: payload.approvalMatrixId as string,
+  }),
+  "approval_instance.started.v1": (payload) => ({
+    action: "docs.approval_matrix.manage",
+    entityType: "approval_instance",
+    entityId: payload.approvalInstanceId as string,
+  }),
+  "approval_instance.decided.v1": (payload) => ({
+    action: "docs.approval_matrix.manage",
+    entityType: "approval_instance",
+    entityId: payload.approvalInstanceId as string,
+  }),
 };
 
 export function mapToAuditEntry(eventType: string, payload: unknown): AuditEntry | null {

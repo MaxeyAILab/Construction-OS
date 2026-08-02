@@ -19,6 +19,9 @@ import { ComplianceAlertsController } from "../src/modules/compliance-alerts/api
 import { SelectionsController } from "../src/modules/client-portal/api/selections.controller";
 import { CustomFieldAdminController } from "../src/modules/custom-fields/api/custom-field-admin.controller";
 import { CustomFieldValuesController } from "../src/modules/custom-fields/api/custom-field-values.controller";
+import { ApprovalInstancesController } from "../src/modules/transmittals/api/approval-instances.controller";
+import { ApprovalMatricesController } from "../src/modules/transmittals/api/approval-matrices.controller";
+import { TransmittalsController } from "../src/modules/transmittals/api/transmittals.controller";
 import { DailyReportsController } from "../src/modules/daily-reports/api/daily-reports.controller";
 import { TimeEntriesController } from "../src/modules/daily-reports/api/time-entries.controller";
 import { DashboardsController } from "../src/modules/dashboards/api/dashboards.controller";
@@ -152,6 +155,9 @@ const controllers = [
   WarrantyClaimsController,
   CustomFieldAdminController,
   CustomFieldValuesController,
+  TransmittalsController,
+  ApprovalMatricesController,
+  ApprovalInstancesController,
 ];
 
 describe("every endpoint declares exactly one access marker", () => {

@@ -974,6 +974,27 @@
       "when": 1785524424996,
       "tag": "0138_custom_fields_workflows_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1785644423793,
+      "tag": "0139_document_workflows_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1785644430655,
+      "tag": "0140_document_workflows_rls_and_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1785644433407,
+      "tag": "0141_document_workflows_permissions",
+      "breakpoints": true
     }
   ]
 }

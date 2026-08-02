@@ -151,6 +151,39 @@ const builders: Partial<Record<EventType, NotificationBuilder>> = {
       },
     ];
   },
+  // database.md §25 / api.md §20 (M3, FR-DOC-8). notifyUserIds is every
+  // recipient — same fan-out shape as change_order.submitted_to_client.v1.
+  "transmittal.sent.v1": (payload) => {
+    const notifyUserIds = payload.notifyUserIds as string[];
+    return notifyUserIds.map((userId) => ({
+      recipientUserId: userId,
+      category: "transmittal.sent",
+      kind: "transmittal_sent",
+      title: "You received a transmittal",
+      body: "A transmittal was sent to you for review.",
+      entityType: "transmittal",
+      entityId: payload.transmittalId as string,
+    }));
+  },
+  // FR-DOC-9. notifyUserId is the next step's approver when the chain
+  // advances, null on a terminal decision — same "no notifyUserId = no
+  // draft" shape as company_briefing.generated.v1/
+  // custom_field_automation.triggered.v1.
+  "approval_instance.decided.v1": (payload) => {
+    const notifyUserId = payload.notifyUserId as string | null;
+    if (!notifyUserId) return [];
+    return [
+      {
+        recipientUserId: notifyUserId,
+        category: "approval.pending",
+        kind: "approval_instance_pending",
+        title: "An approval is waiting on you",
+        body: "You are the next approver in an approval chain.",
+        entityType: payload.entityType as string,
+        entityId: payload.entityId as string,
+      },
+    ];
+  },
 };
 
 export function draftNotifications(envelope: OutboxEnvelope): NotificationDraft[] {
