@@ -5,6 +5,7 @@ import { Authenticated } from "../../../platform/decorators/authenticated.decora
 import { ZodValidationPipe } from "../../../platform/zod-validation.pipe";
 import type { AuthenticatedRequest } from "../../auth";
 import { ApprovalInstancesService } from "../application/approval-instances.service";
+import { parseColonAction } from "./parse-colon-action";
 
 // api.md §20 (M3, FR-DOC-9). @Authenticated() throughout — start/read
 // resolve their real permission per entity_type inside the service (same
@@ -30,13 +31,16 @@ export class ApprovalInstancesController {
     return this.instances.getById(req.auth!.tenantId, req.auth!.sub, id);
   }
 
-  @Post(":id::decide")
+  // See parse-colon-action.ts: ":id::decide" doesn't route correctly, so
+  // the wire URL is produced via a single plain param instead.
+  @Post(":idAction")
   @Authenticated()
   decide(
-    @Param("id") id: string,
+    @Param("idAction") idAction: string,
     @Body(new ZodValidationPipe(decideApprovalInstanceSchema)) body: z.infer<typeof decideApprovalInstanceSchema>,
     @Req() req: AuthenticatedRequest,
   ) {
+    const { id } = parseColonAction(idAction);
     return this.instances.decide(req.auth!.tenantId, req.auth!.sub, id, body);
   }
 }
