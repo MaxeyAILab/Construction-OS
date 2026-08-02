@@ -45,3 +45,6 @@ pnpm-debug.log*
 
 # test coverage
 coverage/
+
+# local Redis persistence snapshot (created when running redis-server for tests)
+dump.rdb
