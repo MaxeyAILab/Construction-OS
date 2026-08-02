@@ -45,5 +45,13 @@ export const apiClient = {
       method: "POST",
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     }),
+  // init lets callers pass extra headers (e.g. If-Match for optimistic
+  // locking, api.md §1.7) alongside the JSON body.
+  patch: <T>(path: string, body?: unknown, init?: RequestInit) =>
+    request<T>(path, {
+      method: "PATCH",
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...init,
+    }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

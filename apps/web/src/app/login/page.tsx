@@ -25,7 +25,7 @@ export default function LoginPage() {
     try {
       const session = await apiClient.post<LoginResponse>("/auth/login", { email, password });
       saveSession(session.accessToken, session.refreshToken);
-      router.push("/admin/roles");
+      router.push("/projects");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed");
     } finally {

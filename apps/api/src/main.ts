@@ -14,9 +14,15 @@ import { ResponseEnvelopeInterceptor } from "./platform/response-envelope.interc
 async function bootstrap() {
   const env = loadEnv();
 
+  // bodyParser: false — Nest's own FastifyAdapter otherwise registers its
+  // default json/urlencoded content-type parsers during app.init(), which
+  // collides with @fastify/formbody's urlencoded parser below
+  // (FST_ERR_CTP_ALREADY_PRESENT). Fastify parses application/json out of
+  // the box regardless, so JSON bodies are unaffected.
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ loggerInstance: createLogger(env.LOG_LEVEL) }),
+    { bodyParser: false },
   );
 
   // Runs before every other hook/guard/handler — establishes the
@@ -32,7 +38,10 @@ async function bootstrap() {
   // application/x-www-form-urlencoded POST (SAMLResponse + RelayState) per
   // the HTTP-POST binding — Fastify only parses JSON out of the box.
   await app.register(formbody);
-  app.enableCors();
+  // @fastify/cors's default Access-Control-Allow-Methods (GET,HEAD,POST)
+  // fails every PATCH/PUT/DELETE preflight from a browser — this API uses
+  // all five verbs (e.g. PATCH /projects/{id}, PUT /custom-fields/values).
+  app.enableCors({ methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] });
 
   // api.md: Base URL is path-versioned (/v1); every response follows the
   // { data } / { error } envelope (§1.2, §1.8).
