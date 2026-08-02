@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CreateTaskInput, ListTasksQuery, UpdateTaskInput } from "@constructionos/schemas";
-import { and, desc, eq, gte, isNull, lte, lt, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lte, lt, or, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { projects, tasks } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
@@ -63,6 +63,26 @@ export class TasksService {
 
   async getById(tenantId: string, taskId: string) {
     return withTenant(this.db, tenantId, (tx) => this.requireTask(tx, taskId));
+  }
+
+  // Reused by ProjectSummaryService (projects module, FR-PM-3) for the
+  // command-center's openItems.tasks count — "open" = not yet in a
+  // terminal status (packages/schemas taskStatusSchema: done/cancelled are
+  // terminal).
+  async countOpen(tenantId: string, projectId: string): Promise<number> {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const [row] = await tx
+        .select({ value: count() })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.projectId, projectId),
+            isNull(tasks.deletedAt),
+            inArray(tasks.status, ["todo", "in_progress", "blocked"]),
+          ),
+        );
+      return row?.value ?? 0;
+    });
   }
 
   // explicitId: M6 Mobile Sync (architecture.md §14.2) needs the field

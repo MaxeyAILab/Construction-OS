@@ -19,6 +19,7 @@ describe("Projects module", () => {
     costCodesService,
     milestonesService,
     templatesService,
+    redis: projectsRedis,
   } = buildTestProjectServices(db);
 
   beforeAll(async () => {
@@ -28,6 +29,7 @@ describe("Projects module", () => {
   afterAll(async () => {
     await authRedis.quit();
     await rbacRedis.quit();
+    await projectsRedis.quit();
   });
 
   async function signUpCompany(label: string) {
@@ -316,13 +318,14 @@ describe("Projects module", () => {
     expect(child.parentId).toBe(root.id);
   });
 
-  it("summary: aggregates real counts and stubs unbuilt-module fields", async () => {
+  it("summary: aggregates real counts across Projects/Budgets/Scheduling/Tasks/RFIs (FR-PM-3)", async () => {
     const signUp = await signUpCompany("summary");
     const ownerId = decodeSub(signUp.accessToken);
     const project = await projectsService.create(signUp.companyId, ownerId, {
       name: "Summary Project",
       code: "SUM-1",
       currency: "USD",
+      contractValueAmount: "1000000.00",
     });
     await costCodesService.create(signUp.companyId, ownerId, project.id, {
       code: "01",
@@ -336,8 +339,12 @@ describe("Projects module", () => {
     expect(summary.costCodes.count).toBe(1);
     expect(summary.milestones.total).toBe(1);
     expect(summary.milestones.completed).toBe(0);
+    // No budget lines posted yet, so margin == full contract value; no
+    // master schedule exists yet, so scheduleVariance stays null (only
+    // populated once a baseline exists — SchedulesService.getVarianceSummary).
     expect(summary.scheduleVariance).toBeNull();
-    expect(summary.margin).toBeNull();
+    expect(summary.margin).toEqual({ amount: "1000000.00", pct: 100 });
+    expect(summary.openItems).toEqual({ tasks: 0, rfis: 0 });
   });
 
   it("rejects from_opportunity_id (CRM module not built)", async () => {

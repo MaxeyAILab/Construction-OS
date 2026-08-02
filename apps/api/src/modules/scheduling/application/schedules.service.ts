@@ -209,6 +209,56 @@ export class SchedulesService {
     });
   }
 
+  // Reused by ProjectSummaryService (projects module, FR-PM-3) for the
+  // command-center's scheduleVariance field — same "aggregate reads across
+  // module without re-checking granular permission" precedent as
+  // listActiveMasterScheduleIds above (the caller is already gated on
+  // projects.project.read for the whole aggregate). Deliberately does not
+  // call getActiveSchedule() since that lazily creates a master schedule
+  // row as a side effect, which a read-only summary must not trigger.
+  // Returns null until both a master schedule and a baseline of it exist
+  // (schedule_activities.baselineSourceActivityId's own comment: "No
+  // dedicated variance-report endpoint is built this pass... this column
+  // just makes the comparison possible once one's needed").
+  async getVarianceSummary(tenantId: string, projectId: string) {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const master = await tx.query.schedules.findFirst({
+        where: and(eq(schedules.projectId, projectId), eq(schedules.kind, "master"), isNull(schedules.deletedAt)),
+      });
+      if (!master) return null;
+
+      const baseline = await tx.query.schedules.findFirst({
+        where: and(eq(schedules.baselineOfId, master.id), eq(schedules.kind, "baseline"), isNull(schedules.deletedAt)),
+        orderBy: (s, { desc }) => [desc(s.createdAt)],
+      });
+      if (!baseline) return null;
+
+      const [[currentFinish], [baselineFinish]] = await Promise.all([
+        tx
+          .select({ finish: sql<string | null>`max(${scheduleActivities.endDate})` })
+          .from(scheduleActivities)
+          .where(and(eq(scheduleActivities.scheduleId, master.id), isNull(scheduleActivities.deletedAt))),
+        tx
+          .select({ finish: sql<string | null>`max(${scheduleActivities.endDate})` })
+          .from(scheduleActivities)
+          .where(and(eq(scheduleActivities.scheduleId, baseline.id), isNull(scheduleActivities.deletedAt))),
+      ]);
+
+      if (!currentFinish?.finish || !baselineFinish?.finish) return null;
+
+      const varianceDays = Math.round(
+        (new Date(currentFinish.finish).getTime() - new Date(baselineFinish.finish).getTime()) / 86_400_000,
+      );
+
+      return {
+        baselineId: baseline.id,
+        baselineFinishDate: baselineFinish.finish,
+        currentFinishDate: currentFinish.finish,
+        varianceDays,
+      };
+    });
+  }
+
   async loadDependencies(tx: Database, scheduleId: string) {
     const activitiesOfSchedule = await tx.query.scheduleActivities.findMany({
       where: and(eq(scheduleActivities.scheduleId, scheduleId), isNull(scheduleActivities.deletedAt)),

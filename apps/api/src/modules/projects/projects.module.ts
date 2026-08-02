@@ -1,7 +1,11 @@
 import { Module } from "@nestjs/common";
 import { loadEnv } from "../../config/env";
 import { createDatabase, DATABASE } from "../../infrastructure/db/client";
+import { BudgetsModule } from "../budgets";
 import { EventsModule } from "../events";
+import { RfisModule } from "../rfis";
+import { SchedulingModule } from "../scheduling";
+import { TasksModule } from "../tasks";
 import { ProjectsController } from "./api/projects.controller";
 import { CostCodesService } from "./application/cost-codes.service";
 import { MilestonesService } from "./application/milestones.service";
@@ -15,7 +19,12 @@ import { IdempotencyInterceptor } from "../../platform/idempotency/idempotency.i
 const env = loadEnv();
 
 @Module({
-  imports: [EventsModule],
+  // FR-PM-3: ProjectSummaryService reads margin/scheduleVariance/openItems
+  // from these modules' public surfaces (BudgetsModule.FinancialSummaryService,
+  // SchedulingModule.SchedulesService, TasksModule.TasksService,
+  // RfisModule.RfisService) — none of the four import ProjectsModule, so
+  // this doesn't create a cycle.
+  imports: [EventsModule, BudgetsModule, SchedulingModule, TasksModule, RfisModule],
   controllers: [ProjectsController],
   providers: [
     { provide: DATABASE, useFactory: () => createDatabase(env) },

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CreateRfiInput, ListRfisQuery, RfiStatus, UpdateRfiInput } from "@constructionos/schemas";
-import { and, desc, eq, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, lt, or, sql, type SQL } from "drizzle-orm";
 import { DATABASE, type Database, withTenant } from "../../../infrastructure/db/client";
 import { projects, rfis } from "../../../infrastructure/db/schema";
 import { OutboxService } from "../../events";
@@ -67,6 +67,18 @@ export class RfisService {
 
   async getById(tenantId: string, rfiId: string) {
     return withTenant(this.db, tenantId, (tx) => this.requireRfi(tx, rfiId));
+  }
+
+  // Reused by ProjectSummaryService (projects module, FR-PM-3) for the
+  // command-center's openItems.rfis count.
+  async countOpen(tenantId: string, projectId: string): Promise<number> {
+    return withTenant(this.db, tenantId, async (tx) => {
+      const [row] = await tx
+        .select({ value: count() })
+        .from(rfis)
+        .where(and(eq(rfis.projectId, projectId), eq(rfis.status, "open")));
+      return row?.value ?? 0;
+    });
   }
 
   async create(tenantId: string, actorId: string, projectId: string, input: CreateRfiInput) {
