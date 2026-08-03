@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, ErrorState, Field, Input } from "@constructionos/ui";
+import { Button, Card, ErrorState, Field, Input, PasswordInput } from "@constructionos/ui";
 import { apiClient, ApiError } from "../../lib/api-client";
 import { saveSession } from "../../lib/session";
 
@@ -52,9 +52,8 @@ export default function LoginPage() {
           </Field>
           <Field label="Password">
             {({ inputId }) => (
-              <Input
+              <PasswordInput
                 id={inputId}
-                type="password"
                 required
                 autoComplete="current-password"
                 value={password}

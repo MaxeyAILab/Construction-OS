@@ -9,6 +9,7 @@ export * from "./components/field";
 export * from "./components/input";
 export * from "./components/number-input";
 export * from "./components/currency-input";
+export * from "./components/password-input";
 export * from "./components/textarea";
 export * from "./components/checkbox";
 export * from "./components/radio-group";
