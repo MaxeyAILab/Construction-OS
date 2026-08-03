@@ -1,16 +1,17 @@
 # ConstructionOS — UI Design System (`ui-design-system.md`)
 
 > **Document type:** Design system specification
-> **Status:** Draft v1.0
+> **Status:** v2.0 (supersedes v1.0's "Safety Blue" light-first identity — see §2.1 note)
 > **Traces to:** `spec.md` (§3.5 elegance, NFR-18–21), `architecture.md` (§5–6)
-> **Inspiration studied, not copied:** Apple (restraint, materiality), Linear (speed, density, keyboard), Notion (calm content surfaces), Stripe (data clarity, docs-grade polish), Framer/Arc (motion personality), Tesla (confident minimalism)
+> **Inspiration studied, not copied (v1.0):** Apple (restraint, materiality), Linear (speed, density, keyboard), Notion (calm content surfaces), Stripe (data clarity, docs-grade polish), Framer/Arc (motion personality), Tesla (confident minimalism)
+> **v2.0 direction:** dark-first "industrial command center" — dense operational dashboards (Command Center, CRM, AI Assistant, Estimating, Field Reports) with a safety-orange action accent on a navy-neutral surface, adopted from an approved product mockup set (Stitch reference, 2026-08).
 > **Implementation targets:** Tailwind CSS v4 tokens + Radix primitives (web), NativeWind (mobile)
 
 ---
 
 ## 1. Design Philosophy
 
-1. **Calm authority.** Construction is chaotic; the software must feel like the calmest person on the job site. Generous whitespace, muted surfaces, one accent used sparingly. Nothing shouts.
+1. **Industrial confidence.** Construction is chaotic; the software is the operator's command center over it — dense, decisive, always-on. Dark navy work surfaces keep long dashboard sessions easy on the eyes; one bright accent (safety-orange) marks every action and live signal so nothing important is missed.
 2. **Data first, chrome last.** The content — budgets, schedules, photos — is the interface. Chrome recedes: hairline borders, low-contrast structure, no decorative gradients on work surfaces.
 3. **Fast is beautiful.** Perceived speed is a design property: optimistic UI, skeletons that match final layout, 150 ms motion budgets (NFR-2).
 4. **Gloves-and-sunlight real.** Field UI assumes bright sun, dust, gloves, one hand (NFR-20). Big targets, high contrast mode, forgiving gestures.
@@ -25,31 +26,35 @@ Tokens are the single source of truth (`packages/ui/tokens.ts` → CSS variables
 
 ### 2.1 Color palette
 
-**Neutrals — "Concrete" scale** (slightly warm gray; the app's skeleton):
+> **v2.0 change note:** v1.0 specified "Safety Blue" (`#2563EB`) as the brand accent specifically *to keep orange/yellow reserved for warning semantics*. The approved Stitch reference overrides that decision at the product level — safety-orange is now the brand accent everywhere (primary actions, focus, active nav), and warning semantics are carried by a distinct amber a step higher in saturation/darkness so the two don't collide (see semantic table below). Treat this as an intentional, approved v2.0 supersession, not drift.
+
+**Neutrals — "Slate" scale** (cool blue-gray; the app's skeleton — dark is the primary mode, not an inversion of light):
 
 | Token | Light | Dark | Usage |
 |-------|-------|------|-------|
-| `neutral-0` | `#FFFFFF` | `#0E0F11` | page background (dark: near-black, warm) |
-| `neutral-50` | `#F7F7F6` | `#16181B` | app canvas |
-| `neutral-100` | `#F0F0EE` | `#1D2024` | raised surface / cards |
-| `neutral-200` | `#E4E4E1` | `#26292E` | hairline borders, dividers |
-| `neutral-300` | `#CFCFCA` | `#33373D` | strong borders, disabled fill |
-| `neutral-500` | `#8A8A84` | `#7A7F87` | secondary text, icons |
-| `neutral-700` | `#4A4A46` | `#B6BBC2` | primary body text (dark inverts) |
-| `neutral-900` | `#1C1C1A` | `#EDEFF2` | headings, high-emphasis |
+| `neutral-0` | `#FFFFFF` | `#0B0F1A` | page background (dark: near-black navy) |
+| `neutral-50` | `#F6F7FA` | `#10172A` | app canvas, sidebar |
+| `neutral-100` | `#EEF1F6` | `#161F35` | raised surface / cards |
+| `neutral-200` | `#E1E5EE` | `#232E4A` | hairline borders, dividers |
+| `neutral-300` | `#C7CEDD` | `#303B58` | strong borders, disabled fill |
+| `neutral-500` | `#64748B` | `#8792AC` | secondary text, icons |
+| `neutral-700` | `#334155` | `#C7CEDD` | primary body text (dark inverts) |
+| `neutral-900` | `#0F172A` | `#F5F7FB` | headings, high-emphasis |
 
-**Brand accent — "Safety Blue"** `brand-600 #2563EB` (scale 50–900). One accent, used only for primary actions, focus, active nav, links. Rationale: blue reads trustworthy/financial, survives sunlight, and leaves orange/yellow free for their *industry* meanings.
+**Brand accent — "Safety Orange"** `brand-600 #EA580C` (scale 50–900). One accent, used only for primary actions, focus, active nav, links, and live/AI-active status. Rationale: orange is construction's own hazard/hi-vis color — using it as the product's signature reads as *industrial*, not generic-SaaS, and it holds full saturation on the dark-navy surfaces that are now the primary mode.
 
 **Semantic colors** (never used decoratively):
 
-| Role | Token | Light | Notes |
-|------|-------|-------|-------|
-| Success / on-track | `success-600` | `#16A34A` | margin healthy, task done |
-| Warning / at-risk | `warning-600` | `#D97706` | schedule slip risk, expiring cert |
-| Danger / over | `danger-600` | `#DC2626` | over budget, incident, destructive |
-| Info / AI | `ai-600` | `#7C3AED` | **reserved exclusively for AI-generated content** — a violet accent + sparkle glyph marks every AI suggestion, summary, or prediction so humans always know what the machine wrote (FR-AI-4 trust) |
+| Role | Token | Light | Dark | Notes |
+|------|-------|-------|------|-------|
+| Success / on-track | `success-600` | `#16A34A` | `#22C55E` | margin healthy, task done |
+| Warning / at-risk | `warning-600` | `#D97706` | `#F59E0B` | schedule slip risk, expiring cert — kept visually distinct from brand-orange (more yellow, less red) precisely because brand now sits in the same hue family |
+| Danger / over | `danger-600` | `#DC2626` | `#EF4444` | over budget, incident, destructive |
+| Info / AI | `ai-600` | `#7C3AED` | `#7C3AED` | **reserved exclusively for AI-generated content** — a violet accent + sparkle glyph marks every AI suggestion, summary, or prediction so humans always know what the machine wrote (FR-AI-4 trust); unchanged by the v2.0 brand swap |
 
-**Data-viz palette:** 8-step categorical set tuned for both modes (starts `#2563EB`, `#0EA5E9`, `#16A34A`, `#D97706`, `#DC2626`, `#7C3AED`, `#DB2777`, `#64748B`); sequential = brand ramp; diverging = danger↔neutral↔success for budget variance. All pairs ≥ 3:1 against surface (per dataviz accessibility rules).
+Dark-mode semantic colors step one shade lighter than their light value (§5.1's "+10% lightness" rule) — same anchor hue, better legibility on navy.
+
+**Data-viz palette:** 8-step categorical set tuned for both modes (starts `#EA580C`, `#0EA5E9`, `#16A34A`, `#F59E0B`, `#DC2626`, `#7C3AED`, `#DB2777`, `#64748B`); sequential = brand ramp; diverging = danger↔neutral↔success for budget variance. All pairs ≥ 3:1 against surface (per dataviz accessibility rules).
 
 **Contrast rules:** body text ≥ 4.5:1 (WCAG AA, NFR-18); `neutral-500` is the minimum for text; **High-Contrast Field Mode** raises surfaces to pure white/black, borders to `neutral-500`, and minimum text to `neutral-700` for direct sunlight.
 

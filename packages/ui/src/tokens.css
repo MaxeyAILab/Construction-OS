@@ -10,27 +10,27 @@
  */
 
 :root {
-  /* Neutral — "Concrete" scale */
+  /* Neutral — "Slate" scale (v2.0, ui-design-system.md §2.1) */
   --color-neutral-0: #ffffff;
-  --color-neutral-50: #f7f7f6;
-  --color-neutral-100: #f0f0ee;
-  --color-neutral-200: #e4e4e1;
-  --color-neutral-300: #cfcfca;
-  --color-neutral-500: #8a8a84;
-  --color-neutral-700: #4a4a46;
-  --color-neutral-900: #1c1c1a;
+  --color-neutral-50: #f6f7fa;
+  --color-neutral-100: #eef1f6;
+  --color-neutral-200: #e1e5ee;
+  --color-neutral-300: #c7cedd;
+  --color-neutral-500: #64748b;
+  --color-neutral-700: #334155;
+  --color-neutral-900: #0f172a;
 
-  /* Brand — "Safety Blue" */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  /* Brand — "Safety Orange" (v2.0, supersedes "Safety Blue") */
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
   /* The one accent actually used for primary actions/focus/active nav. */
   --color-brand-solid: var(--color-brand-600);
 
@@ -78,17 +78,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-neutral-0: #0e0f11;
-    --color-neutral-50: #16181b;
-    --color-neutral-100: #1d2024;
-    --color-neutral-200: #26292e;
-    --color-neutral-300: #33373d;
-    --color-neutral-500: #7a7f87;
-    --color-neutral-700: #b6bbc2;
-    --color-neutral-900: #edeff2;
+    --color-neutral-0: #0b0f1a;
+    --color-neutral-50: #10172a;
+    --color-neutral-100: #161f35;
+    --color-neutral-200: #232e4a;
+    --color-neutral-300: #303b58;
+    --color-neutral-500: #8792ac;
+    --color-neutral-700: #c7cedd;
+    --color-neutral-900: #f5f7fb;
 
     /* Brand desaturated one step in dark mode (§5.1). */
     --color-brand-solid: var(--color-brand-500);
+    /* brand-50 is a light-mode tint (subtle icon/row backgrounds); its
+       literal light value reads as a bright cream patch on navy, so dark
+       mode gets its own low-luminance orange-tinted surface instead. */
+    --color-brand-50: #3a2115;
+
+    /* Semantic colors +10% lightness in dark mode (§5.1) — same hue,
+       one step lighter for legibility on navy surfaces. */
+    --color-success-600: #22c55e;
+    --color-warning-600: #f59e0b;
+    --color-danger-600: #ef4444;
 
     /* Elevation = surface lightening; shadows are nearly invisible by
        design, so they're left as-is and surfaces do the work instead. */
@@ -101,16 +111,21 @@
 }
 
 :root[data-theme="dark"] {
-  --color-neutral-0: #0e0f11;
-  --color-neutral-50: #16181b;
-  --color-neutral-100: #1d2024;
-  --color-neutral-200: #26292e;
-  --color-neutral-300: #33373d;
-  --color-neutral-500: #7a7f87;
-  --color-neutral-700: #b6bbc2;
-  --color-neutral-900: #edeff2;
+  --color-neutral-0: #0b0f1a;
+  --color-neutral-50: #10172a;
+  --color-neutral-100: #161f35;
+  --color-neutral-200: #232e4a;
+  --color-neutral-300: #303b58;
+  --color-neutral-500: #8792ac;
+  --color-neutral-700: #c7cedd;
+  --color-neutral-900: #f5f7fb;
 
   --color-brand-solid: var(--color-brand-500);
+  --color-brand-50: #3a2115;
+
+  --color-success-600: #22c55e;
+  --color-warning-600: #f59e0b;
+  --color-danger-600: #ef4444;
 
   --elevation-1: 0 1px 2px rgb(0 0 0 / 0.24);
   --elevation-2: 0 4px 12px rgb(0 0 0 / 0.32);
@@ -127,9 +142,9 @@
   --color-neutral-50: #ffffff;
   --color-neutral-100: #ffffff;
   --color-neutral-200: #000000;
-  --color-neutral-300: #8a8a84;
-  --color-neutral-500: #4a4a46;
-  --color-neutral-700: #1c1c1a;
+  --color-neutral-300: #64748b;
+  --color-neutral-500: #334155;
+  --color-neutral-700: #0f172a;
   --color-neutral-900: #000000;
   --color-brand-solid: var(--color-brand-700);
   color-scheme: light;

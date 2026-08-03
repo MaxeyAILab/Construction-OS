@@ -29,8 +29,8 @@ import {
   StatusChip,
   type StatusTone,
 } from "@constructionos/ui";
-import { apiClient, ApiError } from "../../../lib/api-client";
-import { getAccessToken } from "../../../lib/session";
+import { apiClient, ApiError } from "@/lib/api-client";
+import { getAccessToken } from "@/lib/session";
 
 type ProjectStatus = "planning" | "active" | "on_hold" | "closed" | "warranty";
 

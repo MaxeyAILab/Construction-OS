@@ -8,44 +8,47 @@
 // build step generating one from the other yet (flagged as a v2 follow-up:
 // a small script could derive tokens.css from this file directly).
 
+// v2.0 (ui-design-system.md §2.1): "Slate" scale — cool blue-gray, dark is
+// the primary mode (not an inversion of light).
 export const neutralScale = {
   light: {
     0: "#FFFFFF",
-    50: "#F7F7F6",
-    100: "#F0F0EE",
-    200: "#E4E4E1",
-    300: "#CFCFCA",
-    500: "#8A8A84",
-    700: "#4A4A46",
-    900: "#1C1C1A",
+    50: "#F6F7FA",
+    100: "#EEF1F6",
+    200: "#E1E5EE",
+    300: "#C7CEDD",
+    500: "#64748B",
+    700: "#334155",
+    900: "#0F172A",
   },
   dark: {
-    0: "#0E0F11",
-    50: "#16181B",
-    100: "#1D2024",
-    200: "#26292E",
-    300: "#33373D",
-    500: "#7A7F87",
-    700: "#B6BBC2",
-    900: "#EDEFF2",
+    0: "#0B0F1A",
+    50: "#10172A",
+    100: "#161F35",
+    200: "#232E4A",
+    300: "#303B58",
+    500: "#8792AC",
+    700: "#C7CEDD",
+    900: "#F5F7FB",
   },
 } as const;
 
 // Brand + semantic scales anchor exactly on ui-design-system.md's named
-// 600-step values (brand-600 #2563EB, success-600 #16A34A, warning-600
-// #D97706, danger-600 #DC2626, ai-600 #7C3AED) — each is a standard 50-900
-// ramp built around that anchor.
+// 600-step values (brand-600 #EA580C "Safety Orange" — v2.0, supersedes
+// v1.0's Safety Blue; success-600 #16A34A, warning-600 #D97706, danger-600
+// #DC2626, ai-600 #7C3AED) — each is a standard 50-900 ramp built around
+// that anchor.
 export const brandScale = {
-  50: "#EFF6FF",
-  100: "#DBEAFE",
-  200: "#BFDBFE",
-  300: "#93C5FD",
-  400: "#60A5FA",
-  500: "#3B82F6",
-  600: "#2563EB",
-  700: "#1D4ED8",
-  800: "#1E40AF",
-  900: "#1E3A8A",
+  50: "#FFF7ED",
+  100: "#FFEDD5",
+  200: "#FED7AA",
+  300: "#FDBA74",
+  400: "#FB923C",
+  500: "#F97316",
+  600: "#EA580C",
+  700: "#C2410C",
+  800: "#9A3412",
+  900: "#7C2D12",
 } as const;
 
 export const successScale = {
@@ -104,10 +107,10 @@ export const aiScale = {
 // 8-step categorical set for charts; sequential = brand ramp, diverging =
 // danger<->neutral<->success for budget variance (dataviz conventions).
 export const dataVizPalette = [
-  "#2563EB", // brand
+  "#EA580C", // brand
   "#0EA5E9", // sky
   "#16A34A", // success
-  "#D97706", // warning
+  "#F59E0B", // warning
   "#DC2626", // danger
   "#7C3AED", // ai
   "#DB2777", // pink

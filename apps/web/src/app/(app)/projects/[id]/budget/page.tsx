@@ -34,8 +34,8 @@ import {
   TableHeader,
   TableRow,
 } from "@constructionos/ui";
-import { apiClient, ApiError } from "../../../../lib/api-client";
-import { getAccessToken } from "../../../../lib/session";
+import { apiClient, ApiError } from "@/lib/api-client";
+import { getAccessToken } from "@/lib/session";
 
 type CostCodeKind = "labor" | "material" | "equipment" | "subcontract" | "other";
 
