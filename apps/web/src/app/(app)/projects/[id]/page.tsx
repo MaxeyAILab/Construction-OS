@@ -319,6 +319,9 @@ export default function ProjectDetailPage() {
           <Button variant="secondary" size="sm" onClick={() => router.push(`/projects/${params.id}/change-orders`)}>
             Change orders
           </Button>
+          <Button variant="secondary" size="sm" onClick={() => router.push(`/projects/${params.id}/schedule`)}>
+            Schedule
+          </Button>
           <EditProjectDialog
             open={editOpen}
             onOpenChange={setEditOpen}

@@ -53,5 +53,12 @@ export const apiClient = {
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       ...init,
     }),
+  // PUT is a full-replace verb (e.g. .../activities/{id}/dependencies) —
+  // distinct from PATCH's partial-update semantics.
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PUT",
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
