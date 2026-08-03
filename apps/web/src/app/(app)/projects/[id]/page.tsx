@@ -87,6 +87,22 @@ interface Rfi {
   dueDate: string | null;
 }
 
+type IncidentKind = "incident" | "near_miss" | "observation";
+type IncidentSeverity = "low" | "medium" | "high" | "critical";
+type IncidentStatus = "open" | "closed";
+
+interface Incident {
+  id: string;
+  kind: IncidentKind;
+  severity: IncidentSeverity | null;
+  status: IncidentStatus;
+  occurredAt: string;
+  location: string | null;
+  description: string | null;
+  oshaRecordable: boolean;
+  correctiveActionTaskId: string | null;
+}
+
 const STATUS_TONE: Record<ProjectStatus, StatusTone> = {
   planning: "neutral",
   active: "success",
@@ -155,6 +171,38 @@ const RFI_ALLOWED_TRANSITIONS: Record<RfiStatus, RfiStatus[]> = {
   void: ["void"],
 };
 
+const INCIDENT_KIND_LABEL: Record<IncidentKind, string> = {
+  incident: "Incident",
+  near_miss: "Near miss",
+  observation: "Observation",
+};
+
+// database.md doesn't enumerate severity's values — this ordering (low ->
+// critical) mirrors packages/schemas' own documented assumption.
+const INCIDENT_SEVERITY_TONE: Record<IncidentSeverity, StatusTone> = {
+  low: "neutral",
+  medium: "warning",
+  high: "warning",
+  critical: "danger",
+};
+
+const INCIDENT_SEVERITY_LABEL: Record<IncidentSeverity, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  critical: "Critical",
+};
+
+const INCIDENT_STATUS_TONE: Record<IncidentStatus, StatusTone> = {
+  open: "warning",
+  closed: "success",
+};
+
+const INCIDENT_STATUS_LABEL: Record<IncidentStatus, string> = {
+  open: "Open",
+  closed: "Closed",
+};
+
 function formatMoney(amount: string | null, currency: string): string {
   if (amount === null) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(amount));
@@ -168,26 +216,30 @@ export default function ProjectDetailPage() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [rfis, setRfis] = useState<Rfi[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [rfiOpen, setRfiOpen] = useState(false);
+  const [incidentOpen, setIncidentOpen] = useState(false);
 
   async function reload() {
-    const [projectData, summaryData, milestonesData, tasksData, rfisData] = await Promise.all([
+    const [projectData, summaryData, milestonesData, tasksData, rfisData, incidentsData] = await Promise.all([
       apiClient.get<Project>(`/projects/${params.id}`),
       apiClient.get<ProjectSummary>(`/projects/${params.id}/summary`),
       apiClient.get<Milestone[]>(`/projects/${params.id}/milestones`),
       apiClient.get<Task[]>(`/tasks?projectId=${params.id}&limit=50`),
       apiClient.get<Rfi[]>(`/projects/${params.id}/rfis`),
+      apiClient.get<Incident[]>(`/projects/${params.id}/incidents?limit=50`),
     ]);
     setProject(projectData);
     setSummary(summaryData);
     setMilestones(milestonesData);
     setTasks(tasksData);
     setRfis(rfisData);
+    setIncidents(incidentsData);
   }
 
   useEffect(() => {
@@ -399,6 +451,27 @@ export default function ProjectDetailPage() {
           </ul>
         )}
       </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between pb-4">
+          <CardTitle>Safety incidents</CardTitle>
+          <NewIncidentDialog
+            open={incidentOpen}
+            onOpenChange={setIncidentOpen}
+            projectId={params.id}
+            onCreated={reload}
+          />
+        </CardHeader>
+        {incidents.length === 0 ? (
+          <p className="text-sm text-neutral-500">No incidents reported.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {incidents.map((incident) => (
+              <IncidentRow key={incident.id} incident={incident} onSaved={reload} />
+            ))}
+          </ul>
+        )}
+      </Card>
     </main>
   );
 }
@@ -416,6 +489,27 @@ function RfiRow({ rfi, onSaved }: { rfi: Rfi; onSaved: () => Promise<void> }) {
         Open
       </Button>
       <EditRfiDialog open={open} onOpenChange={setOpen} rfi={rfi} onSaved={onSaved} />
+    </li>
+  );
+}
+
+function IncidentRow({ incident, onSaved }: { incident: Incident; onSaved: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <li className="flex items-center gap-2 text-sm">
+      <StatusChip label={INCIDENT_KIND_LABEL[incident.kind]} tone="neutral" />
+      <span className="flex-1 text-neutral-900">{incident.description || "(no description)"}</span>
+      {incident.severity && (
+        <StatusChip label={INCIDENT_SEVERITY_LABEL[incident.severity]} tone={INCIDENT_SEVERITY_TONE[incident.severity]} />
+      )}
+      <StatusChip label={INCIDENT_STATUS_LABEL[incident.status]} tone={INCIDENT_STATUS_TONE[incident.status]} />
+      {incident.oshaRecordable && <StatusChip label="OSHA" tone="danger" />}
+      <span className="text-neutral-500">{incident.occurredAt.slice(0, 10)}</span>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        Open
+      </Button>
+      <EditIncidentDialog open={open} onOpenChange={setOpen} incident={incident} onSaved={onSaved} />
     </li>
   );
 }
@@ -855,6 +949,361 @@ function EditRfiDialog({
           <DialogFooter>
             <Button type="submit" loading={submitting} disabled={terminal}>
               Save changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewIncidentDialog({
+  open,
+  onOpenChange,
+  projectId,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  onCreated: () => Promise<void>;
+}) {
+  const [kind, setKind] = useState<IncidentKind>("incident");
+  const [severity, setSeverity] = useState<IncidentSeverity | "unspecified">("unspecified");
+  const [occurredAt, setOccurredAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [oshaRecordable, setOshaRecordable] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setKind("incident");
+    setSeverity("unspecified");
+    setOccurredAt(new Date().toISOString().slice(0, 16));
+    setLocation("");
+    setDescription("");
+    setOshaRecordable(false);
+    setError(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.post(`/projects/${projectId}/incidents`, {
+        kind,
+        occurredAt: new Date(occurredAt).toISOString(),
+        oshaRecordable,
+        ...(severity !== "unspecified" ? { severity } : {}),
+        ...(location ? { location } : {}),
+        ...(description ? { description } : {}),
+      });
+      reset();
+      onOpenChange(false);
+      await onCreated();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to report incident");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="secondary" size="sm">
+          <Plus />
+          Report incident
+        </Button>
+      </DialogTrigger>
+      <DialogContent size="form">
+        <DialogHeader>
+          <DialogTitle>Report incident</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Kind" required>
+            {() => (
+              <Select value={kind} onValueChange={(value) => setKind(value as IncidentKind)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(INCIDENT_KIND_LABEL) as IncidentKind[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {INCIDENT_KIND_LABEL[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Severity">
+            {() => (
+              <Select
+                value={severity}
+                onValueChange={(value) => setSeverity(value as IncidentSeverity | "unspecified")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Unspecified</SelectItem>
+                  {(Object.keys(INCIDENT_SEVERITY_LABEL) as IncidentSeverity[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {INCIDENT_SEVERITY_LABEL[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Occurred at" required>
+            {({ inputId }) => (
+              <Input
+                id={inputId}
+                type="datetime-local"
+                required
+                value={occurredAt}
+                onChange={(e) => setOccurredAt(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Location">
+            {({ inputId }) => <Input id={inputId} value={location} onChange={(e) => setLocation(e.target.value)} />}
+          </Field>
+          <Field label="Description">
+            {({ inputId }) => (
+              <Textarea id={inputId} value={description} onChange={(e) => setDescription(e.target.value)} />
+            )}
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-neutral-900">
+            <Checkbox checked={oshaRecordable} onCheckedChange={(checked) => setOshaRecordable(checked === true)} />
+            OSHA recordable
+          </label>
+          {error && <ErrorState variant="inline" message={error} />}
+          <DialogFooter>
+            <Button type="submit" loading={submitting}>
+              Report incident
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditIncidentDialog({
+  open,
+  onOpenChange,
+  incident,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  incident: Incident;
+  onSaved: () => Promise<void>;
+}) {
+  const [severity, setSeverity] = useState<IncidentSeverity | "unspecified">(incident.severity ?? "unspecified");
+  const [status, setStatus] = useState<IncidentStatus>(incident.status);
+  const [description, setDescription] = useState(incident.description ?? "");
+  const [oshaRecordable, setOshaRecordable] = useState(incident.oshaRecordable);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [routeOpen, setRouteOpen] = useState(false);
+
+  useEffect(() => {
+    setSeverity(incident.severity ?? "unspecified");
+    setStatus(incident.status);
+    setDescription(incident.description ?? "");
+    setOshaRecordable(incident.oshaRecordable);
+  }, [incident]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.patch(`/incidents/${incident.id}`, {
+        status,
+        oshaRecordable,
+        severity: severity === "unspecified" ? undefined : severity,
+        description: description || null,
+      });
+      onOpenChange(false);
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update incident");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="form">
+        <DialogHeader>
+          <DialogTitle>{INCIDENT_KIND_LABEL[incident.kind]}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <p className="text-sm text-neutral-500">
+            Occurred {incident.occurredAt.slice(0, 10)}
+            {incident.location ? ` at ${incident.location}` : ""}
+          </p>
+          <Field label="Status">
+            {() => (
+              <Select value={status} onValueChange={(value) => setStatus(value as IncidentStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(INCIDENT_STATUS_LABEL) as IncidentStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {INCIDENT_STATUS_LABEL[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Severity">
+            {() => (
+              <Select
+                value={severity}
+                onValueChange={(value) => setSeverity(value as IncidentSeverity | "unspecified")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Unspecified</SelectItem>
+                  {(Object.keys(INCIDENT_SEVERITY_LABEL) as IncidentSeverity[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {INCIDENT_SEVERITY_LABEL[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Description">
+            {({ inputId }) => (
+              <Textarea id={inputId} value={description} onChange={(e) => setDescription(e.target.value)} />
+            )}
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-neutral-900">
+            <Checkbox checked={oshaRecordable} onCheckedChange={(checked) => setOshaRecordable(checked === true)} />
+            OSHA recordable
+          </label>
+          {error && <ErrorState variant="inline" message={error} />}
+          <DialogFooter className="flex-row items-center justify-between sm:justify-between">
+            {incident.correctiveActionTaskId ? (
+              <span className="text-sm text-neutral-500">Corrective action assigned</span>
+            ) : (
+              <Button type="button" variant="secondary" size="sm" onClick={() => setRouteOpen(true)}>
+                Route corrective action
+              </Button>
+            )}
+            <Button type="submit" loading={submitting}>
+              Save changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+      <RouteCorrectiveActionDialog
+        open={routeOpen}
+        onOpenChange={setRouteOpen}
+        incidentId={incident.id}
+        onRouted={async () => {
+          await onSaved();
+          onOpenChange(false);
+        }}
+      />
+    </Dialog>
+  );
+}
+
+function RouteCorrectiveActionDialog({
+  open,
+  onOpenChange,
+  incidentId,
+  onRouted,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  incidentId: string;
+  onRouted: () => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setTitle("");
+    setDescription("");
+    setDueDate("");
+    setError(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.post(`/incidents/${incidentId}/route-corrective-action`, {
+        title,
+        ...(description ? { description } : {}),
+        ...(dueDate ? { dueDate } : {}),
+      });
+      reset();
+      onOpenChange(false);
+      await onRouted();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to route corrective action");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Route corrective action</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Task title" required>
+            {({ inputId }) => <Input id={inputId} required value={title} onChange={(e) => setTitle(e.target.value)} />}
+          </Field>
+          <Field label="Description">
+            {({ inputId }) => (
+              <Textarea id={inputId} value={description} onChange={(e) => setDescription(e.target.value)} />
+            )}
+          </Field>
+          <Field label="Due date">
+            {({ inputId }) => (
+              <Input id={inputId} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            )}
+          </Field>
+          {error && <ErrorState variant="inline" message={error} />}
+          <DialogFooter>
+            <Button type="submit" loading={submitting}>
+              Create task
             </Button>
           </DialogFooter>
         </form>
