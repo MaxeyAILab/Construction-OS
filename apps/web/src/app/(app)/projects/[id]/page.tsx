@@ -27,6 +27,7 @@ import {
   SelectValue,
   Skeleton,
   StatusChip,
+  Textarea,
   type StatusTone,
 } from "@constructionos/ui";
 import { apiClient, ApiError } from "@/lib/api-client";
@@ -74,6 +75,18 @@ interface Task {
   dueDate: string | null;
 }
 
+type RfiStatus = "draft" | "open" | "answered" | "closed" | "void";
+
+interface Rfi {
+  id: string;
+  number: number;
+  subject: string;
+  question: string;
+  answer: string | null;
+  status: RfiStatus;
+  dueDate: string | null;
+}
+
 const STATUS_TONE: Record<ProjectStatus, StatusTone> = {
   planning: "neutral",
   active: "success",
@@ -115,6 +128,33 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   urgent: "Urgent",
 };
 
+const RFI_STATUS_TONE: Record<RfiStatus, StatusTone> = {
+  draft: "neutral",
+  open: "warning",
+  answered: "success",
+  closed: "neutral",
+  void: "danger",
+};
+
+const RFI_STATUS_LABEL: Record<RfiStatus, string> = {
+  draft: "Draft",
+  open: "Open",
+  answered: "Answered",
+  closed: "Closed",
+  void: "Void",
+};
+
+// Mirrors apps/api's RfisService ALLOWED_TRANSITIONS — server remains the
+// source of truth (an illegal choice here still 422s); includes the
+// current status itself so the edit dialog's picker always has a value.
+const RFI_ALLOWED_TRANSITIONS: Record<RfiStatus, RfiStatus[]> = {
+  draft: ["draft", "open", "void"],
+  open: ["open", "answered", "closed", "void"],
+  answered: ["answered", "closed", "void"],
+  closed: ["closed"],
+  void: ["void"],
+};
+
 function formatMoney(amount: string | null, currency: string): string {
   if (amount === null) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(amount));
@@ -127,23 +167,27 @@ export default function ProjectDetailPage() {
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [rfis, setRfis] = useState<Rfi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [rfiOpen, setRfiOpen] = useState(false);
 
   async function reload() {
-    const [projectData, summaryData, milestonesData, tasksData] = await Promise.all([
+    const [projectData, summaryData, milestonesData, tasksData, rfisData] = await Promise.all([
       apiClient.get<Project>(`/projects/${params.id}`),
       apiClient.get<ProjectSummary>(`/projects/${params.id}/summary`),
       apiClient.get<Milestone[]>(`/projects/${params.id}/milestones`),
       apiClient.get<Task[]>(`/tasks?projectId=${params.id}&limit=50`),
+      apiClient.get<Rfi[]>(`/projects/${params.id}/rfis`),
     ]);
     setProject(projectData);
     setSummary(summaryData);
     setMilestones(milestonesData);
     setTasks(tasksData);
+    setRfis(rfisData);
   }
 
   useEffect(() => {
@@ -336,7 +380,40 @@ export default function ProjectDetailPage() {
           </ul>
         )}
       </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between pb-4">
+          <CardTitle>RFIs</CardTitle>
+          <NewRfiDialog open={rfiOpen} onOpenChange={setRfiOpen} projectId={params.id} onCreated={reload} />
+        </CardHeader>
+        {rfis.length === 0 ? (
+          <p className="text-sm text-neutral-500">No RFIs yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {rfis.map((rfi) => (
+              <RfiRow key={rfi.id} rfi={rfi} onSaved={reload} />
+            ))}
+          </ul>
+        )}
+      </Card>
     </main>
+  );
+}
+
+function RfiRow({ rfi, onSaved }: { rfi: Rfi; onSaved: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <li className="flex items-center gap-2 text-sm">
+      <span className="font-mono text-neutral-500">#{rfi.number}</span>
+      <span className="flex-1 text-neutral-900">{rfi.subject}</span>
+      <StatusChip label={RFI_STATUS_LABEL[rfi.status]} tone={RFI_STATUS_TONE[rfi.status]} />
+      {rfi.dueDate && <span className="text-neutral-500">due {rfi.dueDate}</span>}
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        Open
+      </Button>
+      <EditRfiDialog open={open} onOpenChange={setOpen} rfi={rfi} onSaved={onSaved} />
+    </li>
   );
 }
 
@@ -578,6 +655,203 @@ function NewTaskDialog({
           <DialogFooter>
             <Button type="submit" loading={submitting}>
               Add task
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewRfiDialog({
+  open,
+  onOpenChange,
+  projectId,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  onCreated: () => Promise<void>;
+}) {
+  const [subject, setSubject] = useState("");
+  const [question, setQuestion] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setSubject("");
+    setQuestion("");
+    setDueDate("");
+    setError(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.post(`/projects/${projectId}/rfis`, {
+        subject,
+        question,
+        ...(dueDate ? { dueDate } : {}),
+      });
+      reset();
+      onOpenChange(false);
+      await onCreated();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create RFI");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="secondary" size="sm">
+          <Plus />
+          New RFI
+        </Button>
+      </DialogTrigger>
+      <DialogContent size="form">
+        <DialogHeader>
+          <DialogTitle>New RFI</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Subject" required>
+            {({ inputId }) => (
+              <Input id={inputId} required value={subject} onChange={(e) => setSubject(e.target.value)} />
+            )}
+          </Field>
+          <Field label="Question" required>
+            {({ inputId }) => (
+              <Textarea id={inputId} required value={question} onChange={(e) => setQuestion(e.target.value)} />
+            )}
+          </Field>
+          <Field label="Due date">
+            {({ inputId }) => (
+              <Input id={inputId} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            )}
+          </Field>
+          {error && <ErrorState variant="inline" message={error} />}
+          <DialogFooter>
+            <Button type="submit" loading={submitting}>
+              Create RFI
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditRfiDialog({
+  open,
+  onOpenChange,
+  rfi,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rfi: Rfi;
+  onSaved: () => Promise<void>;
+}) {
+  const [status, setStatus] = useState<RfiStatus>(rfi.status);
+  const [answer, setAnswer] = useState(rfi.answer ?? "");
+  const [dueDate, setDueDate] = useState(rfi.dueDate ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStatus(rfi.status);
+    setAnswer(rfi.answer ?? "");
+    setDueDate(rfi.dueDate ?? "");
+  }, [rfi]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.patch(`/rfis/${rfi.id}`, {
+        status,
+        answer: answer || null,
+        dueDate: dueDate || null,
+      });
+      onOpenChange(false);
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update RFI");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const terminal = RFI_ALLOWED_TRANSITIONS[rfi.status].length === 1;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="form">
+        <DialogHeader>
+          <DialogTitle>
+            RFI #{rfi.number} — {rfi.subject}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <p className="whitespace-pre-wrap text-sm text-neutral-700">{rfi.question}</p>
+          <Field label="Status">
+            {() => (
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as RfiStatus)}
+                disabled={terminal}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RFI_ALLOWED_TRANSITIONS[rfi.status].map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {RFI_STATUS_LABEL[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Answer" helperText="Required before marking as Answered">
+            {({ inputId }) => (
+              <Textarea
+                id={inputId}
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                disabled={terminal}
+              />
+            )}
+          </Field>
+          <Field label="Due date">
+            {({ inputId }) => (
+              <Input
+                id={inputId}
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                disabled={terminal}
+              />
+            )}
+          </Field>
+          {error && <ErrorState variant="inline" message={error} />}
+          <DialogFooter>
+            <Button type="submit" loading={submitting} disabled={terminal}>
+              Save changes
             </Button>
           </DialogFooter>
         </form>
