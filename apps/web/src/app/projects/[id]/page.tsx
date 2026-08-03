@@ -216,12 +216,17 @@ export default function ProjectDetailPage() {
           </div>
           <span className="font-mono text-sm text-neutral-500">{project.code}</span>
         </div>
-        <EditProjectDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          project={project}
-          onSaved={reload}
-        />
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => router.push(`/projects/${params.id}/budget`)}>
+            Budget
+          </Button>
+          <EditProjectDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            project={project}
+            onSaved={reload}
+          />
+        </div>
       </div>
 
       {error && <ErrorState variant="inline" message={error} />}
