@@ -63,6 +63,17 @@ interface Milestone {
   sortOrder: number;
 }
 
+type TaskStatus = "todo" | "in_progress" | "blocked" | "done" | "cancelled";
+type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+interface Task {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority | null;
+  dueDate: string | null;
+}
+
 const STATUS_TONE: Record<ProjectStatus, StatusTone> = {
   planning: "neutral",
   active: "success",
@@ -90,6 +101,20 @@ const ALLOWED_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
   warranty: ["warranty"],
 };
 
+const PRIORITY_TONE: Record<TaskPriority, StatusTone> = {
+  low: "neutral",
+  medium: "neutral",
+  high: "warning",
+  urgent: "danger",
+};
+
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
+};
+
 function formatMoney(amount: string | null, currency: string): string {
   if (amount === null) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(amount));
@@ -101,20 +126,24 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
 
   async function reload() {
-    const [projectData, summaryData, milestonesData] = await Promise.all([
+    const [projectData, summaryData, milestonesData, tasksData] = await Promise.all([
       apiClient.get<Project>(`/projects/${params.id}`),
       apiClient.get<ProjectSummary>(`/projects/${params.id}/summary`),
       apiClient.get<Milestone[]>(`/projects/${params.id}/milestones`),
+      apiClient.get<Task[]>(`/tasks?projectId=${params.id}&limit=50`),
     ]);
     setProject(projectData);
     setSummary(summaryData);
     setMilestones(milestonesData);
+    setTasks(tasksData);
   }
 
   useEffect(() => {
@@ -136,6 +165,17 @@ export default function ProjectDetailPage() {
       await reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update milestone");
+    }
+  }
+
+  async function toggleTask(task: Task) {
+    try {
+      await apiClient.patch(`/tasks/${task.id}`, {
+        status: task.status === "done" ? "todo" : "done",
+      });
+      await reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update task");
     }
   }
 
@@ -259,6 +299,33 @@ export default function ProjectDetailPage() {
                   {milestone.name}
                 </span>
                 {milestone.dueDate && <span className="text-neutral-500">— due {milestone.dueDate}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between pb-4">
+          <CardTitle>Tasks</CardTitle>
+          <NewTaskDialog open={taskOpen} onOpenChange={setTaskOpen} projectId={params.id} onCreated={reload} />
+        </CardHeader>
+        {tasks.length === 0 ? (
+          <p className="text-sm text-neutral-500">No tasks yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {tasks.map((task) => (
+              <li key={task.id} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={task.status === "done"}
+                  onCheckedChange={() => toggleTask(task)}
+                  aria-label={task.title}
+                />
+                <span className={task.status === "done" ? "flex-1 text-neutral-500 line-through" : "flex-1 text-neutral-900"}>
+                  {task.title}
+                </span>
+                {task.priority && <StatusChip label={PRIORITY_LABEL[task.priority]} tone={PRIORITY_TONE[task.priority]} />}
+                {task.dueDate && <span className="text-neutral-500">due {task.dueDate}</span>}
               </li>
             ))}
           </ul>
@@ -417,6 +484,95 @@ function NewMilestoneDialog({
           <DialogFooter>
             <Button type="submit" loading={submitting}>
               Add milestone
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewTaskDialog({
+  open,
+  onOpenChange,
+  projectId,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  onCreated: () => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [dueDate, setDueDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.post("/tasks", {
+        projectId,
+        title,
+        priority,
+        ...(dueDate ? { dueDate } : {}),
+      });
+      setTitle("");
+      setPriority("medium");
+      setDueDate("");
+      onOpenChange(false);
+      await onCreated();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create task");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="secondary" size="sm">
+          <Plus />
+          Add task
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New task</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Title" required>
+            {({ inputId }) => <Input id={inputId} required value={title} onChange={(e) => setTitle(e.target.value)} />}
+          </Field>
+          <Field label="Priority">
+            {() => (
+              <Select value={priority} onValueChange={(value) => setPriority(value as TaskPriority)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high", "urgent"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PRIORITY_LABEL[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Due date">
+            {({ inputId }) => (
+              <Input id={inputId} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            )}
+          </Field>
+          {error && <ErrorState variant="inline" message={error} />}
+          <DialogFooter>
+            <Button type="submit" loading={submitting}>
+              Add task
             </Button>
           </DialogFooter>
         </form>
